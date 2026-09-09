@@ -1,0 +1,10 @@
+{
+  "name": "CardKit",
+  "image": "swift:5.10-jammy",
+  "postCreateCommand": "swift build --package-path Packages/CardKit",
+  "customizations": {
+    "vscode": {
+      "extensions": ["swiftlang.swift-vscode"]
+    }
+  }
+}

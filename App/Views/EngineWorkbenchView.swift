@@ -103,7 +103,7 @@ struct EngineWorkbenchView: View {
     }
 
     private func alternatesSection(_ recommendation: Recommendation) -> some View {
-        Section("Everything else, in order") {
+        Section {
             ForEach([recommendation.best] + recommendation.alternates) { score in
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -120,6 +120,8 @@ struct EngineWorkbenchView: View {
                 }
                 .padding(.vertical, 2)
             }
+        } header: {
+            Text("Everything else, in order")
         } footer: {
             Text("Cents earned per dollar spent, after point valuation, foreign transaction fees, and any open signup bonus.")
         }

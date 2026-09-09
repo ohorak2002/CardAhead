@@ -138,17 +138,32 @@ struct CardDetailView: View {
 
     // MARK: - Actions
 
+    @State private var isShowingPreferExplainer = false
+
     private var actionsSection: some View {
         HStack(spacing: 12) {
             Button {
-                store.togglePin(card)
+                if card.isPinned {
+                    // Turning it off is a plain undo — no need to explain that again.
+                    store.togglePin(card)
+                } else {
+                    isShowingPreferExplainer = true
+                }
             } label: {
                 Label(
-                    card.isPinned ? "Unpin" : "Pin",
-                    systemImage: card.isPinned ? "pin.slash" : "pin"
+                    card.isPinned ? "Preferred — tap to undo" : "Prefer this card",
+                    systemImage: card.isPinned ? "star.fill" : "star"
                 )
             }
             .buttonStyle(.bordered)
+            .alert("Prefer this card?", isPresented: $isShowingPreferExplainer) {
+                Button("Cancel", role: .cancel) {}
+                Button("Prefer This Card") {
+                    store.togglePin(card)
+                }
+            } message: {
+                Text("Used only when two cards would earn the exact same amount. If one card earns more, that card still wins.")
+            }
 
             Spacer(minLength: 8)
 

@@ -20,10 +20,10 @@ struct CardFaceView: View {
                     .foregroundStyle(art.foreground.opacity(0.85))
                 Spacer(minLength: 8)
                 if card.isPinned {
-                    Image(systemName: "pin.fill")
+                    Image(systemName: "star.fill")
                         .font(.caption)
                         .foregroundStyle(art.accent)
-                        .accessibilityLabel("Pinned")
+                        .accessibilityLabel("Preferred for ties")
                 }
             }
 
@@ -79,7 +79,7 @@ struct CardFaceView: View {
     private var accessibilityText: String {
         var parts = [card.displayName]
         if let highlight { parts.append(highlight) }
-        if card.isPinned { parts.append("Pinned") }
+        if card.isPinned { parts.append("Preferred for ties") }
         return parts.joined(separator: ", ")
     }
 }

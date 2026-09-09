@@ -18,6 +18,12 @@ struct WalletStackView: View {
     @State private var dragTranslation: CGFloat = 0
     @State private var isAddingCard = false
 
+    @State private var locationAuth = LocationAuthorization()
+    @State private var isShowingLocationPrimer = false
+    /// Asked once, unprompted. After that the banner is the only reminder —
+    /// a permission sheet that reappears on every launch is how apps get deleted.
+    @AppStorage("hasOfferedLocationPrimer") private var hasOfferedLocationPrimer = false
+
     /// The peek has to clear the issuer, the card name *and* the highlight line.
     /// Cut it any shorter and the most useful line on the card hides behind the
     /// card below it.
@@ -49,6 +55,21 @@ struct WalletStackView: View {
             .sheet(isPresented: $isAddingCard) {
                 AddCardView()
             }
+            .sheet(isPresented: $isShowingLocationPrimer) {
+                LocationPrimerView(auth: locationAuth) {
+                    hasOfferedLocationPrimer = true
+                }
+            }
+            // Asking on a cold launch means asking before there is a single
+            // card to geofence. The first card is the moment the permission
+            // starts meaning something, so that is when it gets asked for.
+            .onChange(of: store.cards.count) { previous, current in
+                guard previous == 0, current == 1,
+                      !hasOfferedLocationPrimer,
+                      !locationAuth.hasAlways
+                else { return }
+                isShowingLocationPrimer = true
+            }
         }
     }
 
@@ -57,6 +78,8 @@ struct WalletStackView: View {
     private var stack: some View {
         ScrollView {
             VStack(spacing: 0) {
+                if !locationAuth.hasAlways { locationRow }
+
                 ForEach(Array(store.cards.enumerated()), id: \.element.id) { index, card in
                     row(for: card, at: index)
                         .zIndex(zIndex(for: card, at: index))
@@ -98,6 +121,41 @@ struct WalletStackView: View {
         .animation(motion, value: expandedCardID)
         .animation(motion, value: store.cards.map(\.id))
         .animation(lift, value: isDragging)
+    }
+
+    /// Shown only while the app cannot actually do its job. It is the one thing
+    /// allowed to share the wallet screen with the cards, because without this
+    /// permission every card on it is decoration.
+    private var locationRow: some View {
+        Button {
+            isShowingLocationPrimer = true
+        } label: {
+            HStack(spacing: 11) {
+                Image(systemName: "location.slash")
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Reminders are off")
+                        .font(.subheadline.weight(.semibold))
+                    Text(locationRowDetail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(13)
+            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .padding(.bottom, 14)
+    }
+
+    private var locationRowDetail: String {
+        locationAuth.isBlocked
+            ? "iOS has already asked, so the switch lives in Settings now."
+            : "Let us see where you are and we will name the card to use."
     }
 
     private var whyBar: some View {

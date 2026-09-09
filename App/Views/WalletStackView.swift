@@ -92,9 +92,18 @@ struct WalletStackView: View {
         }
         .frame(height: isExpanded ? nil : peekHeight, alignment: .top)
         .offset(y: isDragging ? dragTranslation : 0)
-        .scaleEffect(isDragging ? 1.03 : 1.0)
+        .scaleEffect(isDragging ? 1.04 : 1.0)
+        // A dragged card tilts the way a real one would if you picked it out
+        // of a stack. Small, capped, and only while a finger is on it.
+        .rotationEffect(.degrees(isDragging ? tilt : 0))
         .animation(motion, value: expandedCardID)
         .animation(motion, value: store.cards.map(\.id))
+        .animation(lift, value: isDragging)
+    }
+
+    /// Capped so a long drag does not spin the card.
+    private var tilt: Double {
+        max(-2.5, min(2.5, dragTranslation / 42))
     }
 
     private func zIndex(for card: Card, at index: Int) -> Double {
@@ -134,7 +143,12 @@ struct WalletStackView: View {
     /// Motion only in response to a user action, and none at all when the
     /// system asks for less.
     private var motion: Animation? {
-        reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.82)
+        reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.78)
+    }
+
+    /// Picking a card up and putting it down wants to be snappier than a reorder.
+    private var lift: Animation? {
+        reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.7)
     }
 
     // MARK: - Copy

@@ -5,11 +5,17 @@ import CardKit
 /// The user's wallet: which cards they hold, in the order they keep them.
 ///
 /// Everything here stays on the device. There is no account, no sync, and no
-/// transaction feed in v1 — card details are either seeded from the catalog or
-/// typed in by the user.
+/// transaction feed in v1 — every card is one the user added by hand.
+///
+/// A fresh install starts empty, and that is deliberate: nothing is seeded and
+/// nothing is imported. `CardCatalog` is only a typing shortcut inside the add
+/// flow, never a starter wallet. Do not "helpfully" preload cards here — a card
+/// the user did not add is a card whose rates they never checked.
 @Observable
 final class WalletStore {
 
+    /// Empty until the user adds something. `load()` leaves this alone when
+    /// there is no saved file, which is the first-launch case.
     private(set) var cards: [Card] = []
 
     private let fileURL: URL

@@ -17,10 +17,16 @@ Build steps 1 to 3 of the plan, as agreed:
 | 1. Data model — cards, categories, caps, rotating quarters | Done |
 | 2. Wallet-style stacked card UI with add, expand, pin, reorder | Done |
 | 3. Recommendation ranking engine, testable with no location | Done |
-| 4. Region monitoring and the notification pipeline | Not started |
+| 4. Region monitoring and the notification pipeline | Permission flow only |
 | 5. Places API merchant resolution | Not started |
 | 6. Significant-location-change travel mode | Not started |
 | 7. Safari extension for online purchases | Not started |
+
+Step 4 has its front half: `LocationAuthorization` walks Apple's
+not-determined → When In Use → Always path and falls back to Settings once iOS
+will not prompt again, and `LocationPrimerView` makes the case before the system
+prompt appears. **No geofence is registered and no notification is sent yet** —
+the permission is asked for and then not used.
 
 Steps 5 and 7 have their data layer in place already —
 `MerchantCategoryMap` maps both Google Places types and website domains onto the

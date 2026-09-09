@@ -1,0 +1,47 @@
+name: CardRewards
+
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+packages:
+  CardKit:
+    path: Packages/CardKit
+
+targets:
+  CardRewards:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+    dependencies:
+      - package: CardKit
+        product: CardKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.cardrewards
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGNING_ALLOWED: NO
+    info:
+      path: Supporting/Info.plist
+      properties:
+        CFBundleDisplayName: Card Rewards
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        # Wired up in build step 4. The copy is deliberately plain: the Always
+        # prompt is the biggest drop-off in the funnel and a vague string loses it.
+        NSLocationWhenInUseUsageDescription: >-
+          Used to tell which shop you are in, so we can name the card that earns
+          the most there.
+        NSLocationAlwaysAndWhenInUseUsageDescription: >-
+          Used to notice when you arrive somewhere and remind you which card to
+          pay with, before you take out your phone. Your location stays on this
+          device apart from an anonymous lookup of the shop you are at.

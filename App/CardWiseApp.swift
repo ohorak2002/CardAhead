@@ -2,7 +2,7 @@ import SwiftUI
 import CardKit
 
 @main
-struct CardRewardsApp: App {
+struct CardWiseApp: App {
 
     @State private var store: WalletStore
     @State private var reminders: ReminderCenter

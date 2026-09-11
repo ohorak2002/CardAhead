@@ -37,8 +37,8 @@ Store one). Sideloadly needs the USB drivers that come with it.
 
 1. Push to `main`. Wait about two minutes.
 2. On GitHub: Actions → the latest run → scroll to **Artifacts** →
-   download `CardRewards-unsigned-ipa`. It arrives as a zip; unzip it to get
-   `CardRewards-unsigned.ipa`.
+   download `CardWise-unsigned-ipa`. It arrives as a zip; unzip it to get
+   `CardWise-unsigned.ipa`.
 3. Plug in the iPhone. Unlock it. Tap **Trust** if asked.
 4. Open Sideloadly, drag the `.ipa` in, enter your Apple ID, press Start.
 5. On the phone: Settings → General → VPN & Device Management → tap your

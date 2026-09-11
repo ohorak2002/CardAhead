@@ -30,8 +30,8 @@ jobs:
       - name: Build for simulator
         run: |
           xcodebuild build \
-            -project CardRewards.xcodeproj \
-            -scheme CardRewards \
+            -project CardWise.xcodeproj \
+            -scheme CardWise \
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO
 
@@ -63,10 +63,10 @@ jobs:
           PLACES_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
         run: |
           xcodebuild archive \
-            -project CardRewards.xcodeproj \
-            -scheme CardRewards \
+            -project CardWise.xcodeproj \
+            -scheme CardWise \
             -destination 'generic/platform=iOS' \
-            -archivePath "$PWD/build/CardRewards.xcarchive" \
+            -archivePath "$PWD/build/CardWise.xcarchive" \
             GOOGLE_PLACES_API_KEY="$PLACES_KEY" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
@@ -77,8 +77,8 @@ jobs:
       - name: Wrap it as an .ipa
         run: |
           mkdir -p Payload
-          cp -R build/CardRewards.xcarchive/Products/Applications/CardRewards.app Payload/
-          zip -qry CardRewards-unsigned.ipa Payload
+          cp -R build/CardWise.xcarchive/Products/Applications/CardWise.app Payload/
+          zip -qry CardWise-unsigned.ipa Payload
 
       - name: Say whether a Places key went in
         run: |
@@ -91,8 +91,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: CardRewards-unsigned-ipa
-          path: CardRewards-unsigned.ipa
+          name: CardWise-unsigned-ipa
+          path: CardWise-unsigned.ipa
           retention-days: 30
           if-no-files-found: error
 

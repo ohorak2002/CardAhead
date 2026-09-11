@@ -212,6 +212,13 @@ final class WalletStore {
         }
     }
 
+    /// Swaps a card's photo and cleans up the file it replaces, so editing a
+    /// card repeatedly does not leave a pile of orphaned images behind.
+    func setPhoto(_ image: UIImage?, on card: inout Card) {
+        if let existing = card.photoFilename { deletePhoto(named: existing) }
+        card.photoFilename = image.flatMap { storePhoto($0) }
+    }
+
     private func deletePhoto(named name: String) {
         photoCache[name] = nil
         try? FileManager.default.removeItem(at: Self.photosDirectory().appendingPathComponent(name))

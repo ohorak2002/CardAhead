@@ -139,9 +139,22 @@ struct CardDetailView: View {
     // MARK: - Actions
 
     @State private var isShowingPreferExplainer = false
+    @State private var isEditing = false
 
     private var actionsSection: some View {
         HStack(spacing: 12) {
+            Button {
+                isEditing = true
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            .buttonStyle(.bordered)
+            .sheet(isPresented: $isEditing) {
+                // The live card, not the copy this view was handed — reopening
+                // the editor after a save should show what was just saved.
+                CardEditorView(mode: .editing(store.card(withID: card.id) ?? card))
+            }
+
             Button {
                 if card.isPinned {
                     // Turning it off is a plain undo — no need to explain that again.
@@ -150,8 +163,10 @@ struct CardDetailView: View {
                     isShowingPreferExplainer = true
                 }
             } label: {
+                // Short, because the alert does the explaining now and three
+                // buttons have to share one row.
                 Label(
-                    card.isPinned ? "Preferred — tap to undo" : "Prefer this card",
+                    card.isPinned ? "Preferred" : "Prefer",
                     systemImage: card.isPinned ? "star.fill" : "star"
                 )
             }

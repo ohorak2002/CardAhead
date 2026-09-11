@@ -2,14 +2,28 @@ import SwiftUI
 import PhotosUI
 import CardKit
 
-/// Adding a card asks three questions, and none of them is a card number.
+/// One form, two jobs: describing a new card and correcting one already in the
+/// wallet. They ask exactly the same questions, so they are the same screen.
 ///
-/// The app has no bank connection and never will in v1, so there is nothing to
-/// import. What it needs is what the user already knows: roughly what the card
-/// is, what colour it is, and what it pays extra on. The colour matters more
-/// than it looks — it is how the user picks their card out of the stack, the
-/// same way they pick it out of their wallet.
-struct AddCardView: View {
+/// Editing is not "add again". The form owns six things — the name, the look,
+/// the material, what it pays, the fees, the photo — and an edit must leave
+/// everything else on the card exactly where it was. Rebuilding the card from
+/// the form would quietly throw away the rotating programme, the perks, the
+/// coding notes, an open signup bonus, the pin, and the cap progress the user
+/// typed in by hand. So an edit is applied *onto* the original.
+struct CardEditorView: View {
+
+    enum Mode: Equatable {
+        case adding
+        case editing(Card)
+
+        var existingCard: Card? {
+            if case .editing(let card) = self { return card }
+            return nil
+        }
+    }
+
+    let mode: Mode
 
     @Environment(WalletStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -18,18 +32,27 @@ struct AddCardView: View {
     @State private var cardName = ""
     @State private var artKey = "midnight"
     @State private var finish: CardFinish = .matte
-    @State private var pickedPhoto: PhotosPickerItem?
-    @State private var photo: UIImage?
     @State private var style: EarnStyle = .percent
-    @State private var benefits: [DraftBenefit] = [
-        DraftBenefit(category: .dining, rate: 3),
-        DraftBenefit(category: .base, rate: 1)
-    ]
+    @State private var benefits: [DraftBenefit] = []
     @State private var annualFee: Double = 0
     @State private var foreignFeePercent: Double = 0
+
+    @State private var pickedPhoto: PhotosPickerItem?
+    @State private var photo: UIImage?
+    @State private var photoChange: PhotoChange = .unchanged
+    @State private var hasLoadedExisting = false
+
     /// Snapshotted once: `CardCatalog.all` mints fresh ids on every call, which
     /// would churn the ForEach if it were read during body.
     @State private var catalog = CardCatalog.all
+
+    /// Leaving a photo alone is different from removing it — only one of those
+    /// should delete the file on disk.
+    private enum PhotoChange {
+        case unchanged
+        case replaced
+        case removed
+    }
 
     struct DraftBenefit: Identifiable, Hashable {
         let id = UUID()
@@ -37,32 +60,63 @@ struct AddCardView: View {
         var rate: Double
     }
 
-    // MARK: - The card being described
+    private var isEditing: Bool { mode.existingCard != nil }
 
+    // MARK: - The card as described right now
+
+    /// Used for the live preview, and as the starting point when adding.
     private var draft: Card {
-        Card(
-            issuer: issuer,
-            name: cardName.trimmingCharacters(in: .whitespaces).isEmpty ? "Your card" : cardName,
-            currency: RewardCurrency(
-                name: style == .percent ? "Cash back" : "Points",
-                centsPerUnit: 1.0,
-                style: style
-            ),
-            rules: benefits
-                .filter { $0.rate > 0 }
-                .map { CategoryRule(category: $0.category, rate: $0.rate) },
-            foreignTransactionFeePercent: foreignFeePercent,
-            annualFeeDollars: Decimal(annualFee),
-            artKey: artKey,
-            finish: finish
+        apply(to: mode.existingCard ?? Card(
+            issuer: "",
+            name: "Your card",
+            artKey: artKey
+        ))
+    }
+
+    /// The form's six fields, written onto a card, leaving the rest untouched.
+    private func apply(to original: Card) -> Card {
+        var card = original
+        card.issuer = issuer
+        let trimmed = cardName.trimmingCharacters(in: .whitespaces)
+        card.name = trimmed.isEmpty ? (isEditing ? original.name : "Your card") : trimmed
+        card.artKey = artKey
+        card.finish = finish
+        card.foreignTransactionFeePercent = foreignFeePercent
+        card.annualFeeDollars = Decimal(annualFee)
+
+        // Keep the currency's own name and the user's valuation. Renaming
+        // "Amex points" to "Points" would split it from its group in Settings,
+        // and resetting centsPerUnit would silently undo a valuation they set.
+        let keepsStyle = original.currency.style == style
+        card.currency = RewardCurrency(
+            name: keepsStyle && !original.currency.name.isEmpty
+                ? original.currency.name
+                : (style == .percent ? "Cash back" : "Points"),
+            centsPerUnit: keepsStyle ? original.currency.centsPerUnit : 1.0,
+            style: style
         )
+
+        // Caps and coding notes belong to the rule, not to the form. Changing a
+        // rate must not reset the $6,000 of grocery spend someone logged.
+        card.rules = benefits
+            .filter { $0.rate > 0 }
+            .map { draft in
+                let existing = original.rule(for: draft.category)
+                return CategoryRule(
+                    category: draft.category,
+                    rate: draft.rate,
+                    cap: existing?.cap,
+                    note: existing?.note
+                )
+            }
+        return card
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    CardFaceView(card: draft, photo: photo.map(Image.init(uiImage:)))
+                    CardFaceView(card: draft, photo: previewPhoto)
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         .listRowBackground(Color.clear)
                 }
@@ -81,17 +135,29 @@ struct AddCardView: View {
                 }
             }
             .task(id: pickedPhoto) { await loadPickedPhoto(pickedPhoto) }
-            .navigationTitle("Add a card")
+            .onAppear(perform: loadExistingOnce)
+            .navigationTitle(isEditing ? "Edit card" : "Add a card")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Add") { save() }
+                    Button(isEditing ? "Save" : "Add") { save() }
                         .fontWeight(.semibold)
                 }
             }
+        }
+    }
+
+    /// While editing, the existing photo shows until the user changes it.
+    private var previewPhoto: Image? {
+        switch photoChange {
+        case .removed: return nil
+        case .replaced: return photo.map(Image.init(uiImage:))
+        case .unchanged:
+            if let photo { return Image(uiImage: photo) }
+            return mode.existingCard.flatMap(store.photo(for:))
         }
     }
 
@@ -102,22 +168,28 @@ struct AddCardView: View {
             TextField("Bank", text: $issuer)
             TextField("Card name", text: $cardName)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(catalog) { card in
-                        Button(card.displayName) { fill(from: card) }
-                            .font(.caption)
-                            .buttonStyle(.bordered)
-                            .buttonBorderShape(.capsule)
+            // A shortcut for describing a card you do not know by heart. It is
+            // noise once the card exists and its rates have been corrected.
+            if !isEditing {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(catalog) { card in
+                            Button(card.displayName) { fill(from: card) }
+                                .font(.caption)
+                                .buttonStyle(.bordered)
+                                .buttonBorderShape(.capsule)
+                        }
                     }
+                    .padding(.vertical, 2)
                 }
-                .padding(.vertical, 2)
+                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 0))
             }
-            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 0))
         } header: {
             Text("Which card is it?").textCase(nil)
         } footer: {
-            Text("However you would describe it out loud. Tap a known card to fill it all in.")
+            Text(isEditing
+                 ? "However you would describe it out loud."
+                 : "However you would describe it out loud. Tap a known card to fill it all in.")
         }
     }
 
@@ -154,14 +226,15 @@ struct AddCardView: View {
 
             PhotosPicker(selection: $pickedPhoto, matching: .images) {
                 Label(
-                    photo == nil ? "Use a photo of your card" : "Choose a different photo",
+                    previewPhoto == nil ? "Use a photo of your card" : "Choose a different photo",
                     systemImage: "camera"
                 )
             }
-            if photo != nil {
+            if previewPhoto != nil {
                 Button("Remove photo", role: .destructive) {
                     photo = nil
                     pickedPhoto = nil
+                    photoChange = .removed
                 }
             }
         } header: {
@@ -233,7 +306,9 @@ struct AddCardView: View {
         } header: {
             Text("What does it earn?").textCase(nil)
         } footer: {
-            Text("One line for each thing it pays extra on. Swipe a line away to delete it.")
+            Text(isEditing
+                 ? "Changing a rate keeps whatever spend you have already logged against its cap."
+                 : "One line for each thing it pays extra on. Swipe a line away to delete it.")
         }
     }
 
@@ -243,7 +318,36 @@ struct AddCardView: View {
             .sorted { $0.displayName < $1.displayName } + [.base]
     }
 
-    // MARK: - Actions
+    // MARK: - Loading and saving
+
+    /// `onAppear` can fire more than once; the form must not be reset under
+    /// someone who is halfway through editing it.
+    private func loadExistingOnce() {
+        guard !hasLoadedExisting else { return }
+        hasLoadedExisting = true
+
+        guard let card = mode.existingCard else {
+            benefits = [
+                DraftBenefit(category: .dining, rate: 3),
+                DraftBenefit(category: .base, rate: 1)
+            ]
+            return
+        }
+        issuer = card.issuer
+        cardName = card.name
+        artKey = card.artKey
+        finish = card.appearance
+        style = card.currency.style
+        annualFee = card.annualFeeDollars.doubleValue
+        foreignFeePercent = card.foreignTransactionFeePercent
+        benefits = card.rules
+            .sorted { lhs, rhs in
+                if lhs.category == .base { return false }
+                if rhs.category == .base { return true }
+                return lhs.rate > rhs.rate
+            }
+            .map { DraftBenefit(category: $0.category, rate: $0.rate) }
+    }
 
     private func loadPickedPhoto(_ item: PhotosPickerItem?) async {
         guard let item,
@@ -251,10 +355,11 @@ struct AddCardView: View {
               let image = UIImage(data: data)
         else { return }
         photo = image
+        photoChange = .replaced
     }
 
     /// Filling from a known card is a shortcut, not an import. Everything it
-    /// writes is still editable before the card is added.
+    /// writes is still editable before the card is saved.
     private func fill(from card: Card) {
         issuer = card.issuer
         cardName = card.name
@@ -267,19 +372,34 @@ struct AddCardView: View {
     }
 
     private func save() {
-        var card = draft
-        if card.rule(for: .base) == nil {
-            card.rules.append(CategoryRule(category: .base, rate: 1))
+        if let existing = mode.existingCard {
+            var card = apply(to: existing)
+            switch photoChange {
+            case .unchanged: break
+            case .removed: store.setPhoto(nil, on: &card)
+            case .replaced: store.setPhoto(photo, on: &card)
+            }
+            store.replace(card)
+        } else {
+            var card = draft
+            if card.rule(for: .base) == nil {
+                card.rules.append(CategoryRule(category: .base, rate: 1))
+            }
+            if case .replaced = photoChange {
+                store.setPhoto(photo, on: &card)
+            }
+            store.add(card)
         }
-        if let photo {
-            card.photoFilename = store.storePhoto(photo)
-        }
-        store.add(card)
         dismiss()
     }
 }
 
-#Preview {
-    AddCardView()
+#Preview("Adding") {
+    CardEditorView(mode: .adding)
+        .environment(WalletStore.previewStore())
+}
+
+#Preview("Editing") {
+    CardEditorView(mode: .editing(CardCatalog.amexGold))
         .environment(WalletStore.previewStore())
 }

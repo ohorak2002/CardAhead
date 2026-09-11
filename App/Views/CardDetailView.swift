@@ -85,7 +85,7 @@ struct CardDetailView: View {
                 systemImage: "exclamationmark.triangle.fill"
             )
             .font(.caption)
-            .foregroundStyle(.orange)
+            .foregroundStyle(Color.cardWiseWarning)
         }
 
         if quarter.enteredByUser {
@@ -250,10 +250,10 @@ struct CardDetailView: View {
     private func capBar(_ cap: EarnCap, label: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             ProgressView(value: cap.fractionUsed)
-                .tint(cap.isExhausted ? .orange : art.accent)
+                .tint(cap.isExhausted ? .cardWiseWarning : art.accent)
             Text(capText(cap))
                 .font(.caption2)
-                .foregroundStyle(cap.isExhausted ? .orange : .secondary)
+                .foregroundStyle(cap.isExhausted ? .cardWiseWarning : .secondary)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label) cap")

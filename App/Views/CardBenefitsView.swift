@@ -232,7 +232,7 @@ struct CardBenefitsView: View {
                 if let cap = benefit.cap, benefit.isActive || cap.isExhausted {
                     Text(capText(cap))
                         .font(.caption2)
-                        .foregroundStyle(cap.isExhausted ? Color.orange : Color.secondary)
+                        .foregroundStyle(cap.isExhausted ? Color.cardWiseWarning : Color.secondary)
                 }
             }
             Spacer(minLength: 0)

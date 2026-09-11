@@ -45,7 +45,7 @@ struct RegionActivityView: View {
         Section {
             LabeledContent("Watching") {
                 Text(monitor.isMonitoring ? "\(monitor.monitoredCount) places" : "Off")
-                    .foregroundStyle(monitor.isMonitoring ? Color.secondary : Color.orange)
+                    .foregroundStyle(monitor.isMonitoring ? Color.secondary : Color.cardWiseWarning)
             }
             LabeledContent("Places come from") {
                 Text(monitor.sourceDescription)
@@ -64,7 +64,7 @@ struct RegionActivityView: View {
                     systemImage: "bell.slash"
                 )
                 .font(.footnote)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.cardWiseWarning)
             }
         } footer: {
             Text(monitor.monitoredCount == 0
@@ -97,8 +97,8 @@ private struct EventRow: View {
 
     private var tint: Color {
         switch event.kind {
-        case .confirmed: return .green
-        case .failed: return .orange
+        case .confirmed: return .cardWiseSuccess
+        case .failed: return .cardWiseWarning
         case .cancelled, .skipped: return .secondary
         default: return .accentColor
         }

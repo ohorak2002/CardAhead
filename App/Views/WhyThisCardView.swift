@@ -90,7 +90,7 @@ struct WhyThisCardView: View {
             if let nudge = recommendation.activationNudge {
                 Label(nudge, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.cardWiseWarning)
             }
         } header: {
             Text("What each card would earn").textCase(nil)
@@ -107,12 +107,12 @@ struct WhyThisCardView: View {
                 if score.needsActivation {
                     Text("not switched on")
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Color.cardWiseWarning)
                 }
                 if score.isCapExhausted {
                     Text("bonus used up")
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Color.cardWiseWarning)
                 }
                 Spacer(minLength: 8)
                 Text(String(format: "%.2f¢", score.total))

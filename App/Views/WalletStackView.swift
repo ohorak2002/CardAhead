@@ -190,7 +190,7 @@ struct WalletStackView: View {
         } label: {
             HStack(spacing: 11) {
                 Image(systemName: "location.slash")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.cardWiseWarning)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Reminders are off")
                         .font(.subheadline.weight(.semibold))
@@ -204,7 +204,7 @@ struct WalletStackView: View {
                     .foregroundStyle(.secondary)
             }
             .padding(13)
-            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .background(Color.cardWiseWarning.opacity(0.12), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
         }
         .buttonStyle(.plain)
         .padding(.bottom, 14)

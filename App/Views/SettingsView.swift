@@ -72,7 +72,7 @@ struct SettingsView: View {
                 Text("Location")
                 Spacer(minLength: 8)
                 Text(locationStateText)
-                    .foregroundStyle(auth.hasAlways ? Color.secondary : Color.orange)
+                    .foregroundStyle(auth.hasAlways ? Color.secondary : Color.cardWiseWarning)
             }
             if !auth.hasAlways {
                 Button("Open Settings") { auth.openSettings() }
@@ -81,7 +81,7 @@ struct SettingsView: View {
                 Text("Notifications")
                 Spacer(minLength: 8)
                 Text(notificationStateText)
-                    .foregroundStyle(reminders.isAuthorized ? Color.secondary : Color.orange)
+                    .foregroundStyle(reminders.isAuthorized ? Color.secondary : Color.cardWiseWarning)
             }
             if reminders.canStillAsk {
                 Button("Allow notifications") {

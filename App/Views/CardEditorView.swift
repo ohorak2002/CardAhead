@@ -2,8 +2,14 @@ import SwiftUI
 import PhotosUI
 import CardKit
 
-/// One form, two jobs: describing a new card and correcting one already in the
-/// wallet. They ask exactly the same questions, so they are the same screen.
+/// Describing a card by hand.
+///
+/// **This is the way out, not the way in.** Adding a card is `AddCardView`:
+/// pick the bank, pick the exact product, confirm the benefits. This form
+/// exists because the catalog is nine cards deep and somebody's credit union
+/// is not in it — and for correcting a card whose rates the app has wrong.
+/// It is reached from "my card is not on the list" and from the Benefits
+/// screen, never from the wallet's plus button.
 ///
 /// Editing is not "add again". The form owns six things — the name, the look,
 /// the material, what it pays, the fees, the photo — and an edit must leave
@@ -42,10 +48,6 @@ struct CardEditorView: View {
     @State private var photoChange: PhotoChange = .unchanged
     @State private var hasLoadedExisting = false
 
-    /// Snapshotted once: `CardCatalog.all` mints fresh ids on every call, which
-    /// would churn the ForEach if it were read during body.
-    @State private var catalog = CardCatalog.all
-
     /// Leaving a photo alone is different from removing it — only one of those
     /// should delete the file on disk.
     private enum PhotoChange {
@@ -64,19 +66,9 @@ struct CardEditorView: View {
 
     // MARK: - The card as described right now
 
-    /// The catalog card a quick-fill chip was tapped, if one was.
-    ///
-    /// Held so that adding a card obeys the same rule editing already does: the
-    /// form owns six fields and everything else survives untouched. Without
-    /// this, tapping "Chase Freedom Flex" produced a card with no rotating
-    /// programme, no perks and no coding notes — which meant the quarterly
-    /// bonus, the whole reason that card is interesting, never reached the
-    /// wallet at all.
-    @State private var template: Card?
-
     /// Used for the live preview, and as the starting point when adding.
     private var draft: Card {
-        apply(to: mode.existingCard ?? template ?? Card(
+        apply(to: mode.existingCard ?? Card(
             issuer: "",
             name: "Your card",
             artKey: artKey
@@ -86,6 +78,10 @@ struct CardEditorView: View {
     /// The form's six fields, written onto a card, leaving the rest untouched.
     private func apply(to original: Card) -> Card {
         var card = original
+        // A card whose rates somebody has typed over is no longer the
+        // catalog's claim about that product, and must stop being dated
+        // against the issuer's page as though it were.
+        card.catalogProductID = nil
         card.issuer = issuer
         let trimmed = cardName.trimmingCharacters(in: .whitespaces)
         card.name = trimmed.isEmpty ? (isEditing ? original.name : "Your card") : trimmed
@@ -146,7 +142,7 @@ struct CardEditorView: View {
             }
             .task(id: pickedPhoto) { await loadPickedPhoto(pickedPhoto) }
             .onAppear(perform: loadExistingOnce)
-            .navigationTitle(isEditing ? "Edit card" : "Add a card")
+            .navigationTitle(isEditing ? "Edit card" : "Add it by hand")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -177,41 +173,11 @@ struct CardEditorView: View {
         Section {
             TextField("Bank", text: $issuer)
             TextField("Card name", text: $cardName)
-
-            // A shortcut for describing a card you do not know by heart. It is
-            // noise once the card exists and its rates have been corrected.
-            if !isEditing {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(catalog) { card in
-                            Button(card.displayName) { fill(from: card) }
-                                .font(.caption)
-                                .buttonStyle(.bordered)
-                                .buttonBorderShape(.capsule)
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 0))
-            }
         } header: {
             Text("Which card is it?").textCase(nil)
         } footer: {
-            Text(isEditing
-                 ? "However you would describe it out loud."
-                 : "However you would describe it out loud. Tap a known card to fill it all in — \(catalogFreshness) Check the rates against your own statement either way; issuers change them without saying so.")
+            Text("However you would describe it out loud. Nobody has checked these numbers against the bank, so they are yours to keep right — and the app will say so rather than show a date it has not earned.")
         }
-    }
-
-    /// The seed rates carry the day somebody last read them off the issuer's
-    /// own page. Stating it is the difference between a shortcut and a claim.
-    private var catalogFreshness: String {
-        let checked = CardCatalog.checkedOn.formatted(date: .abbreviated, time: .omitted)
-        let entry = CardCatalog.entries.first
-        if entry?.isStale() == true {
-            return "those rates were last checked on \(checked) and are now old enough to be wrong."
-        }
-        return "those rates were last checked on \(checked)."
     }
 
     // MARK: - What does it look like?
@@ -377,20 +343,6 @@ struct CardEditorView: View {
         else { return }
         photo = image
         photoChange = .replaced
-    }
-
-    /// Filling from a known card is a shortcut, not an import. Everything it
-    /// writes is still editable before the card is saved.
-    private func fill(from card: Card) {
-        template = card
-        issuer = card.issuer
-        cardName = card.name
-        artKey = card.artKey
-        finish = card.appearance
-        style = card.currency.style
-        annualFee = card.annualFeeDollars.doubleValue
-        foreignFeePercent = card.foreignTransactionFeePercent
-        benefits = card.rules.map { DraftBenefit(category: $0.category, rate: $0.rate) }
     }
 
     private func save() {

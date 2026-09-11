@@ -63,7 +63,7 @@ struct WalletStackView: View {
                 if !store.cards.isEmpty { whyBar }
             }
             .sheet(isPresented: $isAddingCard) {
-                CardEditorView(mode: .adding)
+                AddCardView()
             }
             .sheet(isPresented: $isShowingLocationPrimer) {
                 LocationPrimerView(auth: locationAuth) {

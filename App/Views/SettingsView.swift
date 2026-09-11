@@ -70,7 +70,7 @@ struct SettingsView: View {
                 Text("Location")
                 Spacer(minLength: 8)
                 Text(locationStateText)
-                    .foregroundStyle(auth.hasAlways ? .secondary : .orange)
+                    .foregroundStyle(auth.hasAlways ? Color.secondary : Color.orange)
             }
             if !auth.hasAlways {
                 Button("Open Settings") { auth.openSettings() }

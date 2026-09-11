@@ -54,6 +54,16 @@ extension RecommendationEngine {
             || recommendation.alternates.contains { $0.source != .base }
         guard earnsABonus || recommendation.activationNudge != nil else { return nil }
 
+        // A win too small to matter is not worth an interruption. An
+        // activation nudge is exempt: it is not claiming this card pulls
+        // ahead of the others, only that switching a bonus on would pull it
+        // ahead of what is currently winning — a different, always-genuine
+        // gap that this check has no business judging.
+        if recommendation.activationNudge == nil, let runnerUp = recommendation.alternates.first {
+            let edge = recommendation.best.total - runnerUp.total
+            guard edge >= minimumArrivalEdgeCentsPerDollar else { return nil }
+        }
+
         return ArrivalReminder(
             title: recommendation.headline,
             body: body(for: recommendation),

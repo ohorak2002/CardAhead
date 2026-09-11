@@ -10,10 +10,17 @@ import CardKit
 /// whole of those four minutes, so nothing it holds in memory can be relied on
 /// to still be there when they are up. See `ReminderCenter`.
 protocol ArrivalNotifier: AnyObject {
-    /// Called the moment a geofence is entered. The implementation is
-    /// responsible for surfacing the arrival at `arrival.confirmAt` and not
-    /// before.
-    func schedule(_ arrival: PendingArrival)
+    /// Called the moment a geofence is entered, and again whenever the wallet
+    /// changes while an arrival is still in its dwell window — see
+    /// `RegionMonitor.walletDidChange()`. The implementation is responsible
+    /// for surfacing the arrival at `arrival.confirmAt` and not before.
+    ///
+    /// Returns whether a notification was actually scheduled. `false` means
+    /// there was nothing worth saying — an empty wallet, no bonus here, a cap
+    /// already spent — and the caller must not count that against any
+    /// frequency limit it is tracking, because nothing is going to arrive.
+    @discardableResult
+    func schedule(_ arrival: PendingArrival) -> Bool
 
     /// The user left before the clock ran out, or the region was dropped from
     /// the plan. Nothing should reach them.
@@ -29,11 +36,13 @@ final class LoggingArrivalNotifier: ArrivalNotifier {
 
     private let log = Logger(subsystem: AppLog.subsystem, category: "arrivals")
 
-    func schedule(_ arrival: PendingArrival) {
+    @discardableResult
+    func schedule(_ arrival: PendingArrival) -> Bool {
         log.notice("""
             scheduled \(arrival.regionID, privacy: .public) \
             confirm in \(Int(arrival.confirmAt.timeIntervalSince(arrival.enteredAt)), privacy: .public)s
             """)
+        return true
     }
 
     func cancel(regionID: String) {

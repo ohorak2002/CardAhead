@@ -40,9 +40,20 @@ To avoid passing it every time, put it in a local xcconfig that git ignores, or
 set it in the target's build settings in Xcode. Do not commit it, and do not
 put it in `project.yml` — that file is checked in.
 
-CI does not set it. The macOS job builds with an empty key on purpose: the app
-has to compile and run without one, and a key in a GitHub secret would be a key
-in the build log the first time somebody turned on verbose output.
+## In CI
+
+The two build-checking jobs deliberately build with an empty key: the app has to
+compile and behave sensibly without one, and that is worth checking on every
+push.
+
+The `ipa` job, which produces the installable app for sideloading, uses a
+repository secret named `GOOGLE_PLACES_API_KEY` if one exists and an empty
+string if not. GitHub masks a secret's value everywhere it appears in a log, so
+this is a reasonable place to keep it. The repository itself is not — that is
+what this whole arrangement exists to avoid.
+
+See [testing-on-your-iphone.md](testing-on-your-iphone.md) for where that
+artifact goes next.
 
 ## What gets called, and how often
 

@@ -12,6 +12,10 @@ know whether Swift code works is to push and read CI.
 - `swift test --package-path Packages/CardKit` runs on **macOS and Linux** in
   CI (`.github/workflows/ci.yml`) — CardKit is Foundation-only, so it builds
   on both.
+- CI's `ipa` job is also the only route onto a real iPhone, because Xcode is
+  macOS-only and the dev machine is not. It archives unsigned and uploads an
+  `.ipa` artifact; Sideloadly on Windows signs it with a personal Apple ID and
+  installs it over a cable. See `docs/testing-on-your-iphone.md`.
 - The full iOS app only builds on the **macOS** job (`xcodegen generate` +
   `xcodebuild`), because SwiftUI needs Apple's frameworks.
 - **Never claim Swift code works before CI is green.** Push, watch the run,
@@ -60,7 +64,8 @@ App/
 project.yml             XcodeGen spec. The .xcodeproj is generated, not
                          committed — run `xcodegen generate` after cloning.
 docs/card-art.md         runbook for adding a licensed card-art asset
-docs/places-api.md       runbook for the Places key, which CI never sets
+docs/places-api.md       runbook for the Places key
+docs/testing-on-your-iphone.md   the all-Windows route onto a real device
 ```
 
 The `CardKit` / `App` split is deliberate and load-bearing: `CardKit` has zero

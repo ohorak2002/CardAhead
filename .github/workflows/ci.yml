@@ -35,6 +35,67 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO
 
+  # The only way this app reaches a phone without anybody owning a Mac.
+  #
+  # GitHub's runner *is* a Mac, so it does the one job Windows cannot: turning
+  # Swift into an app. It produces an unsigned .ipa, which Sideloadly on Windows
+  # then signs with your own Apple ID and installs over a cable. See
+  # docs/testing-on-your-iphone.md.
+  #
+  # Only on main, because each macOS minute counts ten times against the account's
+  # allowance and nobody sideloads a pull request.
+  ipa:
+    name: Installable app for sideloading
+    runs-on: macos-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+
+      # Optional. Without it the app installs and runs, watches nothing, and
+      # says so in Settings > Reminder activity. GitHub masks the value
+      # everywhere it appears in the log.
+      - name: Archive for a real device
+        env:
+          PLACES_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+        run: |
+          xcodebuild archive \
+            -project CardRewards.xcodeproj \
+            -scheme CardRewards \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$PWD/build/CardRewards.xcarchive" \
+            GOOGLE_PLACES_API_KEY="$PLACES_KEY" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      # An .ipa is a zip with the app inside a folder that must be called
+      # Payload. That is the whole format.
+      - name: Wrap it as an .ipa
+        run: |
+          mkdir -p Payload
+          cp -R build/CardRewards.xcarchive/Products/Applications/CardRewards.app Payload/
+          zip -qry CardRewards-unsigned.ipa Payload
+
+      - name: Say whether a Places key went in
+        run: |
+          if [ -n "${{ secrets.GOOGLE_PLACES_API_KEY }}" ]; then
+            echo "Built with a Places key. Geofences will register."
+          else
+            echo "Built with no Places key. The app will run and watch nothing."
+            echo "Add one at Settings > Secrets and variables > Actions > GOOGLE_PLACES_API_KEY."
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CardRewards-unsigned-ipa
+          path: CardRewards-unsigned.ipa
+          retention-days: 30
+          if-no-files-found: error
+
   linux:
     name: CardKit on Linux
     runs-on: ubuntu-latest

@@ -40,6 +40,15 @@ public struct Card: Identifiable, Codable, Hashable, Sendable {
     /// the wallet. We cannot ship the banks' artwork — it is theirs — so a
     /// photo of the card in your own hand is the only route to an exact match.
     public var photoFilename: String?
+    /// Which catalog product this card is, when the user picked it from the
+    /// list rather than describing one by hand.
+    ///
+    /// Optional, and nil for a card typed in manually. It is what lets the app
+    /// say where these rates came from and when somebody last checked them,
+    /// offer "change card" without a form, and one day match the card against
+    /// a licensed image. A wallet file written before this field existed still
+    /// decodes — those cards simply have no product behind them.
+    public var catalogProductID: String?
 
     public init(
         id: UUID = UUID(),
@@ -56,7 +65,8 @@ public struct Card: Identifiable, Codable, Hashable, Sendable {
         isPinned: Bool = false,
         artKey: String = "slate",
         finish: CardFinish? = nil,
-        photoFilename: String? = nil
+        photoFilename: String? = nil,
+        catalogProductID: String? = nil
     ) {
         self.id = id
         self.issuer = issuer
@@ -73,7 +83,13 @@ public struct Card: Identifiable, Codable, Hashable, Sendable {
         self.artKey = artKey
         self.finish = finish
         self.photoFilename = photoFilename
+        self.catalogProductID = catalogProductID
     }
+
+    /// True when these rates came out of the catalog rather than off the top of
+    /// somebody's head. The Benefits screen shows a source and a date for one
+    /// and offers a manual editor for the other.
+    public var isCatalogCard: Bool { catalogProductID != nil }
 
     /// The finish to draw with. Matte is the safe default for a card whose
     /// material the user never told us about.

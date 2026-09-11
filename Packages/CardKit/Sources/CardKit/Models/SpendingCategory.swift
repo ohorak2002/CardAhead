@@ -43,6 +43,32 @@ public enum SpendingCategory: String, Codable, CaseIterable, Sendable, Hashable 
         }
     }
 
+    /// How a person says it out loud, as the tail of a sentence starting with
+    /// a rate: "4x at restaurants", "1% on everything else". The Benefits
+    /// screen is the whole reason this exists — nobody should have to read
+    /// "CategoryRule(category: .dining, rate: 4)" to understand their card.
+    public var benefitPhrase: String {
+        switch self {
+        case .base: return "on everything else"
+        case .dining: return "at restaurants"
+        case .groceries: return "at supermarkets"
+        case .warehouseClub: return "at warehouse clubs"
+        case .gas: return "at gas stations"
+        case .drugstores: return "at drugstores"
+        case .travel: return "on travel"
+        case .travelPortal: return "on travel booked through the issuer"
+        case .flights: return "on flights"
+        case .hotels: return "on hotels"
+        case .transit: return "on transit"
+        case .rideshare: return "on rideshare"
+        case .streaming: return "on streaming"
+        case .entertainment: return "on entertainment"
+        case .onlineShopping: return "on online shopping"
+        case .homeImprovement: return "at home improvement stores"
+        case .departmentStore: return "at department stores"
+        }
+    }
+
     /// Categories that only make sense while the user is away from home.
     public var isTravelRelated: Bool {
         switch self {

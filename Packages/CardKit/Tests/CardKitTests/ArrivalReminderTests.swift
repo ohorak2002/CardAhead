@@ -92,8 +92,14 @@ final class ArrivalReminderTests: XCTestCase {
 
     // MARK: - A win too small to interrupt anyone for
 
+    /// A card with a real dining-specific rate, not just a base rate — the
+    /// edge check only ever runs once something has already earned a bonus,
+    /// and a `.base`-only rule never does.
     private func flatCard(_ name: String, rate: Double) -> Card {
-        Card(issuer: "Test", name: name, rules: [CategoryRule(category: .base, rate: rate)])
+        Card(issuer: "Test", name: name, rules: [
+            CategoryRule(category: .dining, rate: rate),
+            CategoryRule(category: .base, rate: 1)
+        ])
     }
 
     /// 2.0% versus 2.2% is a real edge and a genuinely trivial one — two cents

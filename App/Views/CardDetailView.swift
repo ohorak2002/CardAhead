@@ -250,10 +250,10 @@ struct CardDetailView: View {
     private func capBar(_ cap: EarnCap, label: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             ProgressView(value: cap.fractionUsed)
-                .tint(cap.isExhausted ? .cardWiseWarning : art.accent)
+                .tint(cap.isExhausted ? Color.cardWiseWarning : art.accent)
             Text(capText(cap))
                 .font(.caption2)
-                .foregroundStyle(cap.isExhausted ? .cardWiseWarning : .secondary)
+                .foregroundStyle(cap.isExhausted ? Color.cardWiseWarning : Color.secondary)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label) cap")

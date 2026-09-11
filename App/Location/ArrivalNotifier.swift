@@ -42,5 +42,5 @@ final class LoggingArrivalNotifier: ArrivalNotifier {
 }
 
 enum AppLog {
-    static let subsystem = Bundle.main.bundleIdentifier ?? "com.example.cardrewards"
+    static let subsystem = Bundle.main.bundleIdentifier ?? "com.ohorak.cardrewards"
 }

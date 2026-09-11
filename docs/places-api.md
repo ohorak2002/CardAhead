@@ -21,12 +21,15 @@ never written to disk by the app.
 2. Create an API key.
 3. Restrict it, which matters more than usual because this key ships inside an
    app anyone can unzip:
-   - **Application restriction:** iOS apps, bundle ID `com.example.cardrewards`
-     (or whatever `PRODUCT_BUNDLE_IDENTIFIER` is by then).
-   - **API restriction:** Places API (New) only.
-   - Set a daily quota cap. One user generates roughly one call per few hundred
-     metres of travel, minus everything the cache absorbs, so a low cap will
+   - **API restriction:** Places API (New) only. Always do this one.
+   - **Quota cap.** One user generates roughly one call per few hundred metres
+     of travel, minus everything the cache absorbs, so a low daily cap will
      catch a runaway loop long before it catches real use.
+   - **Application restriction:** iOS apps, bundle ID `com.ohorak.cardrewards`
+     (or whatever `PRODUCT_BUNDLE_IDENTIFIER` is by then). Leave this off while
+     sideloading for testing — a sideload tool may rewrite the bundle ID, and a
+     restriction that no longer matches fails every lookup with a permission
+     error that looks nothing like its cause. Turn it on before release.
 
 ## Building with it
 

@@ -22,7 +22,12 @@ targets:
         product: CardKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.cardrewards
+        # Not com.example.*: Apple registers this identifier against your
+        # developer team the first time you install, and the example prefix is
+        # so widely used that it is usually already taken by somebody else —
+        # which fails the install with a message about the bundle identifier
+        # rather than anything to do with this app.
+        PRODUCT_BUNDLE_IDENTIFIER: com.ohorak.cardrewards
         MARKETING_VERSION: "0.1"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.9"

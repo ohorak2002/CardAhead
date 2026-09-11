@@ -28,6 +28,15 @@ entry so it survives the app being suspended or killed. Leaving early cancels
 it. None of that is *proven*: a unit test cannot show that a geofence wakes a
 terminated app on a real iPhone. That needs a device.
 
+It is also hardened against spamming you. `ReminderThrottle` caps it at one
+reminder per shop and a handful in a day, both persisted so the limit survives
+the app being killed. A win too small to matter — the best card barely beating
+the next one — stays quiet. And editing or deleting a card while a reminder is
+still in its four-minute wait actually changes what arrives: `walletDidChange()`
+re-renders it against the wallet as it now stands, using the fact that iOS
+replaces a pending notification under the same id rather than stacking a
+second one.
+
 **Step 5** calls Places API (New) `searchNearby` behind a cache — a 250m grid,
 one week, forty squares, least-recently-used. The lookup happens when the
 twenty-region plan is redrawn, never when a geofence fires, so the shop's name
@@ -165,6 +174,20 @@ bars are editable.
 
 **Money is `Decimal`, rates are `Double`.** Dollar amounts and caps must not
 drift; earn rates are ratios and never accumulate.
+
+**The brand's own colours never touch a card face.** CardWise has an identity
+— an icon, an accent colour, a Warning Yellow and Success Green off its own
+palette — applied to buttons and status text throughout the app. `CardArt`,
+the colours a *user* picks so their own card is recognisable in the stack, is
+deliberately unrelated: a card that matched the app's own colour scheme
+regardless of what you picked would stop being a way to tell cards apart. The
+palette's neutrals are absent on purpose too — `.primary`/`.secondary` already
+mean those roles and adapt to Dark Mode; hardcoding them would not.
+
+**Removing a card asks no question — it offers Undo instead.** A six-second
+banner, not a confirmation dialog: "Removed \[card\] — Undo." The card's photo
+file survives past the removal so Undo restores the actual picture, and is
+swept only once the window has genuinely closed.
 
 ## What is deliberately absent
 

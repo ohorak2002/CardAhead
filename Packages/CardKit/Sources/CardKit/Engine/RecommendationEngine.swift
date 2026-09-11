@@ -21,13 +21,25 @@ public struct RecommendationEngine: Sendable {
     public var maxWelcomeBonusBoostCentsPerDollar: Double
     /// Two scores closer than this count as tied.
     public var tieTolerance: Double
+    /// Below this gap, in cents per dollar, the best card is not interrupting
+    /// anyone for — see `reminder(for:cards:asOf:)` in `ArrivalReminder.swift`.
+    /// Far looser than `tieTolerance`: that one catches genuine floating-point
+    /// ties for sorting, this one catches a real but trivial edge that is not
+    /// worth a lock-screen notification. Half a cent is a nickel on a $10
+    /// coffee and real money on a $500 purchase — the same fixed gap reads
+    /// very differently depending on what is actually being bought, but the
+    /// app has no idea how much this purchase will be, only which category it
+    /// is in, so a flat per-dollar threshold is the honest thing to check.
+    public var minimumArrivalEdgeCentsPerDollar: Double
 
     public init(
         maxWelcomeBonusBoostCentsPerDollar: Double = 25.0,
-        tieTolerance: Double = 0.001
+        tieTolerance: Double = 0.001,
+        minimumArrivalEdgeCentsPerDollar: Double = 0.5
     ) {
         self.maxWelcomeBonusBoostCentsPerDollar = maxWelcomeBonusBoostCentsPerDollar
         self.tieTolerance = tieTolerance
+        self.minimumArrivalEdgeCentsPerDollar = minimumArrivalEdgeCentsPerDollar
     }
 
     // MARK: - Scoring

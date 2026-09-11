@@ -34,13 +34,19 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         DEVELOPMENT_TEAM: ""
         CODE_SIGNING_ALLOWED: NO
+        # AppIcon and AccentColor are single named entries in
+        # App/Assets.xcassets; XcodeGen picks up the catalog itself from
+        # `sources: - path: App` automatically, but Xcode still has to be
+        # told which set is the app icon and which is the global tint.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         # A billable secret, so it is not in this repository. Empty means the
         # app runs with no place provider and says so. See docs/places-api.md.
         GOOGLE_PLACES_API_KEY: ""
     info:
       path: Supporting/Info.plist
       properties:
-        CFBundleDisplayName: Card Rewards
+        CFBundleDisplayName: CardWise
         GooglePlacesAPIKey: $(GOOGLE_PLACES_API_KEY)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:

@@ -90,6 +90,54 @@ final class ArrivalReminderTests: XCTestCase {
         XCTAssertNil(engine.reminder(for: arrival(at: market), cards: [spent], asOf: Fixture.inQ3))
     }
 
+    // MARK: - A win too small to interrupt anyone for
+
+    /// A card with a real dining-specific rate, not just a base rate — the
+    /// edge check only ever runs once something has already earned a bonus,
+    /// and a `.base`-only rule never does.
+    private func flatCard(_ name: String, rate: Double) -> Card {
+        Card(issuer: "Test", name: name, rules: [
+            CategoryRule(category: .dining, rate: rate),
+            CategoryRule(category: .base, rate: 1)
+        ])
+    }
+
+    /// 2.0% versus 2.2% is a real edge and a genuinely trivial one — two cents
+    /// on a ten-dollar lunch. Not worth a lock-screen notification.
+    func testATrivialEdgeStaysQuiet() {
+        let wallet = [flatCard("Just Ahead", rate: 2.2), flatCard("Runner Up", rate: 2.0)]
+        XCTAssertNil(engine.reminder(for: arrival(at: bistro), cards: wallet, asOf: Fixture.inQ3))
+    }
+
+    /// 3% versus 2% is a full cent per dollar and stays worth saying.
+    func testARealEdgeStillNotifies() throws {
+        let wallet = [flatCard("Clear Winner", rate: 3), flatCard("Runner Up", rate: 2)]
+        let reminder = try XCTUnwrap(engine.reminder(for: arrival(at: bistro), cards: wallet, asOf: Fixture.inQ3))
+        XCTAssertTrue(reminder.title.contains("Clear Winner"), reminder.title)
+    }
+
+    /// One card in the wallet has nothing to be trivial *next to*. The edge
+    /// check must not silence the only card there is.
+    func testASingleCardHasNoRunnerUpToBeTrivialAgainst() throws {
+        let reminder = try XCTUnwrap(engine.reminder(
+            for: arrival(at: bistro),
+            cards: [flatCard("Only Card", rate: 2.1)],
+            asOf: Fixture.inQ3
+        ))
+        XCTAssertTrue(reminder.title.contains("Only Card"), reminder.title)
+    }
+
+    /// An activation nudge survives a trivial edge: it is advice to switch a
+    /// bonus on, not a claim that the currently-winning card pulls meaningfully
+    /// ahead of the runner-up sitting right next to it.
+    func testATrivialEdgeStillCarriesAnActivationNudge() throws {
+        var rotator = rotatingCard(activated: false)
+        rotator.rules = [CategoryRule(category: .base, rate: 2.0)]
+        let wallet = [rotator, flatCard("Runner Up", rate: 1.9)]
+        let reminder = try XCTUnwrap(engine.reminder(for: arrival(at: bistro), cards: wallet, asOf: Fixture.inQ3))
+        XCTAssertTrue(reminder.body.contains("Activate"), reminder.body)
+    }
+
     // MARK: - The second sentence
 
     private func rotatingCard(activated: Bool) -> Card {

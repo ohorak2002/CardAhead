@@ -47,6 +47,7 @@ Packages/CardKit/       Pure Swift. No UIKit, no Core Location, no SwiftUI.
                          CardArtLibrary (licensed card art registry)
     Geo/                GeoCoordinate, Merchant, RegionPlanner (which 20
                          places to watch), ArrivalTracker (the dwell rule),
+                         ReminderThrottle (daily/per-merchant limits),
                          MerchantSource
     Engine/ArrivalReminder.swift   the words on the lock screen, decided by
                          the ranking engine so they can be unit tested
@@ -61,6 +62,12 @@ App/
   Location/ArrivalNotifier.swift         seam between arriving and being told
   Notifications/ReminderCenter.swift     UNUserNotificationCenter, both ends
   Places/PlacesProvider.swift            URLSession, and the API key or not
+  Theme/CardWiseColor.swift              the brand palette, chrome only —
+                         never a card face; see CardArt below
+  Theme/CardArt.swift                    the colours a *user* picks for a
+                         card face; deliberately unrelated to the brand
+  Assets.xcassets/                       AppIcon (single 1024px), AccentColor,
+                         CardWiseSuccess/Warning/Error color sets
   Views/                         see below. AddCardView + CardBenefitsView
                          are the add flow; CardEditorView is the way out
 project.yml             XcodeGen spec. The .xcodeproj is generated, not
@@ -178,6 +185,48 @@ plus button and must not go back there.
 - **Two benefits refuse to be removed.** The base rate is what every other rule
   falls back to, and the rotating programme belongs to the issuer — hiding it
   would only hide it from the person it is being kept honest for.
+- **The CardWise brand palette lives in `App/Theme/CardWiseColor.swift` and
+  `App/Assets.xcassets`, and is deliberately separate from `CardArt`.**
+  `CardArt` is the colours a user picks so their own card is recognisable —
+  wide open on purpose, never brand colour. `CardWiseColor` is the app's own
+  identity (`.cardWiseSuccess`/`.cardWiseWarning`/`.cardWiseError`, plus the
+  `AccentColor` asset), applied only to chrome. The palette's neutrals
+  (Charcoal, Slate Gray, Light Gray, Off White) are **not** wired in anywhere
+  — `.primary`/`.secondary`/system backgrounds already mean those roles and
+  adapt to Dark Mode; hardcoding the sheet's hex values for them would break
+  contrast at night. `AppIcon` is a single 1024×1024 asset (Xcode 14's
+  single-size format) — replace that one file, not a dozen sizes, if the icon
+  ever changes.
+- **A reminder is throttled at the moment it is scheduled (entry), not at the
+  moment it is delivered.** `ReminderThrottle` (CardKit) enforces one per
+  merchant per day and a daily ceiling; `RegionMonitor.didEnterRegion` checks
+  and records against it before calling `notifier.schedule`. There is no code
+  that runs at actual delivery to check against instead — see
+  `ReminderThrottle`'s own doc comment for the one imprecision this accepts
+  (an early exit still spends the day's count). `schedule(_:)` on
+  `ArrivalNotifier` returns whether it actually scheduled something, so the
+  throttle is only ever charged for a reminder that stood a chance of
+  arriving.
+- **`RegionMonitor.walletDidChange()` re-renders every still-dwelling
+  arrival's notification, not just the region plan.** `ReminderCenter.schedule`
+  writes content once, at entry, because nothing runs at delivery to write it
+  again — deliberate, and documented on `ReminderCenter` itself. But editing a
+  card requires the app to be open, so `walletDidChange()` calls
+  `notifier.schedule(arrival)` again for everything in `tracker.pending`;
+  `UNUserNotificationCenter.add` replaces a pending request under the same
+  identifier rather than stacking one, so this is a correction, not a
+  duplicate. Do not remove this call thinking the region-plan refresh alone
+  covers it — it does not touch anything already past the geofence and into
+  its four-minute wait.
+- **Removing a card is Undo, not a confirmation dialog.** `WalletStore.remove(_:)`
+  keeps the card and its original index in `lastRemoved` for six seconds,
+  shown as a banner in `WalletStackView`'s `safeAreaInset` (has to survive the
+  wallet going empty — removing your only card is exactly when you want it
+  back). The photo file is **not** deleted at removal time any more —
+  `sweepOrphanedPhotos()` does that once the window has genuinely closed, so
+  Undo can restore the actual picture. If you ever need to delete a card's
+  photo immediately and permanently, that is `eraseEverything()`'s job, not
+  `remove(_:)`'s.
 
 ## Done vs. pending (build steps from the original spec)
 
@@ -186,15 +235,13 @@ plus button and must not go back there.
 | 1. Data model | Done |
 | 2. Wallet UI (stack, add, edit, expand, pin, reorder) | Done. Onboarding redesigned around card *selection* (roadmap v2 steps 1-5). |
 | 3. Recommendation engine, testable with no location | Done |
-| 4. Region monitoring + notification pipeline | **Built, unverifiable without a device.** `RegionMonitor` registers the nearest 20 relevant merchants as `CLCircularRegion`s, handles enter/exit, applies a four-minute dwell, and redraws on significant location change. `ReminderCenter` schedules the local notification on entry and cancels it on exit; a tap opens that card. Nothing is registered in practice until step 5 gives `MerchantSource` somewhere to get shops from. |
+| 4. Region monitoring + notification pipeline | **Built and hardened, unverifiable without a device.** `RegionMonitor` registers the nearest 20 relevant merchants as `CLCircularRegion`s, handles enter/exit, applies a four-minute dwell, and redraws on significant location change. `ReminderCenter` schedules the local notification on entry and cancels it on exit; a tap opens that card. `ReminderThrottle` caps it at one reminder per shop and a daily ceiling, `RecommendationEngine.minimumArrivalEdgeCentsPerDollar` silences a trivial win, and `walletDidChange()` re-renders any notification still in its dwell window against a wallet edit. Nothing is registered in practice until step 5 gives `MerchantSource` somewhere to get shops from. |
 | 5. Places API merchant resolution | **Done, needs a key.** `GooglePlacesSource` calls Places API (New) `searchNearby` behind `MerchantCache` (250m grid, one week, 40 squares, LRU). Resolution happens when the plan is redrawn, *not* when a geofence fires — the shop's name and category are already in the registered region by then. No key is committed; see `docs/places-api.md`. |
 | 6. Significant-location-change travel mode | Not started |
 | 7. Safari extension | Not started |
 
 Also not built, flagged repeatedly, not yet done:
 
-- **Undo on Remove** (or a confirmation on it) — the one item from the Apple
-  fluid-interfaces audit still outstanding.
 - **Velocity/momentum on the drag-to-reorder gesture** —
   `value.translation` should become `value.predictedEndTranslation`, a
   near-one-line fix. This was the #1 finding in the audit.
@@ -219,6 +266,12 @@ Also not built, flagged repeatedly, not yet done:
   not a real one, but cost real debugging time before that was clear.
 - **`Color` and `HierarchicalShapeStyle` don't unify in a ternary** passed to
   `.foregroundStyle(...)` — write `condition ? Color.x : Color.y` explicitly.
+  **This one was hit a second time, by Claude, in the same file, after this
+  exact warning was already written down.** `cap.isExhausted ? .cardWiseWarning
+  : .secondary` failed to build because `.secondary` resolved against
+  `ShapeStyle` and `cardWiseWarning` is only declared on `Color`. CI caught it;
+  it would not have been caught by reading the diff. Read this bullet before
+  writing a color ternary in a SwiftUI modifier, not after CI fails on it.
 
 ## Working with this repo as Claude
 

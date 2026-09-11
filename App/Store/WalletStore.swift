@@ -4,6 +4,16 @@ import SwiftUI
 import UIKit
 import CardKit
 
+/// A card `WalletStore.remove(_:)` just took out, and the index it came from
+/// — enough to put it back exactly where it was rather than at the end of the
+/// stack. `Equatable` so `undoRemove`'s deferred `clearLastRemoved()` can tell
+/// whether it is still looking at the removal it was scheduled for, or a
+/// later one has already superseded it.
+struct RemovedCard: Equatable {
+    var card: Card
+    var index: Int
+}
+
 /// The user's wallet: which cards they hold, in the order they keep them.
 ///
 /// Everything here stays on the device. There is no account, no sync, and no
@@ -20,12 +30,22 @@ final class WalletStore {
     /// there is no saved file, which is the first-launch case.
     private(set) var cards: [Card] = []
 
+    /// The card `remove(_:)` most recently took out, and where it was sitting,
+    /// so a tap on "Undo" can put it back exactly where it was rather than at
+    /// the end of the stack. `WalletStackView` shows this as a banner and
+    /// clears it once the window on the banner passes — see `remove(_:)`.
+    private(set) var lastRemoved: RemovedCard?
+
     private let fileURL: URL
     private let engine = RecommendationEngine()
 
     init(fileURL: URL? = nil) {
         self.fileURL = fileURL ?? Self.defaultFileURL()
         load()
+        // Anything left over from a session that ended before its undo window
+        // closed — the app was killed, not just backgrounded — is genuinely
+        // orphaned now. See `remove(_:)` for why the file survives that long.
+        sweepOrphanedPhotos()
     }
 
     // MARK: - Reading
@@ -59,10 +79,52 @@ final class WalletStore {
         save()
     }
 
+    /// Takes a card out, but leaves it undoable for a few seconds rather than
+    /// asking "are you sure?" first.
+    ///
+    /// Its photo file is deliberately *not* deleted here — only `remove(_:)`
+    /// used to, and undo would have put the card back with no picture of
+    /// itself. The file now outlives the card until `sweepOrphanedPhotos()`
+    /// runs, which is once the undo window has genuinely closed: on the next
+    /// removal, or the next launch if the app is killed before then.
     func remove(_ card: Card) {
-        if let name = card.photoFilename { deletePhoto(named: name) }
-        cards.removeAll { $0.id == card.id }
+        guard let index = cards.firstIndex(where: { $0.id == card.id }) else { return }
+        // A second removal while the first is still undoable simply replaces
+        // it — only the most recent is ever undoable, matching a single
+        // "Undo" toast. The first card's photo is not leaked: neither card is
+        // in `cards` any more, so whichever removal's timer fires last sweeps
+        // both.
+        let removed = RemovedCard(card: card, index: index)
+        lastRemoved = removed
+        cards.remove(at: index)
         save()
+
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(6))
+            guard let self, self.lastRemoved == removed else { return }
+            self.clearLastRemoved()
+        }
+    }
+
+    /// Puts the most recently removed card back exactly where it was.
+    func undoRemove() {
+        guard let removed = lastRemoved else { return }
+        let index = min(max(removed.index, 0), cards.count)
+        cards.insert(removed.card, at: index)
+        lastRemoved = nil
+        save()
+    }
+
+    /// Called once the six-second window on `remove(_:)`'s own timer runs
+    /// out. Past this point the removed card's photo is swept, so it must
+    /// never run while the card could still come back — which is exactly why
+    /// the timer checks `lastRemoved == removed` before calling this: a
+    /// removal superseded by a newer one already failed that check, and its
+    /// timer becomes a no-op. The newer removal's own timer sweeps for both.
+    func clearLastRemoved() {
+        guard lastRemoved != nil else { return }
+        lastRemoved = nil
+        sweepOrphanedPhotos()
     }
 
     func remove(atOffsets offsets: IndexSet) {
@@ -244,6 +306,23 @@ final class WalletStore {
     private func deletePhoto(named name: String) {
         photoCache[name] = nil
         try? FileManager.default.removeItem(at: Self.photosDirectory().appendingPathComponent(name))
+    }
+
+    /// Deletes every photo file nothing in the wallet points to any more.
+    ///
+    /// `remove(_:)` deliberately leaves a removed card's photo file alone so
+    /// Undo can put it back — this is where that file's debt finally comes
+    /// due, once nothing could possibly still want it: after the undo window
+    /// closes, or at the next launch if the app never got the chance to run
+    /// that far.
+    private func sweepOrphanedPhotos() {
+        let directory = Self.photosDirectory()
+        guard let files = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else { return }
+        let inUse = Set(cards.compactMap(\.photoFilename))
+        for file in files where !inUse.contains(file) {
+            photoCache[file] = nil
+            try? FileManager.default.removeItem(at: directory.appendingPathComponent(file))
+        }
     }
 
     private static func photosDirectory() -> URL {

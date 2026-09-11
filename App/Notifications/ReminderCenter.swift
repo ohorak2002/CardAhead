@@ -86,14 +86,26 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
 
     // MARK: - ArrivalNotifier
 
-    func schedule(_ arrival: PendingArrival) {
+    /// Writes the notification and hands it to iOS with a delayed trigger, or
+    /// clears whatever was there before if there is nothing left to say.
+    ///
+    /// Called again, with the same `arrival.regionID`, whenever the wallet
+    /// changes while this arrival is still dwelling — `center.add` replaces a
+    /// pending request under the same identifier rather than stacking a
+    /// second one, so re-rendering here is exactly how a card deleted or
+    /// corrected mid-wait stops being named on the lock screen four minutes
+    /// later. The cancel below is what makes that work when the *new* answer
+    /// is silence: the first call had nothing to cancel, but a refresh does.
+    @discardableResult
+    func schedule(_ arrival: PendingArrival) -> Bool {
         guard let reminder = engine.reminder(
             for: arrival,
             cards: walletCards(),
             asOf: arrival.confirmAt
         ) else {
             log.notice("nothing worth saying about \(arrival.regionID, privacy: .public)")
-            return
+            cancel(regionID: arrival.regionID)
+            return false
         }
 
         let content = UNMutableNotificationContent()
@@ -116,6 +128,7 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
             guard let error else { return }
             self?.log.error("could not schedule \(request.identifier, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
+        return true
     }
 
     func cancel(regionID: String) {

@@ -66,6 +66,10 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
 
     private(set) var plan: RegionPlan?
     private(set) var tracker = ArrivalTracker()
+    /// Today's frequency limits, and what has already been scheduled against
+    /// them. Persisted alongside `tracker` — see `StoredState` — because a
+    /// limit that resets every time the app is killed is not a limit.
+    private(set) var throttle = ReminderThrottle()
     private(set) var isMonitoring = false
     /// Newest first, capped. Shown in Settings.
     private(set) var recentEvents: [RegionEvent] = []
@@ -166,13 +170,17 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
     }
 
     /// Call after the wallet changes: a new card can make a whole category worth
-    /// watching that was not before.
+    /// watching that was not before, and a card deleted or corrected mid-wait
+    /// must not be named on a lock screen four minutes later.
     func walletDidChange() {
         guard isMonitoring else { return }
         guard !walletCards().isEmpty else {
+            // stop() already settles and cancels everything pending, which
+            // covers refreshing them too — there is nothing left to refresh.
             stop()
             return
         }
+        refreshPendingReminders()
         guard let anchor = plan?.anchor else {
             manager.requestLocation()
             return
@@ -288,6 +296,25 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
     /// Each one is logged at the time it actually came due, not at the time we
     /// got round to noticing, or an app opened a week later would claim a week
     /// of arrivals all happened this morning.
+    /// Re-renders the notification for every arrival still dwelling, against
+    /// the wallet as it stands right now.
+    ///
+    /// `ReminderCenter.schedule` writes a notification's content once, at
+    /// entry, because nothing runs at the moment of delivery to write it
+    /// again. This is the other half of that limitation: editing or removing
+    /// a card requires the app to be open, which means it *is* running right
+    /// now, so every pending arrival gets a fresh chance to say something
+    /// correct rather than being left to fire with whatever was true four
+    /// minutes ago. `schedule` replaces a pending notification under the same
+    /// region id rather than adding a second one, so calling it again here is
+    /// exactly a correction, never a duplicate. Does not touch `throttle`:
+    /// this is the same reminder being re-rendered, not a new one being sent.
+    private func refreshPendingReminders() {
+        for arrival in tracker.pending {
+            notifier.schedule(arrival)
+        }
+    }
+
     func settleOutstandingArrivals(asOf date: Date = Date()) {
         for due in tracker.confirmDue(asOf: date) {
             let minutes = Int(due.confirmAt.timeIntervalSince(due.enteredAt) / 60)
@@ -329,10 +356,21 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
         else { return }
 
         guard let arrival = tracker.enter(monitored, at: Date()) else { return }
-        notifier.schedule(arrival)
-        save()
         record(.entered, "Arrived at \(monitored.merchant.name). Waiting \(Int(tracker.confirmationDelay / 60)) minutes to be sure.")
         log.notice("entered \(region.identifier, privacy: .public)")
+
+        // The dwell is tracked either way — the event log above is honest that
+        // an arrival was noticed even on a day the reminder itself is held
+        // back. Only the notification is gated.
+        guard throttle.allows(merchantID: monitored.merchant.id, at: arrival.confirmAt) else {
+            // record(_:_:) already saves; the throttle itself was not touched.
+            record(.skipped, "Already reminded about \(monitored.merchant.name) enough today. Nothing else will be sent.")
+            return
+        }
+        if notifier.schedule(arrival) {
+            throttle.recordFired(merchantID: monitored.merchant.id, at: arrival.confirmAt)
+            save()
+        }
     }
 
     func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
@@ -379,6 +417,11 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
         /// What the wallet made relevant when the plan was drawn, so a card
         /// added while the app was closed is noticed on the next fix.
         var categories: Set<SpendingCategory>
+        /// Optional, not because a throttle can meaningfully be absent, but so
+        /// a `regions.json` written before this field existed still decodes —
+        /// see `Card.finish` for the same pattern. Missing means never
+        /// throttled yet, so an empty one is the correct default.
+        var throttle: ReminderThrottle?
     }
 
     private static func defaultStateURL() -> URL {
@@ -400,6 +443,7 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
         tracker = state.tracker
         recentEvents = state.events
         plannedCategories = state.categories
+        throttle = state.throttle ?? ReminderThrottle()
     }
 
     private func save() {
@@ -409,7 +453,8 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
             plan: plan,
             tracker: tracker,
             events: recentEvents,
-            categories: plannedCategories
+            categories: plannedCategories,
+            throttle: throttle
         )
         guard let data = try? encoder.encode(state) else { return }
         try? data.write(to: stateURL, options: [.atomic])

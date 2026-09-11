@@ -1,7 +1,7 @@
 import Foundation
 
-/// A card in the seed database, with a note of where its numbers came from and
-/// when somebody last looked.
+/// One card product in the seed database: which product it is, what it earns,
+/// where its numbers came from and when somebody last looked.
 ///
 /// Rates, caps and annual fees are facts about somebody else's product that
 /// change without telling us. A catalog that states them without saying when it
@@ -9,8 +9,30 @@ import Foundation
 /// which parts. So every entry carries the issuer's own page and a date, and
 /// the app shows both.
 public struct CatalogEntry: Identifiable, Sendable {
-    public var id: String { card.displayName }
-    public var card: Card
+    /// Stable for the life of the product, and the thing a saved card points
+    /// back at. The display name is not: issuers rename cards, and a wallet
+    /// that identified a card by its name would lose track of it the day they
+    /// did. Lower case, hyphenated, issuer first.
+    public var id: String { productID }
+    public var productID: String
+
+    /// The card itself. Stamped with `productID` on the way in, so a card that
+    /// came out of the catalog can always be traced back to its entry.
+    public private(set) var card: Card
+
+    public var network: CardNetwork
+    /// Personal or business. "Gold Card" is two different products.
+    public var variant: CardVariant
+
+    /// What the bank calls itself when it is not squeezing the name onto a
+    /// card. `Card.issuer` holds "Amex" because that is what fits; somebody
+    /// searching types "American Express".
+    public var issuerFullName: String
+
+    /// Every other name a person might reasonably type for this card.
+    /// Nicknames, the issuer's full product name, common abbreviations.
+    public var aliases: [String]
+
     /// The issuer's own terms page. Never a review site: those are downstream
     /// of the same drift this field exists to catch.
     public var termsURL: String
@@ -21,12 +43,24 @@ public struct CatalogEntry: Identifiable, Sendable {
     public var notModelled: [String]
 
     public init(
+        productID: String,
         card: Card,
+        network: CardNetwork,
+        variant: CardVariant = .personal,
+        issuerFullName: String? = nil,
+        aliases: [String] = [],
         termsURL: String,
         checkedOn: Date,
         notModelled: [String] = []
     ) {
-        self.card = card
+        self.productID = productID
+        var stamped = card
+        stamped.catalogProductID = productID
+        self.card = stamped
+        self.network = network
+        self.variant = variant
+        self.issuerFullName = issuerFullName ?? card.issuer
+        self.aliases = aliases
         self.termsURL = termsURL
         self.checkedOn = checkedOn
         self.notModelled = notModelled
@@ -39,6 +73,37 @@ public struct CatalogEntry: Identifiable, Sendable {
     public func isStale(asOf date: Date = Date()) -> Bool {
         date.timeIntervalSince(checkedOn) > Self.freshnessWindow
     }
+
+    /// Everything a search should look through: the short issuer and the long
+    /// one, the product name, the network, every alias, and "business" when
+    /// that is what distinguishes this card from its personal twin.
+    var searchText: String {
+        var parts = [card.issuer, issuerFullName, card.name, network.displayName]
+        parts.append(contentsOf: aliases)
+        if variant == .business { parts.append(variant.displayName) }
+        return parts.joined(separator: " ").lowercased()
+    }
+
+    /// Every word typed has to appear somewhere. "amex gold" finds the Gold
+    /// Card; "gold" on its own finds it too, and would find a second gold card
+    /// if the catalog held one — which is the point of showing the exact
+    /// product name on every row.
+    public func matches(_ query: String) -> Bool {
+        let words = query.lowercased().split { !$0.isLetter && !$0.isNumber }
+        guard !words.isEmpty else { return true }
+        let haystack = searchText
+        return words.allSatisfy { haystack.contains($0) }
+    }
+}
+
+/// One bank, as the add-card screen lists them.
+public struct CatalogIssuer: Identifiable, Hashable, Sendable {
+    public var id: String { name }
+    /// Short, as it is printed on the card face and stored on `Card.issuer`.
+    public var name: String
+    /// What the bank calls itself, and what somebody searching types.
+    public var fullName: String
+    public var cardCount: Int
 }
 
 /// The seed database the add-card flow searches.
@@ -70,14 +135,61 @@ public enum CardCatalog {
         entries.map(\.card)
     }
 
+    // MARK: - Finding a card
+
+    /// The banks, as the first screen of the add-card flow lists them.
+    /// Ordered by the name somebody would look for, not the short one.
+    public static var issuers: [CatalogIssuer] {
+        var order: [String] = []
+        var byName: [String: CatalogIssuer] = [:]
+        for entry in entries {
+            let name = entry.card.issuer
+            if var existing = byName[name] {
+                existing.cardCount += 1
+                byName[name] = existing
+            } else {
+                order.append(name)
+                byName[name] = CatalogIssuer(
+                    name: name,
+                    fullName: entry.issuerFullName,
+                    cardCount: 1
+                )
+            }
+        }
+        return order.compactMap { byName[$0] }.sorted { $0.fullName < $1.fullName }
+    }
+
+    /// Every product this bank sells, for the second screen.
+    public static func entries(issuedBy issuer: String) -> [CatalogEntry] {
+        entries.filter { $0.card.issuer == issuer }
+    }
+
+    /// The lookup a saved card uses to find its own entry again.
+    public static func entry(productID: String) -> CatalogEntry? {
+        entries.first { $0.productID == productID }
+    }
+
+    /// The entry a card in the wallet came from, if it came from one at all.
+    public static func entry(for card: Card) -> CatalogEntry? {
+        guard let productID = card.catalogProductID else { return nil }
+        return entry(productID: productID)
+    }
+
     public static func entry(named displayName: String) -> CatalogEntry? {
         entries.first { $0.card.displayName == displayName }
     }
 
+    /// Alias-aware. "amex gold", "American Express Gold Card" and "gold card"
+    /// all reach the same product; searching the display name alone reached
+    /// none of them.
+    public static func searchEntries(_ query: String) -> [CatalogEntry] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return entries }
+        return entries.filter { $0.matches(trimmed) }
+    }
+
     public static func search(_ query: String) -> [Card] {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !trimmed.isEmpty else { return all }
-        return all.filter { $0.displayName.lowercased().contains(trimmed) }
+        searchEntries(query).map(\.card)
     }
 
     // MARK: - Chase
@@ -86,6 +198,7 @@ public enum CardCatalog {
 
     static var chaseFreedomFlexEntry: CatalogEntry {
         CatalogEntry(
+            productID: "chase-freedom-flex",
             card: Card(
                 issuer: "Chase",
                 name: "Freedom Flex",
@@ -118,6 +231,8 @@ public enum CardCatalog {
                 artKey: "midnight",
                 finish: .glossy
             ),
+            network: .mastercard,
+            aliases: ["Chase Freedom Flex", "Freedom Flex", "Freedom"],
             termsURL: "https://creditcards.chase.com/cash-back-credit-cards/freedom/flex",
             checkedOn: checkedOn,
             notModelled: [
@@ -131,6 +246,7 @@ public enum CardCatalog {
 
     static var chaseSapphirePreferredEntry: CatalogEntry {
         CatalogEntry(
+            productID: "chase-sapphire-preferred",
             card: Card(
                 issuer: "Chase",
                 name: "Sapphire Preferred",
@@ -173,6 +289,8 @@ public enum CardCatalog {
                 artKey: "sapphire",
                 finish: .metal
             ),
+            network: .visa,
+            aliases: ["Chase Sapphire Preferred", "Sapphire Preferred", "CSP", "Sapphire"],
             termsURL: "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred",
             checkedOn: checkedOn,
             notModelled: [
@@ -189,6 +307,7 @@ public enum CardCatalog {
 
     static var discoverItEntry: CatalogEntry {
         CatalogEntry(
+            productID: "discover-it-cash-back",
             card: Card(
                 issuer: "Discover",
                 name: "it Cash Back",
@@ -224,6 +343,8 @@ public enum CardCatalog {
                 artKey: "graphite",
                 finish: .matte
             ),
+            network: .discover,
+            aliases: ["Discover it", "Discover it Cash Back", "Discover cashback"],
             termsURL: "https://www.discover.com/credit-cards/cash-back/it-card.html",
             checkedOn: checkedOn,
             notModelled: [
@@ -238,6 +359,7 @@ public enum CardCatalog {
 
     static var amexBlueCashPreferredEntry: CatalogEntry {
         CatalogEntry(
+            productID: "amex-blue-cash-preferred",
             card: Card(
                 issuer: "Amex",
                 name: "Blue Cash Preferred",
@@ -274,6 +396,9 @@ public enum CardCatalog {
                 artKey: "azure",
                 finish: .matte
             ),
+            network: .amex,
+            issuerFullName: "American Express",
+            aliases: ["American Express Blue Cash Preferred", "Blue Cash Preferred", "Blue Cash", "BCP"],
             termsURL: "https://www.americanexpress.com/us/credit-cards/card/blue-cash-preferred/",
             checkedOn: checkedOn,
             notModelled: [
@@ -286,6 +411,7 @@ public enum CardCatalog {
 
     static var amexGoldEntry: CatalogEntry {
         CatalogEntry(
+            productID: "amex-gold",
             card: Card(
                 issuer: "Amex",
                 name: "Gold",
@@ -326,6 +452,9 @@ public enum CardCatalog {
                 artKey: "gold",
                 finish: .metal
             ),
+            network: .amex,
+            issuerFullName: "American Express",
+            aliases: ["American Express Gold Card", "Amex Gold", "Gold Card"],
             termsURL: "https://www.americanexpress.com/us/credit-cards/card/gold-card/",
             checkedOn: checkedOn,
             notModelled: [
@@ -340,6 +469,7 @@ public enum CardCatalog {
 
     static var citiDoubleCashEntry: CatalogEntry {
         CatalogEntry(
+            productID: "citi-double-cash",
             card: Card(
                 issuer: "Citi",
                 name: "Double Cash",
@@ -352,6 +482,8 @@ public enum CardCatalog {
                 artKey: "slate",
                 finish: .matte
             ),
+            network: .mastercard,
+            aliases: ["Citi Double Cash", "Double Cash"],
             termsURL: "https://www.citi.com/credit-cards/citi-double-cash-credit-card",
             checkedOn: checkedOn,
             notModelled: [
@@ -365,6 +497,7 @@ public enum CardCatalog {
 
     static var costcoAnywhereVisaEntry: CatalogEntry {
         CatalogEntry(
+            productID: "citi-costco-anywhere-visa",
             card: Card(
                 issuer: "Citi",
                 name: "Costco Anywhere Visa",
@@ -399,6 +532,8 @@ public enum CardCatalog {
                 artKey: "forest",
                 finish: .glossy
             ),
+            network: .visa,
+            aliases: ["Costco Anywhere Visa", "Costco Visa", "Costco card", "Costco"],
             termsURL: "https://www.citi.com/credit-cards/costco-anywhere-visa-card",
             checkedOn: checkedOn,
             notModelled: [
@@ -413,6 +548,7 @@ public enum CardCatalog {
 
     static var capitalOneSavorEntry: CatalogEntry {
         CatalogEntry(
+            productID: "capital-one-savor",
             card: Card(
                 issuer: "Capital One",
                 name: "Savor",
@@ -441,6 +577,8 @@ public enum CardCatalog {
                 artKey: "ember",
                 finish: .glossy
             ),
+            network: .mastercard,
+            aliases: ["Capital One Savor", "Savor", "Savor Rewards"],
             termsURL: "https://www.capitalone.com/credit-cards/savor-dining-rewards/",
             checkedOn: checkedOn,
             notModelled: [
@@ -455,6 +593,7 @@ public enum CardCatalog {
 
     static var wellsFargoActiveCashEntry: CatalogEntry {
         CatalogEntry(
+            productID: "wells-fargo-active-cash",
             card: Card(
                 issuer: "Wells Fargo",
                 name: "Active Cash",
@@ -468,6 +607,8 @@ public enum CardCatalog {
                 artKey: "crimson",
                 finish: .matte
             ),
+            network: .visa,
+            aliases: ["Wells Fargo Active Cash", "Active Cash"],
             termsURL: "https://www.wellsfargo.com/credit-cards/active-cash/",
             checkedOn: checkedOn,
             notModelled: [

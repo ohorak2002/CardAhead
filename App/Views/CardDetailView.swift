@@ -1,8 +1,12 @@
 import SwiftUI
 import CardKit
 
-/// What appears underneath a card once it is expanded: every rule, how much of
-/// each cap is left, this quarter's rotating status, and the perks.
+/// What appears underneath a card once it is expanded: this quarter's rotating
+/// status, everything the card is good for in plain English, how much of each
+/// cap is left, and the coding quirks worth knowing.
+///
+/// The benefit list is `CardBenefit`, the same one `CardBenefitsView` renders,
+/// so the card describes itself the same way wherever it is read.
 struct CardDetailView: View {
     let card: Card
 
@@ -14,8 +18,7 @@ struct CardDetailView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             rotatingSection
-            rulesSection
-            perksSection
+            benefitsSection
             notesSection
             actionsSection
         }
@@ -118,53 +121,40 @@ struct CardDetailView: View {
         .font(.subheadline)
     }
 
-    // MARK: - Rules
+    // MARK: - Benefits
 
-    private var rulesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("Earns")
-            ForEach(sortedRules) { rule in
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(rule.category.displayName)
-                            .font(.subheadline)
-                        Spacer(minLength: 8)
-                        Text(card.currency.formatted(rate: rule.rate))
-                            .font(.subheadline.weight(.semibold).monospacedDigit())
-                    }
-                    if let note = rule.note {
-                        Text(note)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    if let cap = rule.cap {
-                        capBar(cap, label: rule.category.displayName)
-                    }
-                }
-            }
-        }
+    /// The same `CardBenefit` list the Benefits screen renders, minus the
+    /// rotating programme — that one is above, with the button that switches
+    /// it on. One description of the card, shown in two places, so the words
+    /// here and the words there cannot drift apart.
+    private var benefits: [CardBenefit] {
+        card.benefits().filter { $0.origin != .rotating }
     }
 
-    private var sortedRules: [CategoryRule] {
-        card.rules.sorted { lhs, rhs in
-            if lhs.category == .base { return false }
-            if rhs.category == .base { return true }
-            if lhs.rate != rhs.rate { return lhs.rate > rhs.rate }
-            return lhs.category.displayName < rhs.category.displayName
-        }
+    private var benefitGroups: [BenefitGroup] {
+        var seen: Set<BenefitGroup> = []
+        return benefits.map(\.group).filter { seen.insert($0).inserted }
     }
 
-    // MARK: - Perks
-
-    @ViewBuilder
-    private var perksSection: some View {
-        if !card.perks.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                sectionTitle("Perks")
-                ForEach(card.perks, id: \.self) { perk in
-                    Label(perk.displayName, systemImage: perk.isTravelRelevant ? "airplane" : "checkmark.shield")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+    private var benefitsSection: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            ForEach(benefitGroups, id: \.self) { group in
+                VStack(alignment: .leading, spacing: 10) {
+                    sectionTitle(group.displayName)
+                    ForEach(benefits.filter { $0.group == group }) { benefit in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(benefit.title)
+                                .font(.subheadline)
+                            if let detail = benefit.detail {
+                                Text(detail)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let cap = benefit.cap, benefit.isActive || cap.isExhausted {
+                                capBar(cap, label: benefit.title)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -191,20 +181,24 @@ struct CardDetailView: View {
     // MARK: - Actions
 
     @State private var isShowingPreferExplainer = false
-    @State private var isEditing = false
+    @State private var isReviewingBenefits = false
 
     private var actionsSection: some View {
         HStack(spacing: 12) {
             Button {
-                isEditing = true
+                isReviewingBenefits = true
             } label: {
-                Label("Edit", systemImage: "pencil")
+                Label("Benefits", systemImage: "list.bullet")
             }
             .buttonStyle(.bordered)
-            .sheet(isPresented: $isEditing) {
+            .sheet(isPresented: $isReviewingBenefits) {
                 // The live card, not the copy this view was handed — reopening
-                // the editor after a save should show what was just saved.
-                CardEditorView(mode: .editing(store.card(withID: card.id) ?? card))
+                // this after a save should show what was just saved. Changing
+                // the card, or correcting it by hand, both live inside there;
+                // neither is the thing a tap on a card should lead with.
+                NavigationStack {
+                    CardBenefitsView(mode: .reviewing(store.card(withID: card.id) ?? card))
+                }
             }
 
             Button {

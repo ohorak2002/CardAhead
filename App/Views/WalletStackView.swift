@@ -21,6 +21,11 @@ struct WalletStackView: View {
 
     @State private var locationAuth = LocationAuthorization()
     @State private var isShowingLocationPrimer = false
+    /// Set when the wallet gains its first card, acted on once the add sheet
+    /// has actually closed. Raising the primer while that sheet is still up
+    /// asks iOS to stack a sheet on a sheet from the same view, which it
+    /// quietly drops — losing the one permission the app cannot work without.
+    @State private var shouldOfferPrimer = false
     /// Asked once, unprompted. After that the banner is the only reminder —
     /// a permission sheet that reappears on every launch is how apps get deleted.
     @AppStorage("hasOfferedLocationPrimer") private var hasOfferedLocationPrimer = false
@@ -62,8 +67,8 @@ struct WalletStackView: View {
             .safeAreaInset(edge: .bottom) {
                 if !store.cards.isEmpty { whyBar }
             }
-            .sheet(isPresented: $isAddingCard) {
-                CardEditorView(mode: .adding)
+            .sheet(isPresented: $isAddingCard, onDismiss: offerPrimerIfDue) {
+                AddCardView()
             }
             .sheet(isPresented: $isShowingLocationPrimer) {
                 LocationPrimerView(auth: locationAuth) {
@@ -78,9 +83,16 @@ struct WalletStackView: View {
                       !hasOfferedLocationPrimer,
                       remindersAreOff
                 else { return }
-                isShowingLocationPrimer = true
+                shouldOfferPrimer = true
             }
         }
+    }
+
+    /// Runs after the add sheet has gone, never while it is still there.
+    private func offerPrimerIfDue() {
+        guard shouldOfferPrimer else { return }
+        shouldOfferPrimer = false
+        isShowingLocationPrimer = true
     }
 
     /// The app cannot do its job without both permissions. Missing either one

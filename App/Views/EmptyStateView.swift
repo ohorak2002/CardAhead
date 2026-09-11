@@ -8,6 +8,9 @@ import SwiftUI
 /// asked at install time.
 ///
 /// An invitation, not an apology. No "you have no cards" and no sad icon.
+///
+/// The promise in the second line is the product: nobody should have to type
+/// out their own card's earn rates. Adding one is picking it off a list.
 struct EmptyStateView: View {
     var onAddCard: () -> Void
 
@@ -19,7 +22,7 @@ struct EmptyStateView: View {
                 .font(.title2.weight(.bold))
                 .multilineTextAlignment(.center)
 
-            Text("One at a time: what it is, what it looks like, and what it earns.")
+            Text("Say which card it is. We already know what it earns.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

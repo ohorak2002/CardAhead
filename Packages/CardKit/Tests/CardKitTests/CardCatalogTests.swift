@@ -42,6 +42,104 @@ final class CardCatalogTests: XCTestCase {
         XCTAssertTrue(entry.isStale(asOf: auditDay.addingTimeInterval(60 * 60 * 24 * 365)))
     }
 
+    // MARK: - Which product is it
+
+    /// The id is what a saved card points back at, so it has to outlive the
+    /// display name. Issuers rename cards.
+    func testEveryProductIDIsUniqueAndStablyShaped() {
+        var seen: Set<String> = []
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-")
+        for entry in CardCatalog.entries {
+            XCTAssertTrue(seen.insert(entry.productID).inserted, "\(entry.productID) is used twice")
+            XCTAssertFalse(entry.productID.isEmpty)
+            XCTAssertTrue(
+                entry.productID.unicodeScalars.allSatisfy(allowed.contains),
+                "\(entry.productID) should be lower case and hyphenated"
+            )
+        }
+    }
+
+    func testEveryCatalogCardKnowsWhichProductItIs() {
+        for entry in CardCatalog.entries {
+            XCTAssertEqual(entry.card.catalogProductID, entry.productID, entry.id)
+            XCTAssertTrue(entry.card.isCatalogCard, entry.id)
+            XCTAssertEqual(CardCatalog.entry(for: entry.card)?.productID, entry.productID)
+        }
+    }
+
+    func testACardTypedInByHandBelongsToNoProduct() {
+        let byHand = Card(issuer: "Local credit union", name: "Everyday")
+        XCTAssertFalse(byHand.isCatalogCard)
+        XCTAssertNil(CardCatalog.entry(for: byHand))
+    }
+
+    /// Searching the display name alone found none of these, which is most of
+    /// what anybody actually types.
+    func testNicknamesAndFullNamesFindTheCard() throws {
+        let expected: [(query: String, productID: String)] = [
+            ("amex gold", "amex-gold"),
+            ("American Express Gold Card", "amex-gold"),
+            ("gold card", "amex-gold"),
+            ("CSP", "chase-sapphire-preferred"),
+            ("BCP", "amex-blue-cash-preferred"),
+            ("costco visa", "citi-costco-anywhere-visa"),
+            ("double cash", "citi-double-cash"),
+            ("active cash", "wells-fargo-active-cash")
+        ]
+        for expectation in expected {
+            let found = CardCatalog.searchEntries(expectation.query)
+            XCTAssertTrue(
+                found.contains { $0.productID == expectation.productID },
+                "\"\(expectation.query)\" did not find \(expectation.productID)"
+            )
+        }
+    }
+
+    /// Every word has to land, or "chase gold" would hand somebody an Amex.
+    func testSearchNeedsEveryWordToMatch() {
+        XCTAssertTrue(CardCatalog.searchEntries("chase gold").isEmpty)
+        XCTAssertEqual(CardCatalog.searchEntries("chase sapphire").count, 1)
+    }
+
+    func testTheNetworkIsSearchableSoVisaFindsVisaCards() {
+        let visa = CardCatalog.searchEntries("visa").map(\.productID)
+        XCTAssertTrue(visa.contains("chase-sapphire-preferred"))
+        XCTAssertFalse(visa.contains("amex-gold"))
+    }
+
+    func testIssuersRollUpTheCatalog() throws {
+        let issuers = CardCatalog.issuers
+        XCTAssertEqual(issuers.map(\.name).sorted(), ["Amex", "Capital One", "Chase", "Citi", "Discover", "Wells Fargo"])
+
+        let amex = try XCTUnwrap(issuers.first { $0.name == "Amex" })
+        // "Amex" is what fits on a card. "American Express" is what somebody types.
+        XCTAssertEqual(amex.fullName, "American Express")
+        XCTAssertEqual(amex.cardCount, 2)
+        XCTAssertEqual(issuers.first { $0.name == "Citi" }?.cardCount, 2)
+        XCTAssertEqual(CardCatalog.entries(issuedBy: "Chase").count, 2)
+    }
+
+    /// The rule this whole change exists for: "Gold" does not identify a card.
+    func testTwoProductsCalledGoldStayTellableApart() {
+        let personal = CardCatalog.amexGoldEntry
+        let business = CatalogEntry(
+            productID: "amex-business-gold",
+            card: Card(issuer: "Amex", name: "Business Gold"),
+            network: .amex,
+            variant: .business,
+            issuerFullName: "American Express",
+            aliases: ["American Express Business Gold"],
+            termsURL: "https://www.americanexpress.com/us/credit-cards/card/business-gold/",
+            checkedOn: CardCatalog.checkedOn
+        )
+
+        XCTAssertNotEqual(personal.productID, business.productID)
+        XCTAssertTrue(business.matches("business gold"))
+        XCTAssertFalse(personal.matches("business gold"))
+        XCTAssertTrue(personal.matches("gold"))
+        XCTAssertTrue(business.matches("gold"))
+    }
+
     // MARK: - Rotating categories
 
     /// The anti-invention rule. A quarter that ships without the issuer's own

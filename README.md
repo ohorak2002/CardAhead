@@ -1,4 +1,4 @@
-# Card Rewards Reminder
+# CardWise
 
 An iOS app that tells you which credit card to pay with, before you reach for
 your phone.
@@ -10,56 +10,82 @@ suggestion injected at the till.
 
 ## What is built
 
-Build steps 1 to 3 of the plan, as agreed:
-
 | Step | Status |
 |---|---|
 | 1. Data model — cards, categories, caps, rotating quarters | Done |
 | 2. Wallet-style stacked card UI with add, expand, pin, reorder | Done |
 | 3. Recommendation ranking engine, testable with no location | Done |
-| 4. Region monitoring and the notification pipeline | Permission flow only |
-| 5. Places API merchant resolution | Not started |
+| 4. Region monitoring and the notification pipeline | Built, not yet proven on a phone |
+| 5. Places API merchant resolution | Done, needs an API key |
 | 6. Significant-location-change travel mode | Not started |
 | 7. Safari extension for online purchases | Not started |
 
-Step 4 has its front half: `LocationAuthorization` walks Apple's
-not-determined → When In Use → Always path and falls back to Settings once iOS
-will not prompt again, and `LocationPrimerView` makes the case before the system
-prompt appears. **No geofence is registered and no notification is sent yet** —
-the permission is asked for and then not used.
+**Step 4** is written end to end. `RegionPlanner` picks the twenty nearest shops
+your cards actually pay extra at, `RegionMonitor` registers them as
+`CLCircularRegion`s and handles enter/exit, `ArrivalTracker` owns the
+four-minute dwell rule, and `ReminderCenter` schedules the notification on
+entry so it survives the app being suspended or killed. Leaving early cancels
+it. None of that is *proven*: a unit test cannot show that a geofence wakes a
+terminated app on a real iPhone. That needs a device.
 
-Steps 5 and 7 have their data layer in place already —
-`MerchantCategoryMap` maps both Google Places types and website domains onto the
-same categories the engine ranks against — but nothing calls them yet.
+**Step 5** calls Places API (New) `searchNearby` behind a cache — a 250m grid,
+one week, forty squares, least-recently-used. The lookup happens when the
+twenty-region plan is redrawn, never when a geofence fires, so the shop's name
+and category are already in the registered region by the time you walk in. No
+key is committed; without one the app runs, watches nothing, and says so in
+Settings. See `docs/places-api.md`.
+
+## Adding a card
+
+You choose your card. You do not describe it.
+
+1. Pick the bank.
+2. Pick the exact product — "Gold" names more than one card, so the list shows
+   the network, the annual fee and what the card is best at.
+3. Confirm the benefits. They arrive already ticked, in plain English: *4x at
+   restaurants*, *No foreign transaction fee*, *5% on this quarter's
+   categories*. Untick anything your card does not have.
+
+Nothing to type, no rate to look up, no cap to work out. A card that is not on
+the list can still be described by hand, and it is ranked exactly the same way —
+it just carries no source and no date, and the app says so instead of showing a
+date it has not earned.
+
+The wallet starts empty on a fresh install. Nothing is seeded and nothing is
+imported: a card you did not add is a card whose rates you never checked.
 
 ## Layout
 
 ```
 Packages/CardKit/       Pure Swift. No UIKit, no Core Location, no SwiftUI.
   Sources/CardKit/
-    Models/             Card, CategoryRule, EarnCap, Quarter, WelcomeBonus, Perk
-    Engine/             PurchaseContext, CardScore, RecommendationEngine
-    Data/               CardCatalog (seed cards), MerchantCategoryMap
-  Tests/CardKitTests/   The engine, exercised without a device
-App/                    SwiftUI. The wallet stack, card detail, add flow.
+    Models/             Card, CategoryRule, EarnCap, Quarter, WelcomeBonus,
+                        Perk, CardBenefit, CardNetwork
+    Engine/             PurchaseContext, CardScore, RecommendationEngine,
+                        ArrivalReminder (the words on the lock screen)
+    Data/               CardCatalog, MerchantCategoryMap, CardArtLibrary
+    Geo/                RegionPlanner, ArrivalTracker, Merchant, MerchantSource
+    Places/             GooglePlacesSource, MerchantCache
+  Tests/CardKitTests/   185 tests, run on macOS and Linux
+App/                    SwiftUI: the wallet stack, the add flow, settings,
+                        Core Location, and the notification centre
 project.yml             XcodeGen spec. The .xcodeproj is generated, not committed.
 ```
 
 The split is the point. `CardKit` has no platform dependencies, so the ranking
-logic runs under `swift test` in seconds and does not need a simulator, a
-location fixture, or a notification permission.
+logic runs under `swift test` in seconds without a simulator, a location
+fixture, or a notification permission — and it runs on Linux, which means it
+runs in a browser tab through a Codespace.
 
 ## Running it
 
-You need a Mac. Everything below assumes one.
-
-Run just the engine and its tests — no Xcode project needed:
+The engine and its tests need no Mac and no Xcode:
 
 ```bash
 swift test --package-path Packages/CardKit
 ```
 
-Build and run the app:
+The app itself needs Apple's frameworks:
 
 ```bash
 brew install xcodegen
@@ -67,78 +93,82 @@ xcodegen generate
 open CardRewards.xcodeproj
 ```
 
-CI runs both on every push, so the state of the build is visible from GitHub
-rather than from someone's laptop.
+If you do not have a Mac, CI has one. Every push to `main` builds an unsigned
+`.ipa` and uploads it as an artifact; Sideloadly on Windows signs it with a
+personal Apple ID and installs it over a cable. See
+`docs/testing-on-your-iphone.md`.
 
 ## How the ranking actually works
 
-The spec lists five ranking rules. Implemented literally they fight each other —
-"highest earn rate" and "weight an open signup bonus heavily" cannot both be the
-primary sort. So all of it is folded into **one number: cents earned per dollar
-spent**, and only genuine ties fall through to tiebreaks.
+Five ranking rules implemented literally would fight each other — "highest earn
+rate" and "weight an open signup bonus heavily" cannot both be the primary
+sort. So all of it folds into **one number: cents earned per dollar spent**, and
+only genuine ties fall through to tiebreaks.
 
 1. **The best rate that actually applies.** A bonus whose cap is used up does
-   not apply. A rotating bonus the user never activated does not apply. Both
-   fall back to the base rate, and both say so in the caveats.
-2. **Converted through the user's own point valuation.** 4x points at the
-   default 1.0¢ is 4.0. Drop the valuation to 0.6¢ and a flat 3% cash back card
-   correctly overtakes it. There is a test for exactly that.
+   not apply. A rotating bonus nobody activated does not apply. Both fall back
+   to the base rate, and both say so.
+2. **Converted through your own point valuation.** 4x points at the default 1¢
+   is 4.0. Drop it to 0.6¢ and a flat 3% cash back card correctly overtakes it.
+   There is a test for exactly that.
 3. **Minus a foreign transaction fee, when abroad.** A 3% fee on a 3% category
-   is a wash, and the app should say so rather than cheerfully recommending it.
+   is a wash, and the app says so rather than cheerfully recommending it.
 4. **Plus an open welcome bonus, spread across the spend still required.** $600
    of points with $3,000 left to earn them is 20¢ on the dollar, which
-   *correctly* beats every category multiplier. This turns "weight it heavily"
-   into arithmetic instead of a magic constant. Capped at 25¢/dollar so a bonus
-   with one dollar left does not score in the thousands.
+   *correctly* beats every category multiplier. Arithmetic instead of a magic
+   constant, capped at 25¢ so a bonus with one dollar left does not score in the
+   thousands.
 5. **Ties** break on pinned, then cap health, then travel perks while
    travelling, then annual fee, then name — so the order never jitters.
 
-The notification names one card. Everything else — alternates, caveats, the
-cap bars — appears only after a tap.
+The notification names one card. Alternates, caveats and cap bars appear only
+after a tap.
 
 ### The activation nudge
 
 Chase Freedom and Discover both make you click a button each quarter, and people
-forget. The engine checks whether an unactivated rotating bonus *would have won*,
-and only then raises it. That is the one place the app tells you about a card it
+forget. The engine checks whether an unactivated rotating bonus *would have
+won*, and only then raises it. That is the one place the app mentions a card it
 is not recommending.
-
-## Seeing it work before location exists
-
-The wallet has a **Try it** button in the toolbar. Pick a category, a merchant
-name, and the travelling/abroad toggles, and it renders the exact strings a
-notification would carry plus the full ranking behind them. It is scaffolding
-for this stage and moves behind a debug flag once step 4 lands.
 
 ## Decisions worth arguing with
 
-**Card art is colour, not logos.** The spec asks for accurate replicas of the
-real card art. Issuer logos and card designs are trademarked, and shipping pixel
-copies needs a licence or issuer approval. `CardArt` uses each issuer's familiar
-palette with a text wordmark instead. Recognition still works at a glance, and
-swapping in licensed assets later touches one file.
+**Card art is never the bank's, unless the bank said yes.** Issuer card faces
+are trademarked; Apple Wallet shows the real Amex front because Amex hands Apple
+that image during provisioning, which is a business relationship rather than a
+download. `CardArtLibrary` is the registry of artwork we hold a licence for, it
+**ships empty on purpose**, and a test fails the build if that quietly changes.
+`CardArtSource.resolve(for:)` is the only way to pick a face — licensed asset,
+then your own photo, then a card CardWise draws itself at the real ISO/IEC 7810
+proportion with a chip and a contactless mark and no logo. The app says in words
+which of the three you are looking at. See `docs/card-art.md`.
 
-**The seeded card data is a structure, not a source of truth.** The rates, caps,
-and annual fees in `CardCatalog` model real, well-known card structures so the
-engine has something realistic to rank. Issuers change all of it without notice.
-Verify every figure against issuer terms before this goes anywhere near the App
-Store.
+**Every number in the catalog cites the bank's own page and the day somebody
+read it.** Not a review site: those are downstream of the same drift the field
+exists to catch. Things the model cannot express are written down as prose in
+`notModelled` rather than approximated into a rule, because an approximation
+reads as a fact. The catalog goes stale after 180 days and the app starts saying
+so rather than presenting old numbers as current.
 
-**The rotating quarters are placeholders.** Issuers announce them one quarter at
-a time, so a seed database cannot know them. The two quarters in `CardCatalog`
-are stand-ins, and every card using them carries a note saying so. This needs a
-real feed before step 4 is worth shipping.
+**Rotating quarters are never invented.** Issuers announce them one quarter at a
+time — Discover publishes a year ahead, Chase about a fortnight before the
+quarter starts — so a shipped database physically cannot know them all.
+`RotatingProgram.knownThrough` records how far the data actually goes, which
+makes "this quarter pays nothing extra" and "nobody has published this quarter"
+two different answers instead of one. Past the edge the app asks you, because
+you got the email.
 
 **Cap spend is user-entered.** There is no transaction feed in v1 — that means
-Plaid and a compliance surface, which the spec rules out. So the app cannot know
-you have burned $6,000 of the grocery cap unless you tell it. The cap bars are
-editable for that reason.
+Plaid and a compliance surface this app does not want. So it cannot know you
+have burned $6,000 of the grocery cap unless you tell it, which is why the cap
+bars are editable.
 
-**Money is `Decimal`, rates are `Double`.** Dollar amounts and caps should not
+**Money is `Decimal`, rates are `Double`.** Dollar amounts and caps must not
 drift; earn rates are ratios and never accumulate.
 
 ## What is deliberately absent
 
-- No bank linking, no transaction data, no account.
-- No network calls at all yet. The wallet is a JSON file in Application Support.
+- No bank linking, no transaction data, no account, no cloud.
 - No analytics.
+- The wallet is a JSON file in Application Support. The only network call the
+  app ever makes is an anonymous lookup of the shops near you.

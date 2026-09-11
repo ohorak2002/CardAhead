@@ -90,6 +90,12 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
     /// when a card changes — it asks at the moment it plans.
     @ObservationIgnored var walletCards: () -> [Card] = { [] }
 
+    /// Where suggestions and silences are written down, when anything is.
+    /// Optional because every interesting moment here happens whether or not
+    /// anybody is counting, and this class must keep working with nothing
+    /// attached — a preview, a test, a user who switched recording off.
+    @ObservationIgnored var impact: ImpactStore?
+
     /// How far out to ask the place provider for shops. Wider than a geofence
     /// on purpose: twenty candidates within 100m would be a plan that expires
     /// as soon as the user crosses the road.
@@ -161,6 +167,7 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
         manager.stopMonitoringSignificantLocationChanges()
         for arrival in tracker.dropArrivals(outside: []) {
             notifier.cancel(regionID: arrival.regionID)
+            impact?.recordWithdrawn(regionID: arrival.regionID)
         }
         plan = nil
         plannedCategories = []
@@ -252,6 +259,7 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
         // exit, so it would hang until it went stale.
         for dropped in tracker.dropArrivals(outside: wanted) {
             notifier.cancel(regionID: dropped.regionID)
+            impact?.recordWithdrawn(regionID: dropped.regionID)
         }
 
         plan = newPlan
@@ -311,7 +319,18 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
     /// this is the same reminder being re-rendered, not a new one being sent.
     private func refreshPendingReminders() {
         for arrival in tracker.pending {
-            notifier.schedule(arrival)
+            switch notifier.schedule(arrival) {
+            case .send(_, let snapshot):
+                // A correction, not a second suggestion — `recordGenerated`
+                // knows that from the region id and replaces rather than
+                // counts again.
+                impact?.recordGenerated(snapshot, forRegionID: arrival.regionID)
+            case .stayQuiet:
+                // The wallet edit took the answer away: the card was removed,
+                // or its cap filled in. Nothing will arrive, so the question
+                // must not be left waiting for an answer nobody was asked.
+                impact?.recordWithdrawn(regionID: arrival.regionID)
+            }
         }
     }
 
@@ -320,6 +339,9 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
             let minutes = Int(due.confirmAt.timeIntervalSince(due.enteredAt) / 60)
             record(.confirmed, "Still at \(due.merchant.name) after \(minutes) minutes, so a reminder was due.", at: due.confirmAt)
             log.notice("confirmed arrival at \(due.merchant.id, privacy: .public)")
+            // Dated to when it actually came due, not to when the app got
+            // round to noticing — the same reason the event above is.
+            impact?.recordShown(regionID: due.regionID, at: due.confirmAt)
         }
         save()
     }
@@ -365,11 +387,17 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
         guard throttle.allows(merchantID: monitored.merchant.id, at: arrival.confirmAt) else {
             // record(_:_:) already saves; the throttle itself was not touched.
             record(.skipped, "Already reminded about \(monitored.merchant.name) enough today. Nothing else will be sent.")
+            impact?.recordSuppressed(.throttled, category: monitored.merchant.category, at: arrival.confirmAt)
             return
         }
-        if notifier.schedule(arrival) {
+
+        switch notifier.schedule(arrival) {
+        case .send(_, let snapshot):
+            impact?.recordGenerated(snapshot, forRegionID: arrival.regionID)
             throttle.recordFired(merchantID: monitored.merchant.id, at: arrival.confirmAt)
             save()
+        case .stayQuiet(let reason):
+            impact?.recordSuppressed(reason, category: monitored.merchant.category, at: arrival.confirmAt)
         }
     }
 
@@ -378,6 +406,11 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
         notifier.cancel(regionID: cancelled.regionID)
         save()
         record(.cancelled, "Left \(cancelled.merchant.name) before the reminder was due. Nothing sent.")
+        impact?.recordLeftEarly(
+            regionID: cancelled.regionID,
+            category: cancelled.merchant.category,
+            at: Date()
+        )
         log.notice("exited \(region.identifier, privacy: .public)")
     }
 

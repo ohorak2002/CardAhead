@@ -36,6 +36,7 @@ struct CardBenefitsView: View {
     var onFinish: (() -> Void)? = nil
 
     @Environment(WalletStore.self) private var store
+    @Environment(ImpactStore.self) private var impact
     @Environment(\.dismiss) private var dismiss
 
     /// Benefit ids the user has unticked. Ids rather than benefits, so a redraw
@@ -82,6 +83,10 @@ struct CardBenefitsView: View {
             if !isConfirming { actionsSection }
         }
         .listStyle(.insetGrouped)
+        // Only a card already held. Reading the benefits of one being added is
+        // part of adding it, and counting both would count the same moment
+        // twice under two different names.
+        .onAppear { if !isConfirming { impact.recordBenefitsViewed(card) } }
         .navigationTitle("Benefits")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -354,6 +359,7 @@ struct CardBenefitsView: View {
         CardBenefitsView(mode: .confirming(CardCatalog.entry(productID: "amex-gold")!))
     }
     .environment(WalletStore.previewStore())
+    .environment(ImpactStore.previewStore())
 }
 
 #Preview("Reviewing") {
@@ -361,4 +367,5 @@ struct CardBenefitsView: View {
         CardBenefitsView(mode: .reviewing(CardCatalog.chaseFreedomFlex))
     }
     .environment(WalletStore.previewStore())
+    .environment(ImpactStore.previewStore())
 }

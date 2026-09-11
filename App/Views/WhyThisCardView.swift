@@ -5,9 +5,9 @@ import CardKit
 /// here: what each card would earn, the caveats behind the answer, and how the
 /// ranking arrives at it.
 ///
-/// The "where you are" controls at the top stand in for the geofence until
-/// build step 4 lands. They move behind a debug flag once region monitoring is
-/// doing this on its own.
+/// The "where you are" controls at the top are a bench, not a stand-in: the
+/// geofence exists and does this on its own, and these are how the ranking
+/// gets exercised without walking into a shop.
 struct WhyThisCardView: View {
 
     @Environment(WalletStore.self) private var store

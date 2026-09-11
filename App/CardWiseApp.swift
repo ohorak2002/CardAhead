@@ -7,10 +7,11 @@ struct CardWiseApp: App {
     @State private var store: WalletStore
     @State private var reminders: ReminderCenter
     @State private var monitor: RegionMonitor
+    @State private var impact: ImpactStore
 
     @Environment(\.scenePhase) private var scenePhase
 
-    /// All three are built here rather than lazily on first use, because this
+    /// All four are built here rather than lazily on first use, because this
     /// app gets launched in the background — by iOS to hand it a geofence
     /// crossing, and by the user tapping a reminder. Both the location
     /// manager's delegate and the notification centre's have to be in place by
@@ -19,18 +20,28 @@ struct CardWiseApp: App {
     init() {
         let store = WalletStore()
         let reminders = ReminderCenter()
+        let impact = ImpactStore()
         let monitor = RegionMonitor(
             merchantSource: PlacesProvider.makeSource(),
             notifier: reminders
         )
 
         reminders.walletCards = { store.cards }
+        reminders.onOpened = { [weak impact] id in impact?.recordOpened(id) }
         monitor.walletCards = { store.cards }
+        monitor.impact = impact
+        store.onChange = { [weak impact] change in
+            switch change {
+            case .added(let card): impact?.recordCardAdded(card)
+            case .rotatingBonusActivated(let card): impact?.recordRotatingBonusActivated(card)
+            }
+        }
         monitor.start()
 
         _store = State(initialValue: store)
         _reminders = State(initialValue: reminders)
         _monitor = State(initialValue: monitor)
+        _impact = State(initialValue: impact)
     }
 
     var body: some Scene {
@@ -39,6 +50,7 @@ struct CardWiseApp: App {
                 .environment(store)
                 .environment(reminders)
                 .environment(monitor)
+                .environment(impact)
                 .task { await reminders.refreshStatus() }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }

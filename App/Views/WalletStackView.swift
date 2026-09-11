@@ -12,12 +12,16 @@ struct WalletStackView: View {
 
     @Environment(WalletStore.self) private var store
     @Environment(ReminderCenter.self) private var reminders
+    @Environment(ImpactStore.self) private var impact
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var expandedCardID: UUID?
     @State private var draggingCardID: UUID?
     @State private var dragTranslation: CGFloat = 0
     @State private var isAddingCard = false
+    /// Set when somebody says yes to the follow-up, which is the only route to
+    /// the one screen in this app that asks for a number.
+    @State private var pricing: OpenRecommendation?
 
     @State private var locationAuth = LocationAuthorization()
     @State private var isShowingLocationPrimer = false
@@ -74,6 +78,17 @@ struct WalletStackView: View {
                             undoRemovedBanner(removed)
                                 .padding(.top, 10)
                         }
+                        // Transient, like the undo banner above it, and for
+                        // the same reason it is allowed onto a screen that is
+                        // otherwise only cards: it is about something that
+                        // just happened, and it is gone as soon as it is
+                        // answered or the day is over.
+                        if let followUp = impact.followUp {
+                            FollowUpPromptView(followUp: followUp) { answer in
+                                answerFollowUp(followUp, with: answer)
+                            }
+                            .padding(.top, 10)
+                        }
                         if !store.cards.isEmpty { whyBar }
                     }
                     .animation(motion, value: store.lastRemoved)
@@ -81,6 +96,11 @@ struct WalletStackView: View {
             }
             .sheet(isPresented: $isAddingCard, onDismiss: offerPrimerIfDue) {
                 AddCardView()
+            }
+            .sheet(item: $pricing) { followUp in
+                PurchaseAmountView(followUp: followUp) { amount in
+                    impact.recordPurchase(amount, for: followUp.id)
+                }
             }
             .sheet(isPresented: $isShowingLocationPrimer) {
                 LocationPrimerView(auth: locationAuth) {
@@ -97,6 +117,17 @@ struct WalletStackView: View {
                 else { return }
                 shouldOfferPrimer = true
             }
+        }
+    }
+
+    /// Yes opens the optional second question; everything else is the end of
+    /// it. Nothing here is required of anybody — see `FollowUpPromptView`.
+    private func answerFollowUp(_ followUp: OpenRecommendation, with answer: ImpactEventKind) {
+        withAnimation(motion) {
+            impact.recordAnswer(answer, for: followUp.id)
+        }
+        if answer == .recommendationAccepted {
+            pricing = followUp
         }
     }
 
@@ -367,4 +398,5 @@ struct WalletStackView: View {
         .environment(WalletStore.previewStore())
         .environment(ReminderCenter())
         .environment(RegionMonitor())
+        .environment(ImpactStore.previewStore())
 }

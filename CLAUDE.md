@@ -49,14 +49,20 @@ Packages/CardKit/       Pure Swift. No UIKit, no Core Location, no SwiftUI.
                          places to watch), ArrivalTracker (the dwell rule),
                          ReminderThrottle (daily/per-merchant limits),
                          MerchantSource
-    Engine/ArrivalReminder.swift   the words on the lock screen, decided by
-                         the ranking engine so they can be unit tested
+    Engine/ArrivalReminder.swift   the words on the lock screen, and the
+                         ArrivalDecision that carries either those words or
+                         the reason there were none
+    Impact/             RecommendationSnapshot (the numbers frozen at the
+                         till), BenefitEstimate + BenefitValueCalculator,
+                         ImpactEvent, ImpactLedger, AnalyticsService (a
+                         no-op — there is no backend and no network call)
     Places/             GooglePlacesSource, MerchantCache, and an HTTPRequest
                          value type so no URLSession enters this package
   Tests/CardKitTests/    run on both macOS and Linux CI
 App/
   Models/ (none — CardKit owns them)
   Store/WalletStore.swift        wallet CRUD, photo storage, JSON persistence
+  Store/ImpactStore.swift        the on-device ledger of what reminders led to
   Location/LocationAuthorization.swift   the permission ladder
   Location/RegionMonitor.swift           CLCircularRegion plumbing only
   Location/ArrivalNotifier.swift         seam between arriving and being told
@@ -95,7 +101,7 @@ seconds. Keep it that way — no SwiftUI, no UIKit, no Core Location imports in
    ranking gets exercised without walking into a shop.
 3. **Settings** (`SettingsView`) — behind a gear, top-left of the wallet
    toolbar. Point valuation (per currency, not per card), location status,
-   card-artwork explainer, erase-everything.
+   **Your impact** (`ImpactView`), card-artwork explainer, erase-everything.
 
 Adding a card is a sheet, not a fourth screen, and it is three steps:
 `AddCardView` (bank, or search) -> the bank's products -> `CardBenefitsView`
@@ -228,6 +234,54 @@ plus button and must not go back there.
   photo immediately and permanently, that is `eraseEverything()`'s job, not
   `remove(_:)`'s.
 
+- **Rewards are never called "saved".** Nothing this app measures is a saving:
+  no price changed and nothing was discounted. `BenefitEstimate` deliberately
+  has no field, and the UI no string, containing the word — they are
+  *estimated rewards*, at a rate the app believed applied and a point
+  valuation the user set. And the figure worth reporting is
+  `incrementalValueCents`: what choosing that card earned over the best other
+  card in the same wallet. A 4x card earns 4x whether or not anything told you
+  about it; being told is worth the gap, not the total. That number **may be
+  negative** and is not clamped — when a signup bonus wins the ranking, the
+  recommended card genuinely earns less at that till, and hiding it would make
+  the total a sales figure rather than a measurement.
+- **A cash back "unit" is one cent, not one dollar.** Rates and
+  `WelcomeBonus.rewardUnits` are in the same units, and
+  `RewardCurrency.centsPerUnit` values both: a 2% card has rate `2`, so a $200
+  signup bonus is `20_000`. `CardBenefit` printed those units as dollars and
+  read "$20,000 back" until this was found while writing the value engine.
+- **The impact ledger holds a category, never a merchant.** No shop name, no
+  id, no coordinate, anywhere in `ImpactEvent` — there is a test
+  (`testNoEventCanCarryAMerchant`) that fails the build if one appears. The
+  one structure holding a place identifier is `ImpactStore.openByRegion`, and
+  only for the four minutes of a dwell, because entry and confirmation are two
+  separate wakes of a process that is killed in between. `cardID` is the
+  wallet's own row id and is stripped by `redactedForAnalytics()`, which is
+  the *only* form an `AnalyticsService` is ever shown — enforced in one place,
+  `ImpactStore.emit`, so a call site cannot forget.
+- **`AnalyticsService` sends nothing and has no backend.** It ships as
+  `NoOpAnalyticsService`. It exists so adding one later is a new conforming
+  type rather than a change to every screen. Do not add a network call behind
+  it without also adding the opt-in that Settings' copy currently promises is
+  unnecessary.
+- **Every `ImpactEventKind` has something that raises it.** An event model
+  full of counters nothing emits is a dashboard where nobody can tell a broken
+  metric from an unwired one. `cardRemoved` was written and then deleted for
+  exactly this reason — a removal is undoable for six seconds, so the count
+  would either be wrong or need a second correcting event. If you add a case,
+  wire it in the same commit.
+- **Staying quiet is counted, with its reason.** `RecommendationEngine.decide`
+  returns `ArrivalDecision` — either the words *and* the frozen numbers, or a
+  `SuppressionReason`. The old `reminder(for:cards:asOf:)` is still there as a
+  thin wrapper for callers that only want the words. A product that counts
+  only what it sent cannot tell restraint from a bug.
+- **Saying "yes" to the follow-up does not close it.** An accepted suggestion
+  keeps its entry in `ImpactLedger.open` with `answeredAt` set: the first
+  question stops being asked, but the second and optional one — what did you
+  spend — still needs the frozen numbers behind it. `expireStale` skips those
+  when raising `.recommendationIgnored`, because somebody who said yes and
+  never got round to a number has not ignored anything.
+
 ## Done vs. pending (build steps from the original spec)
 
 | Step | Status |
@@ -239,6 +293,7 @@ plus button and must not go back there.
 | 5. Places API merchant resolution | **Done, needs a key.** `GooglePlacesSource` calls Places API (New) `searchNearby` behind `MerchantCache` (250m grid, one week, 40 squares, LRU). Resolution happens when the plan is redrawn, *not* when a geofence fires — the shop's name and category are already in the registered region by then. No key is committed; see `docs/places-api.md`. |
 | 6. Significant-location-change travel mode | Not started |
 | 7. Safari extension | Not started |
+| 8. Impact/value tracking | **Done, on-device only.** `RecommendationSnapshot` freezes the numbers at the moment a reminder goes out; `ImpactLedger` records generated/shown/opened/answered/priced and every *suppression* with its reason; `BenefitValueCalculator` turns a volunteered spend into an estimate and an incremental estimate. `ImpactStore` persists it to `impact.json`, `FollowUpPromptView` asks the one optional question on the wallet, `ImpactView` shows the total in Settings. `AnalyticsService` is the seam for a future backend and ships as a no-op. |
 
 Also not built, flagged repeatedly, not yet done:
 

@@ -90,6 +90,63 @@ final class ArrivalReminderTests: XCTestCase {
         XCTAssertNil(engine.reminder(for: arrival(at: market), cards: [spent], asOf: Fixture.inQ3))
     }
 
+    // MARK: - Why it stayed quiet
+
+    /// Silence is half the product, so the reason for it has to survive. A
+    /// `nil` that loses why nothing was said leaves nobody able to tell
+    /// restraint from a bug.
+
+    func testAnEmptyWalletSaysWhyItSaidNothing() {
+        let decision = engine.decide(for: arrival(at: bistro), cards: [], asOf: Fixture.inQ3)
+        XCTAssertEqual(decision, .stayQuiet(.noCards))
+    }
+
+    func testAFlatWalletSaysWhyItSaidNothing() {
+        let flatWallet = [CardCatalog.citiDoubleCash, CardCatalog.wellsFargoActiveCash]
+        let decision = engine.decide(for: arrival(at: bistro), cards: flatWallet, asOf: Fixture.inQ3)
+        XCTAssertEqual(decision, .stayQuiet(.noMeaningfulEdge))
+    }
+
+    func testATrivialEdgeSaysWhyItSaidNothing() {
+        let wallet = [flatCard("Just Ahead", rate: 2.2), flatCard("Runner Up", rate: 2.0)]
+        let decision = engine.decide(for: arrival(at: bistro), cards: wallet, asOf: Fixture.inQ3)
+        XCTAssertEqual(decision, .stayQuiet(.noMeaningfulEdge))
+    }
+
+    /// A reminder that goes out carries the numbers behind it, frozen, so the
+    /// suggestion can be priced hours later against the wallet as it was.
+    func testAReminderCarriesTheNumbersBehindIt() throws {
+        let wallet = [CardCatalog.citiDoubleCash, CardCatalog.amexGold]
+        let decision = engine.decide(for: arrival(at: bistro), cards: wallet, asOf: Fixture.inQ3)
+        let snapshot = try XCTUnwrap(decision.snapshot)
+
+        XCTAssertEqual(snapshot.cardName, "Amex Gold")
+        XCTAssertEqual(snapshot.cardProductID, "amex-gold")
+        XCTAssertEqual(snapshot.centsPerDollar, 4, accuracy: 0.0001)
+        XCTAssertEqual(snapshot.alternateCardName, "Citi Double Cash")
+        XCTAssertEqual(snapshot.alternateCentsPerDollar ?? 0, 2, accuracy: 0.0001)
+        XCTAssertEqual(snapshot.category, .dining)
+        XCTAssertEqual(decision.reminder?.cardID, snapshot.cardID)
+    }
+
+    /// The snapshot holds no merchant, even though the sentence on the lock
+    /// screen names one. Which shop is what the words need; it is not what the
+    /// arithmetic needs, and keeping it would turn a ledger of estimates into
+    /// a record of where somebody has been.
+    func testTheFrozenNumbersHoldNoMerchant() throws {
+        let decision = engine.decide(
+            for: arrival(at: bistro),
+            cards: [CardCatalog.amexGold, CardCatalog.citiDoubleCash],
+            asOf: Fixture.inQ3
+        )
+        let snapshot = try XCTUnwrap(decision.snapshot)
+        XCTAssertTrue(decision.reminder?.body.contains("Corner Bistro") ?? false)
+        XCTAssertFalse(snapshot.followUpDescription.contains("Corner Bistro"))
+
+        let json = try XCTUnwrap(String(data: JSONEncoder().encode(snapshot), encoding: .utf8))
+        XCTAssertFalse(json.contains("Corner Bistro"), json)
+    }
+
     // MARK: - A win too small to interrupt anyone for
 
     /// A card with a real dining-specific rate, not just a base rate — the

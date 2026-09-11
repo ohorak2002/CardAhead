@@ -14,6 +14,18 @@ struct RemovedCard: Equatable {
     var index: Int
 }
 
+/// Something happened to the wallet that is worth counting somewhere else.
+///
+/// Deliberately short, and deliberately without a `removed` case. A removal is
+/// undoable for six seconds — see `remove(_:)` — so "cards removed" would
+/// either count removals that were taken straight back, or need a second event
+/// when the undo window closes to correct itself. Neither is worth it for a
+/// number nobody has a use for.
+enum WalletChange {
+    case added(Card)
+    case rotatingBonusActivated(Card)
+}
+
 /// The user's wallet: which cards they hold, in the order they keep them.
 ///
 /// Everything here stays on the device. There is no account, no sync, and no
@@ -35,6 +47,13 @@ final class WalletStore {
     /// the end of the stack. `WalletStackView` shows this as a banner and
     /// clears it once the window on the banner passes — see `remove(_:)`.
     private(set) var lastRemoved: RemovedCard?
+
+    /// Told about the changes above. A closure rather than a reference to the
+    /// impact store, for the same reason `RegionMonitor.walletCards` is one:
+    /// this class owns the wallet, and what anybody else makes of a change to
+    /// it is not its business. Does nothing by default, so a preview store and
+    /// a test store both work with nothing attached.
+    @ObservationIgnored var onChange: (WalletChange) -> Void = { _ in }
 
     private let fileURL: URL
     private let engine = RecommendationEngine()
@@ -77,6 +96,7 @@ final class WalletStore {
         copy.id = UUID() // a catalog template can be added more than once
         cards.append(copy)
         save()
+        onChange(.added(copy))
     }
 
     /// Takes a card out, but leaves it undoable for a few seconds rather than
@@ -158,6 +178,11 @@ final class WalletStore {
             else { return }
             program.quarters[index].isActivated = activated
             card.rotatingProgram = program
+        }
+        // Switching one *off* is somebody correcting a mistake, not using a
+        // benefit, so only the on direction is worth counting.
+        if activated, let card = card(withID: cardID) {
+            onChange(.rotatingBonusActivated(card))
         }
     }
 

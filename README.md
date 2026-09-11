@@ -19,6 +19,7 @@ suggestion injected at the till.
 | 5. Places API merchant resolution | Done, needs an API key |
 | 6. Significant-location-change travel mode | Not started |
 | 7. Safari extension for online purchases | Not started |
+| 8. Impact tracking — was any of this worth it | Done, on-device only |
 
 **Step 4** is written end to end. `RegionPlanner` picks the twenty nearest shops
 your cards actually pay extra at, `RegionMonitor` registers them as
@@ -36,6 +37,25 @@ still in its four-minute wait actually changes what arrives: `walletDidChange()`
 re-renders it against the wallet as it now stands, using the fact that iOS
 replaces a pending notification under the same id rather than stacking a
 second one.
+
+**Step 8** answers the question an app like this usually ducks: did being told
+which card to use actually earn you anything? After a reminder, the wallet
+shows one optional question — "did you use your Amex Gold?" — and a yes opens
+one more, "roughly what did you spend?". Both are skippable and the app is
+fully useful to somebody who never answers either.
+
+What it reports is **not** savings. Nothing was discounted and no price
+changed; these are rewards a purchase should earn, at a rate the app believed
+applied and a point valuation you set yourself. And the headline figure is the
+*incremental* one — what choosing that card is estimated to have earned over
+the next best card you already hold — because a card paying 4x would have paid
+4x whether or not anything told you about it. $85 of dining on a 4x card next
+to a 2% card is $3.40 in points and **$1.70** of that attributable to being
+told. See Settings > Your impact.
+
+The ledger holds a spending category and never a merchant: no shop name, no
+coordinate, no street. Switching the toggle off erases it, and so does Erase
+everything.
 
 **Step 5** calls Places API (New) `searchNearby` behind a cache — a 250m grid,
 one week, forty squares, least-recently-used. The lookup happens when the
@@ -73,9 +93,12 @@ Packages/CardKit/       Pure Swift. No UIKit, no Core Location, no SwiftUI.
     Engine/             PurchaseContext, CardScore, RecommendationEngine,
                         ArrivalReminder (the words on the lock screen)
     Data/               CardCatalog, MerchantCategoryMap, CardArtLibrary
-    Geo/                RegionPlanner, ArrivalTracker, Merchant, MerchantSource
+    Geo/                RegionPlanner, ArrivalTracker, ReminderThrottle,
+                        Merchant, MerchantSource
+    Impact/             RecommendationSnapshot, BenefitEstimate, ImpactEvent,
+                        ImpactLedger, AnalyticsService (a no-op, on purpose)
     Places/             GooglePlacesSource, MerchantCache
-  Tests/CardKitTests/   185 tests, run on macOS and Linux
+  Tests/CardKitTests/   run on macOS and Linux
 App/                    SwiftUI: the wallet stack, the add flow, settings,
                         Core Location, and the notification centre
 project.yml             XcodeGen spec. The .xcodeproj is generated, not committed.
@@ -192,6 +215,10 @@ swept only once the window has genuinely closed.
 ## What is deliberately absent
 
 - No bank linking, no transaction data, no account, no cloud.
-- No analytics.
-- The wallet is a JSON file in Application Support. The only network call the
-  app ever makes is an anonymous lookup of the shops near you.
+- No analytics **sent anywhere**. The app keeps a local record of what its own
+  reminders led to — see below — and ships `NoOpAnalyticsService`, which takes
+  an event and drops it. There is no backend to send one to and no code that
+  would.
+- The wallet and the impact ledger are JSON files in Application Support. The
+  only network call the app ever makes is an anonymous lookup of the shops near
+  you.

@@ -65,7 +65,19 @@ struct WalletStackView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                if !store.cards.isEmpty { whyBar }
+                // The undo banner has to survive the wallet going empty — you
+                // can remove your only card and still want it back — so it is
+                // not inside the `!store.cards.isEmpty` guard that hides `whyBar`.
+                if store.lastRemoved != nil || !store.cards.isEmpty {
+                    VStack(spacing: 10) {
+                        if let removed = store.lastRemoved {
+                            undoRemovedBanner(removed)
+                                .padding(.top, 10)
+                        }
+                        if !store.cards.isEmpty { whyBar }
+                    }
+                    .animation(motion, value: store.lastRemoved)
+                }
             }
             .sheet(isPresented: $isAddingCard, onDismiss: offerPrimerIfDue) {
                 AddCardView()
@@ -242,6 +254,31 @@ struct WalletStackView: View {
         .padding(.top, 10)
         .padding(.bottom, 6)
         .background(.bar)
+    }
+
+    /// Removing a card asks no question first — see `WalletStore.remove(_:)`.
+    /// This is the undo instead of the confirmation: it says what just
+    /// happened and offers a few seconds to take it back, which is enough
+    /// time to change your mind and not so much that it lingers as clutter.
+    private func undoRemovedBanner(_ removed: RemovedCard) -> some View {
+        HStack(spacing: 11) {
+            Image(systemName: "trash")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Text("Removed \(removed.card.displayName)")
+                .font(.subheadline)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            Button("Undo") {
+                withAnimation(motion) { store.undoRemove() }
+            }
+            .font(.subheadline.weight(.semibold))
+        }
+        .padding(13)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+        .padding(.horizontal, 20)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .accessibilityElement(children: .combine)
     }
 
     private func zIndex(for card: Card, at index: Int) -> Double {

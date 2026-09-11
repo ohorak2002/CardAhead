@@ -56,4 +56,16 @@ public struct Merchant: Identifiable, Codable, Hashable, Sendable {
             confidence: MerchantCategoryMap.confidence(forPlaceTypes: placeTypes)
         )
     }
+
+    /// What the ranking engine needs to know about somebody standing here.
+    /// A place we could not resolve to one business withholds the name rather
+    /// than naming the wrong restaurant in the food court.
+    public func purchaseContext(asOf date: Date = Date()) -> PurchaseContext {
+        PurchaseContext(
+            category: category,
+            merchantName: confidence == .exact ? name : nil,
+            confidence: confidence,
+            date: date
+        )
+    }
 }

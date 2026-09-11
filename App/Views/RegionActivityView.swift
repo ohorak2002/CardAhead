@@ -10,6 +10,7 @@ import CardKit
 struct RegionActivityView: View {
 
     @Environment(RegionMonitor.self) private var monitor
+    @Environment(ReminderCenter.self) private var reminders
 
     var body: some View {
         List {
@@ -57,6 +58,14 @@ struct RegionActivityView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            if !reminders.isAuthorized {
+                Label(
+                    "Notifications are off, so nothing arrives even when a place is confirmed.",
+                    systemImage: "bell.slash"
+                )
+                .font(.footnote)
+                .foregroundStyle(.orange)
+            }
         } footer: {
             Text(monitor.monitoredCount == 0
                  ? "iOS lets an app watch twenty places at once, and we spend them on the nearest shops where one of your cards pays extra."
@@ -100,5 +109,6 @@ private struct EventRow: View {
     NavigationStack {
         RegionActivityView()
             .environment(RegionMonitor())
+            .environment(ReminderCenter())
     }
 }

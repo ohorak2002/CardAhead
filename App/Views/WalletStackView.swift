@@ -11,6 +11,7 @@ import CardKit
 struct WalletStackView: View {
 
     @Environment(WalletStore.self) private var store
+    @Environment(ReminderCenter.self) private var reminders
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var expandedCardID: UUID?
@@ -75,33 +76,63 @@ struct WalletStackView: View {
             .onChange(of: store.cards.count) { previous, current in
                 guard previous == 0, current == 1,
                       !hasOfferedLocationPrimer,
-                      !locationAuth.hasAlways
+                      remindersAreOff
                 else { return }
                 isShowingLocationPrimer = true
             }
         }
     }
 
+    /// The app cannot do its job without both permissions. Missing either one
+    /// is the same outcome for the user — no reminder arrives — so it is the
+    /// same banner.
+    private var remindersAreOff: Bool {
+        !locationAuth.hasAlways || !reminders.isAuthorized
+    }
+
+    /// A tap on a reminder should land on the card it named, open, not on a
+    /// wallet the user then has to search.
+    private func openCardFromReminder(_ id: UUID?, using proxy: ScrollViewProxy) {
+        guard let id, store.card(withID: id) != nil else { return }
+        withAnimation(motion) {
+            expandedCardID = id
+            proxy.scrollTo(id, anchor: .top)
+        }
+        reminders.cardToOpen = nil
+    }
+
     // MARK: - The stack
 
     private var stack: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                if !locationAuth.hasAlways { locationRow }
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 0) {
+                    if remindersAreOff { locationRow }
 
-                ForEach(Array(store.cards.enumerated()), id: \.element.id) { index, card in
-                    row(for: card, at: index)
-                        .zIndex(zIndex(for: card, at: index))
+                    ForEach(Array(store.cards.enumerated()), id: \.element.id) { index, card in
+                        row(for: card, at: index)
+                            .id(card.id)
+                            .zIndex(zIndex(for: card, at: index))
+                    }
+
+                    Text("Tap a card to open it. Drag one to move it.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, cardHeight - peekHeight + 18)
                 }
-
-                Text("Tap a card to open it. Drag one to move it.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, cardHeight - peekHeight + 18)
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 20)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-            .padding(.bottom, 20)
+            // Both, because a tap on a reminder can either wake an app that is
+            // already showing this screen or launch one that is not, and the
+            // order those happen in is not ours to decide.
+            .onChange(of: reminders.cardToOpen) { _, id in
+                openCardFromReminder(id, using: proxy)
+            }
+            .onAppear {
+                openCardFromReminder(reminders.cardToOpen, using: proxy)
+            }
         }
     }
 
@@ -168,9 +199,14 @@ struct WalletStackView: View {
     }
 
     private var locationRowDetail: String {
-        locationAuth.isBlocked
-            ? "iOS has already asked, so the switch lives in Settings now."
-            : "Let us see where you are and we will name the card to use."
+        if !locationAuth.hasAlways {
+            return locationAuth.isBlocked
+                ? "iOS has already asked, so the switch lives in Settings now."
+                : "Let us see where you are and we will name the card to use."
+        }
+        return reminders.isBlocked
+            ? "We can see where you are, but notifications are switched off."
+            : "We can see where you are. The reminder itself still needs a yes."
     }
 
     private var whyBar: some View {
@@ -272,5 +308,6 @@ struct WalletStackView: View {
 #Preview {
     WalletStackView()
         .environment(WalletStore.previewStore())
+        .environment(ReminderCenter())
         .environment(RegionMonitor())
 }

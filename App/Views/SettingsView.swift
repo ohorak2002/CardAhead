@@ -11,6 +11,7 @@ struct SettingsView: View {
 
     @Environment(WalletStore.self) private var store
     @Environment(RegionMonitor.self) private var monitor
+    @Environment(ReminderCenter.self) private var reminders
     let auth: LocationAuthorization
 
     @State private var isConfirmingErase = false
@@ -76,6 +77,19 @@ struct SettingsView: View {
             if !auth.hasAlways {
                 Button("Open Settings") { auth.openSettings() }
             }
+            HStack {
+                Text("Notifications")
+                Spacer(minLength: 8)
+                Text(notificationStateText)
+                    .foregroundStyle(reminders.isAuthorized ? Color.secondary : Color.orange)
+            }
+            if reminders.canStillAsk {
+                Button("Allow notifications") {
+                    Task { await reminders.requestAuthorization() }
+                }
+            } else if reminders.isBlocked {
+                Button("Open Settings") { reminders.openSettings() }
+            }
             NavigationLink {
                 RegionActivityView()
             } label: {
@@ -89,10 +103,20 @@ struct SettingsView: View {
         } header: {
             Text("Reminders").textCase(nil)
         } footer: {
-            Text(auth.hasAlways
-                 ? "Limits on how often you are nudged arrive with the reminders themselves."
-                 : "Without Always, the app cannot notice you have arrived somewhere while it is closed, which is the only moment a reminder is any use.")
+            Text(remindersFooter)
         }
+    }
+
+    /// Both permissions are needed and neither is sufficient, so the footer
+    /// names whichever one is actually missing rather than the general idea.
+    private var remindersFooter: String {
+        if !auth.hasAlways {
+            return "Without Always, the app cannot notice you have arrived somewhere while it is closed, which is the only moment a reminder is any use."
+        }
+        if !reminders.isAuthorized {
+            return "The app can see when you arrive somewhere. It just has no way to tell you about it."
+        }
+        return "Limits on how often you are nudged arrive with the reminders themselves."
     }
 
     private var watchingSummary: String {
@@ -105,6 +129,12 @@ struct SettingsView: View {
         if auth.hasAlways { return "Always" }
         if auth.isBlocked { return "Off" }
         if auth.status == .authorizedWhenInUse { return "Only while open" }
+        return "Not set"
+    }
+
+    private var notificationStateText: String {
+        if reminders.isAuthorized { return "On" }
+        if reminders.isBlocked { return "Off" }
         return "Not set"
     }
 
@@ -223,5 +253,6 @@ private struct CardArtworkExplainerView: View {
         SettingsView(auth: LocationAuthorization())
     }
     .environment(WalletStore.previewStore())
+    .environment(ReminderCenter())
     .environment(RegionMonitor())
 }

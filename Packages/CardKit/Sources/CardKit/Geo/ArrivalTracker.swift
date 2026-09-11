@@ -51,16 +51,12 @@ public struct ArrivalTracker: Codable, Hashable, Sendable {
     /// A scheduled notification can fire a moment early. Treating that as "not
     /// due yet" would drop the arrival entirely.
     public var confirmationTolerance: TimeInterval
-    /// An entry with no matching exit — phone off, region forgotten, user drove
-    /// out of range faster than iOS noticed — should not sit pending forever.
-    public var maximumPendingAge: TimeInterval
 
     public private(set) var pending: [PendingArrival]
 
     public init(
         confirmationDelay: TimeInterval = 4 * 60,
         confirmationTolerance: TimeInterval = 5,
-        maximumPendingAge: TimeInterval = 60 * 60,
         pending: [PendingArrival] = []
     ) {
         self.confirmationDelay = min(
@@ -68,7 +64,6 @@ public struct ArrivalTracker: Codable, Hashable, Sendable {
             Self.maximumConfirmationDelay
         )
         self.confirmationTolerance = confirmationTolerance
-        self.maximumPendingAge = maximumPendingAge
         self.pending = pending
     }
 
@@ -119,16 +114,6 @@ public struct ArrivalTracker: Codable, Hashable, Sendable {
         let dueIDs = Set(due.map(\.regionID))
         pending.removeAll { dueIDs.contains($0.regionID) }
         return due
-    }
-
-    /// Drops arrivals that have outlived their usefulness. Returns them so the
-    /// caller can unschedule whatever it scheduled for them.
-    @discardableResult
-    public mutating func purgeStale(asOf date: Date) -> [PendingArrival] {
-        let stale = pending.filter { date.timeIntervalSince($0.enteredAt) > maximumPendingAge }
-        let staleIDs = Set(stale.map(\.regionID))
-        pending.removeAll { staleIDs.contains($0.regionID) }
-        return stale
     }
 
     /// Forgets everything, and hands back what it forgot. Used when the plan is

@@ -43,6 +43,8 @@ Packages/CardKit/       Pure Swift. No UIKit, no Core Location, no SwiftUI.
     Geo/                GeoCoordinate, Merchant, RegionPlanner (which 20
                          places to watch), ArrivalTracker (the dwell rule),
                          MerchantSource
+    Engine/ArrivalReminder.swift   the words on the lock screen, decided by
+                         the ranking engine so they can be unit tested
   Tests/CardKitTests/    run on both macOS and Linux CI
 App/
   Models/ (none — CardKit owns them)
@@ -50,6 +52,7 @@ App/
   Location/LocationAuthorization.swift   the permission ladder
   Location/RegionMonitor.swift           CLCircularRegion plumbing only
   Location/ArrivalNotifier.swift         seam between arriving and being told
+  Notifications/ReminderCenter.swift     UNUserNotificationCenter, both ends
   Views/                         see below
 project.yml             XcodeGen spec. The .xcodeproj is generated, not
                          committed — run `xcodegen generate` after cloning.
@@ -127,7 +130,7 @@ Adding/editing a card is `CardEditorView`, a sheet, not a fourth screen.
 | 1. Data model | Done |
 | 2. Wallet UI (stack, add, edit, expand, pin, reorder) | Done |
 | 3. Recommendation engine, testable with no location | Done |
-| 4. Region monitoring + notification pipeline | **Regions done, notifications pending.** `RegionMonitor` registers the nearest 20 relevant merchants as `CLCircularRegion`s, handles enter/exit, applies a four-minute dwell before an arrival counts, and redraws the twenty on significant location change. No notification is sent yet — `ArrivalNotifier` is the seam and `LoggingArrivalNotifier` is what is installed. Nothing is registered in practice until step 5 gives `MerchantSource` somewhere to get shops from. |
+| 4. Region monitoring + notification pipeline | **Built, unverifiable without a device.** `RegionMonitor` registers the nearest 20 relevant merchants as `CLCircularRegion`s, handles enter/exit, applies a four-minute dwell, and redraws on significant location change. `ReminderCenter` schedules the local notification on entry and cancels it on exit; a tap opens that card. Nothing is registered in practice until step 5 gives `MerchantSource` somewhere to get shops from. |
 | 5. Places API merchant resolution | Data layer only — `MerchantCategoryMap` maps Google Places types and website domains onto categories; nothing calls the Places API |
 | 6. Significant-location-change travel mode | Not started |
 | 7. Safari extension | Not started |
@@ -140,8 +143,6 @@ Also not built, flagged repeatedly, not yet done:
   version (`value.translation` should become `value.predictedEndTranslation`,
   a near-one-line fix) and the web version (needs actual velocity tracking,
   currently has none). This was the #1 finding in the audit.
-- **Notification permission** (`UNUserNotificationCenter`) — a second,
-  separate iOS prompt, not yet asked for.
 - **Real rotating-quarter data feed.** The Q3/Q4 categories in `CardCatalog`
   are invented placeholders, clearly marked as such in card notes — do not
   treat them as real Chase/Discover announcements.

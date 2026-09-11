@@ -119,12 +119,13 @@ final class ArrivalTrackerTests: XCTestCase {
     // MARK: - Housekeeping
 
     /// An entry whose exit never arrived — phone off, or driven out of range
-    /// faster than iOS noticed — must not sit pending forever.
-    func testStaleArrivalsArePurged() {
+    /// faster than iOS noticed — is still due, however late the app gets round
+    /// to looking, and is still reported at the time it actually came due.
+    func testAnArrivalNoticedDaysLateKeepsItsOwnTime() {
         var tracker = ArrivalTracker()
         tracker.enter(bistro, at: noon)
-        XCTAssertTrue(tracker.purgeStale(asOf: at(30)).isEmpty)
-        XCTAssertEqual(tracker.purgeStale(asOf: at(120)).map(\.regionID), [bistro.id])
+        let due = tracker.confirmDue(asOf: at(60 * 24 * 3))
+        XCTAssertEqual(due.map(\.confirmAt), [at(4)])
         XCTAssertTrue(tracker.pending.isEmpty)
     }
 

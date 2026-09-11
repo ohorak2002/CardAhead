@@ -85,8 +85,6 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
     /// The wallet, read rather than held, so the monitor never has to be told
     /// when a card changes — it asks at the moment it plans.
     @ObservationIgnored var walletCards: () -> [Card] = { [] }
-    /// Called once an arrival has held for its full delay.
-    @ObservationIgnored var onConfirmedArrival: ((PendingArrival) -> Void)?
 
     /// How far out to ask the place provider for shops. Wider than a geofence
     /// on purpose: twenty candidates within 100m would be a plan that expires
@@ -281,23 +279,21 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
 
     // MARK: - Arrivals
 
-    /// Confirms anything whose clock ran out while nobody was looking, and drops
-    /// anything that has been pending so long it can no longer be trusted.
+    /// Closes the books on anything whose clock ran out while nobody was
+    /// looking. It does not send anything: the reminder was handed to iOS on
+    /// the way in and has either fired by now or been cancelled. This is the
+    /// bookkeeping that could not happen while the app was dead.
+    ///
+    /// Each one is logged at the time it actually came due, not at the time we
+    /// got round to noticing, or an app opened a week later would claim a week
+    /// of arrivals all happened this morning.
     func settleOutstandingArrivals(asOf date: Date = Date()) {
-        for stale in tracker.purgeStale(asOf: date) {
-            notifier.cancel(regionID: stale.regionID)
-            record(.cancelled, "Gave up waiting on \(stale.merchant.name).")
-        }
         for due in tracker.confirmDue(asOf: date) {
-            deliver(due)
+            let minutes = Int(due.confirmAt.timeIntervalSince(due.enteredAt) / 60)
+            record(.confirmed, "Still at \(due.merchant.name) after \(minutes) minutes, so a reminder was due.", at: due.confirmAt)
+            log.notice("confirmed arrival at \(due.merchant.id, privacy: .public)")
         }
         save()
-    }
-
-    private func deliver(_ arrival: PendingArrival) {
-        record(.confirmed, "Still at \(arrival.merchant.name) after \(Int(arrival.confirmAt.timeIntervalSince(arrival.enteredAt) / 60)) minutes.")
-        log.notice("confirmed arrival at \(arrival.merchant.id, privacy: .public)")
-        onConfirmedArrival?(arrival)
     }
 
     // MARK: - CLLocationManagerDelegate
@@ -358,8 +354,8 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
 
     // MARK: - The event log
 
-    private func record(_ kind: RegionEvent.Kind, _ detail: String) {
-        recentEvents.insert(RegionEvent(kind: kind, detail: detail, date: Date()), at: 0)
+    private func record(_ kind: RegionEvent.Kind, _ detail: String, at date: Date = Date()) {
+        recentEvents.insert(RegionEvent(kind: kind, detail: detail, date: date), at: 0)
         if recentEvents.count > Self.maximumRememberedEvents {
             recentEvents.removeLast(recentEvents.count - Self.maximumRememberedEvents)
         }

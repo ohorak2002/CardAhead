@@ -33,6 +33,13 @@ public struct Card: Identifiable, Codable, Hashable, Sendable {
     public var isPinned: Bool
     /// Key into the app's card art palette. See `CardArt`.
     public var artKey: String
+    /// Optional on purpose: a wallet saved before finishes existed decodes as
+    /// nil rather than failing the whole file. Read it through `appearance`.
+    public var finish: CardFinish?
+    /// Filename of a photo the user took of their own card, stored alongside
+    /// the wallet. We cannot ship the banks' artwork — it is theirs — so a
+    /// photo of the card in your own hand is the only route to an exact match.
+    public var photoFilename: String?
 
     public init(
         id: UUID = UUID(),
@@ -47,7 +54,9 @@ public struct Card: Identifiable, Codable, Hashable, Sendable {
         foreignTransactionFeePercent: Double = 0,
         annualFeeDollars: Money = 0,
         isPinned: Bool = false,
-        artKey: String = "slate"
+        artKey: String = "slate",
+        finish: CardFinish? = nil,
+        photoFilename: String? = nil
     ) {
         self.id = id
         self.issuer = issuer
@@ -62,7 +71,13 @@ public struct Card: Identifiable, Codable, Hashable, Sendable {
         self.annualFeeDollars = annualFeeDollars
         self.isPinned = isPinned
         self.artKey = artKey
+        self.finish = finish
+        self.photoFilename = photoFilename
     }
+
+    /// The finish to draw with. Matte is the safe default for a card whose
+    /// material the user never told us about.
+    public var appearance: CardFinish { finish ?? .matte }
 
     public var displayName: String { "\(issuer) \(name)" }
 

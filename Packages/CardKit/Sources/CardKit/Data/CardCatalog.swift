@@ -60,7 +60,8 @@ public enum CardCatalog {
             ],
             foreignTransactionFeePercent: 3,
             annualFeeDollars: 0,
-            artKey: "midnight"
+            artKey: "midnight",
+            finish: .glossy
         )
     }
 
@@ -90,7 +91,8 @@ public enum CardCatalog {
             ],
             foreignTransactionFeePercent: 0,
             annualFeeDollars: 95,
-            artKey: "sapphire"
+            artKey: "sapphire",
+            finish: .metal
         )
     }
 
@@ -113,7 +115,8 @@ public enum CardCatalog {
             perks: [.firstYearCashbackMatch],
             foreignTransactionFeePercent: 0,
             annualFeeDollars: 0,
-            artKey: "graphite"
+            artKey: "graphite",
+            finish: .matte
         )
     }
 
@@ -146,7 +149,8 @@ public enum CardCatalog {
             ],
             foreignTransactionFeePercent: 2.7,
             annualFeeDollars: 95,
-            artKey: "azure"
+            artKey: "azure",
+            finish: .matte
         )
     }
 
@@ -175,7 +179,8 @@ public enum CardCatalog {
             ],
             foreignTransactionFeePercent: 0,
             annualFeeDollars: 325,
-            artKey: "gold"
+            artKey: "gold",
+            finish: .metal
         )
     }
 
@@ -189,7 +194,8 @@ public enum CardCatalog {
             ],
             foreignTransactionFeePercent: 3,
             annualFeeDollars: 0,
-            artKey: "slate"
+            artKey: "slate",
+            finish: .matte
         )
     }
 
@@ -214,7 +220,8 @@ public enum CardCatalog {
             ],
             foreignTransactionFeePercent: 0,
             annualFeeDollars: 0,
-            artKey: "ember"
+            artKey: "ember",
+            finish: .glossy
         )
     }
 
@@ -229,7 +236,8 @@ public enum CardCatalog {
             perks: [.cellPhoneProtection],
             foreignTransactionFeePercent: 3,
             annualFeeDollars: 0,
-            artKey: "crimson"
+            artKey: "crimson",
+            finish: .matte
         )
     }
 
@@ -258,7 +266,8 @@ public enum CardCatalog {
             ],
             foreignTransactionFeePercent: 0,
             annualFeeDollars: 0,
-            artKey: "forest"
+            artKey: "forest",
+            finish: .glossy
         )
     }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 import CardKit
 
 /// Adding a card asks three questions, and none of them is a card number.
@@ -16,6 +17,9 @@ struct AddCardView: View {
     @State private var issuer = ""
     @State private var cardName = ""
     @State private var artKey = "midnight"
+    @State private var finish: CardFinish = .matte
+    @State private var pickedPhoto: PhotosPickerItem?
+    @State private var photo: UIImage?
     @State private var style: EarnStyle = .percent
     @State private var benefits: [DraftBenefit] = [
         DraftBenefit(category: .dining, rate: 3),
@@ -49,7 +53,8 @@ struct AddCardView: View {
                 .map { CategoryRule(category: $0.category, rate: $0.rate) },
             foreignTransactionFeePercent: foreignFeePercent,
             annualFeeDollars: Decimal(annualFee),
-            artKey: artKey
+            artKey: artKey,
+            finish: finish
         )
     }
 
@@ -57,8 +62,7 @@ struct AddCardView: View {
         NavigationStack {
             Form {
                 Section {
-                    CardFaceView(card: draft)
-                        .frame(height: 170)
+                    CardFaceView(card: draft, photo: photo.map(Image.init(uiImage:)))
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         .listRowBackground(Color.clear)
                 }
@@ -76,6 +80,7 @@ struct AddCardView: View {
                     .foregroundStyle(.secondary)
                 }
             }
+            .task(id: pickedPhoto) { await loadPickedPhoto(pickedPhoto) }
             .navigationTitle("Add a card")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -139,10 +144,30 @@ struct AddCardView: View {
                 }
             }
             .padding(.vertical, 4)
+
+            Picker("Material", selection: $finish) {
+                ForEach(CardFinish.allCases, id: \.self) { finish in
+                    Text(finish.displayName).tag(finish)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            PhotosPicker(selection: $pickedPhoto, matching: .images) {
+                Label(
+                    photo == nil ? "Use a photo of your card" : "Choose a different photo",
+                    systemImage: "camera"
+                )
+            }
+            if photo != nil {
+                Button("Remove photo", role: .destructive) {
+                    photo = nil
+                    pickedPhoto = nil
+                }
+            }
         } header: {
             Text("What does it look like?").textCase(nil)
         } footer: {
-            Text("Pick the colour closest to the real card, so you can spot it in the stack.")
+            Text("Pick the colour and material closest to the real card, so you can spot it in the stack. A photo of your own card is an exact match — it stays on this device and is never uploaded. We cannot ship the banks' own artwork; Apple Wallet only shows it because the bank sends it.")
         }
     }
 
@@ -220,12 +245,21 @@ struct AddCardView: View {
 
     // MARK: - Actions
 
+    private func loadPickedPhoto(_ item: PhotosPickerItem?) async {
+        guard let item,
+              let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data)
+        else { return }
+        photo = image
+    }
+
     /// Filling from a known card is a shortcut, not an import. Everything it
     /// writes is still editable before the card is added.
     private func fill(from card: Card) {
         issuer = card.issuer
         cardName = card.name
         artKey = card.artKey
+        finish = card.appearance
         style = card.currency.style
         annualFee = card.annualFeeDollars.doubleValue
         foreignFeePercent = card.foreignTransactionFeePercent
@@ -236,6 +270,9 @@ struct AddCardView: View {
         var card = draft
         if card.rule(for: .base) == nil {
             card.rules.append(CategoryRule(category: .base, rate: 1))
+        }
+        if let photo {
+            card.photoFilename = store.storePhoto(photo)
         }
         store.add(card)
         dismiss()

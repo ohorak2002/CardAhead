@@ -28,7 +28,9 @@ struct WalletStackView: View {
     /// Cut it any shorter and the most useful line on the card hides behind the
     /// card below it.
     @ScaledMetric(relativeTo: .title3) private var peekHeight: CGFloat = 96
-    @ScaledMetric(relativeTo: .title3) private var cardHeight: CGFloat = 172
+    /// 344pt wide at the real card ratio. Used only for the trailing gap under
+    /// the last card — the card's own height comes from its aspect ratio.
+    @ScaledMetric(relativeTo: .title3) private var cardHeight: CGFloat = 216
 
     var body: some View {
         NavigationStack {
@@ -101,8 +103,14 @@ struct WalletStackView: View {
         let isDragging = draggingCardID == card.id
 
         return VStack(spacing: 0) {
-            CardFaceView(card: card, highlight: highlight(for: card))
-                .frame(height: cardHeight)
+            // No fixed height: the card sizes itself to the real 1.586 card
+            // ratio, and the row's frame below clips the *layout* height to the
+            // peek, which is what makes the stack overlap.
+            CardFaceView(
+                card: card,
+                highlight: highlight(for: card),
+                photo: store.photo(for: card)
+            )
                 .contentShape(Rectangle())
                 .onTapGesture { toggle(card) }
                 .gesture(dragGesture(for: card, at: index))

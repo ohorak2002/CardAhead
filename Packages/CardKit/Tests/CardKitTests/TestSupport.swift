@@ -75,4 +75,45 @@ enum Fixture {
         copy.currency.centsPerUnit = centsPerUnit
         return copy
     }
+
+    // MARK: - Places
+
+    /// Somewhere in midtown Manhattan, used as the anchor everywhere below so
+    /// the offsets in each test read as "a short walk" rather than as numbers.
+    static let anchor = GeoCoordinate(latitude: 40.7580, longitude: -73.9855)
+
+    /// A metre of latitude is about 1/111195 of a degree, so a test can say
+    /// "300 metres north" and mean it.
+    static func offset(_ coordinate: GeoCoordinate, metersNorth: Double) -> GeoCoordinate {
+        GeoCoordinate(
+            latitude: coordinate.latitude + metersNorth / 111_194.93,
+            longitude: coordinate.longitude
+        )
+    }
+
+    static func merchant(
+        _ id: String,
+        category: SpendingCategory,
+        metersNorth: Double,
+        name: String? = nil,
+        from origin: GeoCoordinate = Fixture.anchor,
+        confidence: MerchantConfidence = .exact
+    ) -> Merchant {
+        Merchant(
+            id: id,
+            name: name ?? id.capitalized,
+            coordinate: offset(origin, metersNorth: metersNorth),
+            category: category,
+            confidence: confidence
+        )
+    }
+
+    static func region(_ merchant: Merchant, distanceMeters: Double = 0) -> MonitoredRegion {
+        MonitoredRegion(
+            id: RegionPlanner.regionID(for: merchant),
+            merchant: merchant,
+            radiusMeters: 100,
+            distanceMeters: distanceMeters
+        )
+    }
 }

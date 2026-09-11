@@ -19,25 +19,16 @@ know whether Swift code works is to push and read CI.
 - A GitHub Codespace (`swift test`) is the fastest way for a human to run the
   real engine from a browser, without a Mac.
 
-## The web preview is a second implementation, not a demo
+## There is no web preview any more
 
-`which-card-wins.html` (an Artifact, source kept in the session scratchpad —
-see the artifact history for the current URL) hand-mirrors the SwiftUI app:
-the wallet stack, the add/edit sheet, the location permission flow, the
-simulated iOS system prompts and Settings app, and now the card faces
-themselves. It exists because the user is on Windows and cannot run Xcode.
+A `which-card-wins.html` Artifact used to hand-mirror the SwiftUI app so the
+work could be seen on Windows. **It is retired. Do not rebuild it, and do not
+maintain one.** This is an iOS app; a JS twin is a second implementation of
+every feature, it drifted from the Swift once already, and keeping it in step
+cost more than it showed. Build in `App/` and `Packages/CardKit/` only.
 
-**It is a second implementation.** Every feature gets built twice — once in
-Swift, once in JS — and the two *will* drift if only one is touched. This has
-already happened once (the pin button's wording diverged for a full session
-before being caught). When changing behavior, check whether the change
-belongs in both places.
-
-Before publishing the preview: syntax-check the extracted `<script>` with
-`node --check`, and where practical, actually drive it (a local static server
-+ the Browser pane + `javascript_tool`, not just eyeballing a screenshot).
-Real bugs were caught this way that three prior "looks right" reviews missed —
-see "Bugs already found and fixed" below.
+The consequence is that nothing is visually verifiable before CI. That is the
+trade, and it is the user's call.
 
 ## Architecture
 
@@ -49,11 +40,16 @@ Packages/CardKit/       Pure Swift. No UIKit, no Core Location, no SwiftUI.
     Engine/             PurchaseContext, CardScore, RecommendationEngine
     Data/               CardCatalog (seed cards), MerchantCategoryMap,
                          CardArtLibrary (licensed card art registry)
-  Tests/CardKitTests/    ~60 tests, run on both macOS and Linux CI
+    Geo/                GeoCoordinate, Merchant, RegionPlanner (which 20
+                         places to watch), ArrivalTracker (the dwell rule),
+                         MerchantSource
+  Tests/CardKitTests/    run on both macOS and Linux CI
 App/
   Models/ (none — CardKit owns them)
   Store/WalletStore.swift        wallet CRUD, photo storage, JSON persistence
-  Location/LocationAuthorization.swift
+  Location/LocationAuthorization.swift   the permission ladder
+  Location/RegionMonitor.swift           CLCircularRegion plumbing only
+  Location/ArrivalNotifier.swift         seam between arriving and being told
   Views/                         see below
 project.yml             XcodeGen spec. The .xcodeproj is generated, not
                          committed — run `xcodegen generate` after cloning.
@@ -131,7 +127,7 @@ Adding/editing a card is `CardEditorView`, a sheet, not a fourth screen.
 | 1. Data model | Done |
 | 2. Wallet UI (stack, add, edit, expand, pin, reorder) | Done |
 | 3. Recommendation engine, testable with no location | Done |
-| 4. Region monitoring + notification pipeline | **Permission flow only** — `LocationAuthorization` + `LocationPrimerView` walk Apple's not-determined → When In Use → Always path correctly, with a Settings fallback. **No `CLCircularRegion` is registered, no notification is ever sent.** This is the actual product and it's still unbuilt. |
+| 4. Region monitoring + notification pipeline | **Regions done, notifications pending.** `RegionMonitor` registers the nearest 20 relevant merchants as `CLCircularRegion`s, handles enter/exit, applies a four-minute dwell before an arrival counts, and redraws the twenty on significant location change. No notification is sent yet — `ArrivalNotifier` is the seam and `LoggingArrivalNotifier` is what is installed. Nothing is registered in practice until step 5 gives `MerchantSource` somewhere to get shops from. |
 | 5. Places API merchant resolution | Data layer only — `MerchantCategoryMap` maps Google Places types and website domains onto categories; nothing calls the Places API |
 | 6. Significant-location-change travel mode | Not started |
 | 7. Safari extension | Not started |

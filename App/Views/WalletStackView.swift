@@ -272,4 +272,5 @@ struct WalletStackView: View {
 #Preview {
     WalletStackView()
         .environment(WalletStore.previewStore())
+        .environment(RegionMonitor())
 }

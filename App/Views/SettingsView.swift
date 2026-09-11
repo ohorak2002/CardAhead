@@ -10,6 +10,7 @@ import CardKit
 struct SettingsView: View {
 
     @Environment(WalletStore.self) private var store
+    @Environment(RegionMonitor.self) private var monitor
     let auth: LocationAuthorization
 
     @State private var isConfirmingErase = false
@@ -75,6 +76,16 @@ struct SettingsView: View {
             if !auth.hasAlways {
                 Button("Open Settings") { auth.openSettings() }
             }
+            NavigationLink {
+                RegionActivityView()
+            } label: {
+                HStack {
+                    Text("Reminder activity")
+                    Spacer(minLength: 8)
+                    Text(watchingSummary)
+                        .foregroundStyle(.secondary)
+                }
+            }
         } header: {
             Text("Reminders").textCase(nil)
         } footer: {
@@ -82,6 +93,12 @@ struct SettingsView: View {
                  ? "Limits on how often you are nudged arrive with the reminders themselves."
                  : "Without Always, the app cannot notice you have arrived somewhere while it is closed, which is the only moment a reminder is any use.")
         }
+    }
+
+    private var watchingSummary: String {
+        guard monitor.isMonitoring else { return "Off" }
+        let count = monitor.monitoredCount
+        return count == 0 ? "No places yet" : "\(count) places"
     }
 
     private var locationStateText: String {
@@ -206,4 +223,5 @@ private struct CardArtworkExplainerView: View {
         SettingsView(auth: LocationAuthorization())
     }
     .environment(WalletStore.previewStore())
+    .environment(RegionMonitor())
 }

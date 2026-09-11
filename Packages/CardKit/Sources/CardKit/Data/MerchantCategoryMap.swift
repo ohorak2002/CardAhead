@@ -84,36 +84,64 @@ public enum MerchantCategoryMap {
 
     // MARK: - Physical
 
+    /// Covers both generations of Google's type vocabulary. The older Places API
+    /// returned things like `grocery_or_supermarket` and `lodging`; Places API
+    /// (New) split those into `grocery_store`, `hotel`, `coffee_shop` and so on,
+    /// and a response can still carry either. Unknown types are simply not
+    /// matched, so carrying both costs nothing but a few lines.
     private static let placeTypes: [String: SpendingCategory] = [
         "restaurant": .dining,
         "cafe": .dining,
+        "coffee_shop": .dining,
         "bar": .dining,
         "bakery": .dining,
         "meal_takeaway": .dining,
         "meal_delivery": .dining,
+        "fast_food_restaurant": .dining,
+        "sandwich_shop": .dining,
+        "pizza_restaurant": .dining,
         "food": .dining,
         "supermarket": .groceries,
         "grocery_or_supermarket": .groceries,
+        "grocery_store": .groceries,
         "gas_station": .gas,
         "pharmacy": .drugstores,
         "drugstore": .drugstores,
         "department_store": .departmentStore,
         "clothing_store": .departmentStore,
+        "discount_store": .departmentStore,
         "shopping_mall": .departmentStore,
         "hardware_store": .homeImprovement,
+        "home_improvement_store": .homeImprovement,
         "home_goods_store": .homeImprovement,
         "airport": .flights,
         "lodging": .hotels,
+        "hotel": .hotels,
+        "motel": .hotels,
+        "resort_hotel": .hotels,
         "travel_agency": .travel,
         "transit_station": .transit,
         "subway_station": .transit,
         "train_station": .transit,
+        "light_rail_station": .transit,
         "bus_station": .transit,
         "movie_theater": .entertainment,
+        "performing_arts_theater": .entertainment,
         "amusement_park": .entertainment,
+        "casino": .entertainment,
         "stadium": .entertainment,
         "night_club": .entertainment
     ]
+
+    /// Every type this map can act on. Handed to the Places API as
+    /// `includedTypes` so the twenty results that come back are twenty we can
+    /// use, rather than twenty banks and hair salons.
+    public static func placeTypeNames(for categories: Set<SpendingCategory>) -> [String] {
+        placeTypes
+            .filter { categories.contains($0.value) }
+            .keys
+            .sorted()
+    }
 
     /// Names that a place-type lookup gets wrong. Costco is typed as a
     /// department store or supermarket by most providers, but almost never
@@ -155,10 +183,33 @@ public enum MerchantCategoryMap {
         return nil
     }
 
-    /// A place type we cannot pin to a single unit, such as a mall or a food
-    /// hall, should produce a category-level nudge rather than name a business.
+    /// Places that hold many businesses behind one set of coordinates. Indoor
+    /// GPS cannot tell which unit of a mall or which stand in a food court you
+    /// are standing in, so a reminder about one of these names the category and
+    /// stops there.
+    ///
+    /// `point_of_interest` and `establishment` are deliberately **not** here,
+    /// though they look like they belong. Google attaches them to very nearly
+    /// every place it returns, so treating them as ambiguous would downgrade
+    /// every reminder the app ever sent and no business would be named again.
+    private static let multiTenantTypes: Set<String> = [
+        "shopping_mall",
+        "food_court",
+        "airport",
+        "stadium",
+        "amusement_park",
+        "convention_center",
+        "transit_station",
+        "train_station",
+        "subway_station",
+        "bus_station",
+        "light_rail_station",
+        "tourist_attraction"
+    ]
+
+    /// A place we cannot pin to a single till produces a category-level nudge
+    /// rather than the name of a business that might be the wrong one.
     public static func confidence(forPlaceTypes types: [String]) -> MerchantConfidence {
-        let ambiguous: Set<String> = ["shopping_mall", "food_court", "airport", "stadium", "point_of_interest"]
-        return types.contains(where: { ambiguous.contains($0.lowercased()) }) ? .categoryOnly : .exact
+        types.contains { multiTenantTypes.contains($0.lowercased()) } ? .categoryOnly : .exact
     }
 }

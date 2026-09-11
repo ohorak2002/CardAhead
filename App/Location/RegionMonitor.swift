@@ -213,7 +213,8 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
             do {
                 let merchants = try await self.merchantSource.merchants(
                     near: coordinate,
-                    radiusMeters: self.searchRadiusMeters
+                    radiusMeters: self.searchRadiusMeters,
+                    categories: categories
                 )
                 let newPlan = self.planner.plan(around: coordinate, merchants: merchants, cards: cards)
                 self.apply(newPlan, categories: categories, emptyReason: merchants.isEmpty

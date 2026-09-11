@@ -29,10 +29,14 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         DEVELOPMENT_TEAM: ""
         CODE_SIGNING_ALLOWED: NO
+        # A billable secret, so it is not in this repository. Empty means the
+        # app runs with no place provider and says so. See docs/places-api.md.
+        GOOGLE_PLACES_API_KEY: ""
     info:
       path: Supporting/Info.plist
       properties:
         CFBundleDisplayName: Card Rewards
+        GooglePlacesAPIKey: $(GOOGLE_PLACES_API_KEY)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

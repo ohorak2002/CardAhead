@@ -19,7 +19,10 @@ struct CardRewardsApp: App {
     init() {
         let store = WalletStore()
         let reminders = ReminderCenter()
-        let monitor = RegionMonitor(notifier: reminders)
+        let monitor = RegionMonitor(
+            merchantSource: PlacesProvider.makeSource(),
+            notifier: reminders
+        )
 
         reminders.walletCards = { store.cards }
         monitor.walletCards = { store.cards }

@@ -45,6 +45,8 @@ Packages/CardKit/       Pure Swift. No UIKit, no Core Location, no SwiftUI.
                          MerchantSource
     Engine/ArrivalReminder.swift   the words on the lock screen, decided by
                          the ranking engine so they can be unit tested
+    Places/             GooglePlacesSource, MerchantCache, and an HTTPRequest
+                         value type so no URLSession enters this package
   Tests/CardKitTests/    run on both macOS and Linux CI
 App/
   Models/ (none — CardKit owns them)
@@ -53,10 +55,12 @@ App/
   Location/RegionMonitor.swift           CLCircularRegion plumbing only
   Location/ArrivalNotifier.swift         seam between arriving and being told
   Notifications/ReminderCenter.swift     UNUserNotificationCenter, both ends
+  Places/PlacesProvider.swift            URLSession, and the API key or not
   Views/                         see below
 project.yml             XcodeGen spec. The .xcodeproj is generated, not
                          committed — run `xcodegen generate` after cloning.
 docs/card-art.md         runbook for adding a licensed card-art asset
+docs/places-api.md       runbook for the Places key, which CI never sets
 ```
 
 The `CardKit` / `App` split is deliberate and load-bearing: `CardKit` has zero
@@ -131,7 +135,7 @@ Adding/editing a card is `CardEditorView`, a sheet, not a fourth screen.
 | 2. Wallet UI (stack, add, edit, expand, pin, reorder) | Done |
 | 3. Recommendation engine, testable with no location | Done |
 | 4. Region monitoring + notification pipeline | **Built, unverifiable without a device.** `RegionMonitor` registers the nearest 20 relevant merchants as `CLCircularRegion`s, handles enter/exit, applies a four-minute dwell, and redraws on significant location change. `ReminderCenter` schedules the local notification on entry and cancels it on exit; a tap opens that card. Nothing is registered in practice until step 5 gives `MerchantSource` somewhere to get shops from. |
-| 5. Places API merchant resolution | Data layer only — `MerchantCategoryMap` maps Google Places types and website domains onto categories; nothing calls the Places API |
+| 5. Places API merchant resolution | **Done, needs a key.** `GooglePlacesSource` calls Places API (New) `searchNearby` behind `MerchantCache` (250m grid, one week, 40 squares, LRU). Resolution happens when the plan is redrawn, *not* when a geofence fires — the shop's name and category are already in the registered region by then. No key is committed; see `docs/places-api.md`. |
 | 6. Significant-location-change travel mode | Not started |
 | 7. Safari extension | Not started |
 

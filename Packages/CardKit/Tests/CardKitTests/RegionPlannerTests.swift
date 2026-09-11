@@ -292,12 +292,17 @@ final class RegionPlannerTests: XCTestCase {
         ))
     }
 
-    func testAStaticSourceOnlyReturnsWhatIsInRange() async throws {
+    func testAStaticSourceOnlyReturnsWhatIsInRangeAndAskedFor() async throws {
         let source = StaticMerchantSource([
             Fixture.merchant("near", category: .dining, metersNorth: 200),
-            Fixture.merchant("far", category: .dining, metersNorth: 5_000)
+            Fixture.merchant("far", category: .dining, metersNorth: 5_000),
+            Fixture.merchant("petrol", category: .gas, metersNorth: 100)
         ])
-        let found = try await source.merchants(near: Fixture.anchor, radiusMeters: 1_000)
+        let found = try await source.merchants(
+            near: Fixture.anchor,
+            radiusMeters: 1_000,
+            categories: [.dining]
+        )
         XCTAssertEqual(found.map(\.id), ["near"])
     }
 }

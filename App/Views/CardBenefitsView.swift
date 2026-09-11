@@ -23,7 +23,17 @@ struct CardBenefitsView: View {
 
     let mode: Mode
     /// Set when confirming a card that replaces one already in the wallet.
-    var replacing: Card?
+    var replacing: Card? = nil
+
+    /// Called instead of `dismiss()` when this screen was *pushed* rather than
+    /// presented as a sheet.
+    ///
+    /// A pushed view's `dismiss()` pops it. On this screen that meant tapping
+    /// "Add" saved the card and then dropped you back on the list of products
+    /// with the sheet still open — which looks exactly like nothing happened,
+    /// and invites tapping Add a second time. The presenter passes its own
+    /// dismiss instead.
+    var onFinish: (() -> Void)? = nil
 
     @Environment(WalletStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -89,6 +99,12 @@ struct CardBenefitsView: View {
                         .fontWeight(.semibold)
                 }
             }
+        }
+        // Unticking "3% at restaurants" on the wrong card must not untick it
+        // on the right one. The ids match across products, so the only safe
+        // thing to do with them when the product changes is forget them.
+        .onChange(of: card.catalogProductID) { _, _ in
+            dropped.removeAll()
         }
         .sheet(isPresented: $isChangingCard) {
             AddCardView(replacing: card)
@@ -158,58 +174,71 @@ struct CardBenefitsView: View {
         }
     }
 
+    /// A benefit nobody can switch off is not a button.
+    ///
+    /// It used to be one, disabled — which greyed out the base rate and the
+    /// quarterly bonus, two of the rows most worth reading, and told VoiceOver
+    /// there was something there to press.
+    @ViewBuilder
     private func row(for benefit: CardBenefit) -> some View {
+        if benefit.isRemovable {
+            Button {
+                if dropped.contains(benefit.id) {
+                    dropped.remove(benefit.id)
+                } else {
+                    dropped.insert(benefit.id)
+                }
+            } label: {
+                content(for: benefit)
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(dropped.contains(benefit.id) ? [] : [.isSelected])
+        } else {
+            content(for: benefit)
+                .accessibilityElement(children: .combine)
+        }
+    }
+
+    private func content(for benefit: CardBenefit) -> some View {
         let isKept = !dropped.contains(benefit.id)
 
-        return Button {
-            guard benefit.isRemovable else { return }
-            if isKept {
-                dropped.insert(benefit.id)
+        return HStack(alignment: .top, spacing: 11) {
+            if benefit.isRemovable {
+                Image(systemName: isKept ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isKept ? Color.accentColor : Color.secondary)
+                    .accessibilityHidden(true)
             } else {
-                dropped.remove(benefit.id)
+                Image(systemName: "lock")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 3)
+                    .accessibilityHidden(true)
             }
-        } label: {
-            HStack(alignment: .top, spacing: 11) {
-                if benefit.isRemovable {
-                    Image(systemName: isKept ? "checkmark.circle.fill" : "circle")
-                        .font(.title3)
-                        .foregroundStyle(isKept ? Color.accentColor : Color.secondary)
-                        .accessibilityHidden(true)
-                } else {
-                    Image(systemName: "lock")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 3)
-                        .accessibilityHidden(true)
-                }
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(benefit.title)
-                        .font(.subheadline.weight(.medium))
-                        .strikethrough(!isKept)
-                    if let detail = benefit.detail {
-                        Text(detail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    // A cap on something that is not paying yet is noise: the
-                    // quarterly $1,500 reads as money waiting for you when the
-                    // quarter has not even been switched on.
-                    if let cap = benefit.cap, benefit.isActive || cap.isExhausted {
-                        Text(capText(cap))
-                            .font(.caption2)
-                            .foregroundStyle(cap.isExhausted ? Color.orange : Color.secondary)
-                    }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(benefit.title)
+                    .font(.subheadline.weight(.medium))
+                    .strikethrough(!isKept)
+                if let detail = benefit.detail {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                Spacer(minLength: 0)
+                // A cap on something that is not paying yet is noise: the
+                // quarterly $1,500 reads as money waiting for you when the
+                // quarter has not even been switched on.
+                if let cap = benefit.cap, benefit.isActive || cap.isExhausted {
+                    Text(capText(cap))
+                        .font(.caption2)
+                        .foregroundStyle(cap.isExhausted ? Color.orange : Color.secondary)
+                }
             }
-            .foregroundStyle(isKept ? Color.primary : Color.secondary)
-            .padding(.vertical, 2)
+            Spacer(minLength: 0)
         }
-        .buttonStyle(.plain)
-        .disabled(!benefit.isRemovable)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(benefit.isRemovable && isKept ? [.isSelected] : [])
+        .foregroundStyle(isKept ? Color.primary : Color.secondary)
+        .padding(.vertical, 2)
     }
 
     // MARK: - Where this came from
@@ -278,24 +307,24 @@ struct CardBenefitsView: View {
     // MARK: - Saving
 
     private func save() {
-        var next = card.removingBenefits(ids: dropped)
+        let next = card.removingBenefits(ids: dropped)
 
         switch mode {
         case .confirming:
             if let old = replacing {
-                // Same slot in the wallet, same pin, same photo — only the
-                // product behind it changes.
-                next.id = old.id
-                next.isPinned = old.isPinned
-                next.photoFilename = old.photoFilename
-                store.replace(next)
+                store.replace(next.takingWalletPlace(of: old))
             } else {
                 store.add(next)
             }
         case .reviewing:
             store.replace(next)
         }
-        dismiss()
+
+        if let onFinish {
+            onFinish()
+        } else {
+            dismiss()
+        }
     }
 
     // MARK: - Pieces

@@ -31,6 +31,12 @@ struct CardEditorView: View {
 
     let mode: Mode
 
+    /// Called instead of `dismiss()` when this form was opened from inside
+    /// another sheet. Dismissing the presenter closes this one with it, so
+    /// saving lands back on the wallet rather than on the screen that could
+    /// not find the card.
+    var onFinish: (() -> Void)? = nil
+
     @Environment(WalletStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
@@ -364,7 +370,12 @@ struct CardEditorView: View {
             }
             store.add(card)
         }
-        dismiss()
+
+        if let onFinish {
+            onFinish()
+        } else {
+            dismiss()
+        }
     }
 }
 

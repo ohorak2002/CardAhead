@@ -91,6 +91,21 @@ public struct Card: Identifiable, Codable, Hashable, Sendable {
     /// and offers a manual editor for the other.
     public var isCatalogCard: Bool { catalogProductID != nil }
 
+    /// This product, standing where another card stood in the wallet.
+    ///
+    /// "I picked the wrong card" must not cost somebody their place in the
+    /// stack, the star they put on it, or the photo they took of the real thing
+    /// in their hand. Those belong to the slot and to the person; everything the
+    /// catalog asserts — the rates, the fees, the perks, the product it is —
+    /// comes from the card replacing it.
+    public func takingWalletPlace(of previous: Card) -> Card {
+        var card = self
+        card.id = previous.id
+        card.isPinned = previous.isPinned
+        card.photoFilename = previous.photoFilename
+        return card
+    }
+
     /// The finish to draw with. Matte is the safe default for a card whose
     /// material the user never told us about.
     public var appearance: CardFinish { finish ?? .matte }

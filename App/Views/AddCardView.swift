@@ -17,8 +17,9 @@ struct AddCardView: View {
 
     /// When set, whatever is chosen here replaces this card instead of joining
     /// it. "I picked the wrong one" should not leave the wrong one behind.
-    var replacing: Card?
+    var replacing: Card? = nil
 
+    @Environment(WalletStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
     @State private var query = ""
@@ -32,6 +33,13 @@ struct AddCardView: View {
 
     private var trimmedQuery: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// A card can legitimately be held twice, so this warns rather than
+    /// forbids — but adding the same product a second time by accident is a
+    /// much easier mistake than holding two of them.
+    private func isAlreadyHeld(_ entry: CatalogEntry) -> Bool {
+        store.cards.contains { $0.catalogProductID == entry.productID }
     }
 
     private var results: [CatalogEntry] {
@@ -62,7 +70,10 @@ struct AddCardView: View {
                 }
             }
             .sheet(isPresented: $isAddingByHand) {
-                CardEditorView(mode: .adding)
+                // Dismissing this screen tears its own sheet down with it, so
+                // finishing the form lands back on the wallet rather than on
+                // the list of cards it was not in.
+                CardEditorView(mode: .adding, onFinish: { dismiss() })
             }
         }
     }
@@ -96,9 +107,13 @@ struct AddCardView: View {
             Section {
                 ForEach(entries.filter { $0.card.issuer == issuer.name }) { entry in
                     NavigationLink {
-                        CardBenefitsView(mode: .confirming(entry), replacing: replacing)
+                        CardBenefitsView(
+                            mode: .confirming(entry),
+                            replacing: replacing,
+                            onFinish: { dismiss() }
+                        )
                     } label: {
-                        CardProductRow(entry: entry)
+                        CardProductRow(entry: entry, isAlreadyHeld: isAlreadyHeld(entry))
                     }
                 }
             } footer: {
@@ -115,9 +130,13 @@ struct AddCardView: View {
         Section {
             ForEach(results) { entry in
                 NavigationLink {
-                    CardBenefitsView(mode: .confirming(entry), replacing: replacing)
+                    CardBenefitsView(
+                        mode: .confirming(entry),
+                        replacing: replacing,
+                        onFinish: { dismiss() }
+                    )
                 } label: {
-                    CardProductRow(entry: entry)
+                    CardProductRow(entry: entry, isAlreadyHeld: isAlreadyHeld(entry))
                 }
             }
         } header: {
@@ -167,6 +186,7 @@ struct AddCardView: View {
 /// two things it is best at. Enough to recognise a card without opening it.
 struct CardProductRow: View {
     let entry: CatalogEntry
+    var isAlreadyHeld: Bool = false
 
     private var headline: [String] {
         entry.card
@@ -181,8 +201,18 @@ struct CardProductRow: View {
             CardThumbnail(card: entry.card)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(entry.card.name)
-                    .font(.subheadline.weight(.semibold))
+                HStack(spacing: 6) {
+                    Text(entry.card.name)
+                        .font(.subheadline.weight(.semibold))
+                    if isAlreadyHeld {
+                        Text("In your wallet")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.fill.tertiary, in: Capsule())
+                    }
+                }
                 Text(feeLine)
                     .font(.caption)
                     .foregroundStyle(.secondary)

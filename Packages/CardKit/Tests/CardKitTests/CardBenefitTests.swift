@@ -215,6 +215,34 @@ final class CardBenefitTests: XCTestCase {
         XCTAssertEqual(gold.removingBenefits(ids: [], asOf: today), gold)
     }
 
+    // MARK: - Picking the wrong card
+
+    /// Changing a card is a correction, not a fresh start. The slot, the star
+    /// and the photo of the real card in your hand survive it; everything the
+    /// catalog asserts comes from the card replacing it.
+    func testChangingTheCardKeepsThePlaceAndLosesTheProduct() {
+        var wrong = CardCatalog.chaseFreedomFlex
+        wrong.isPinned = true
+        wrong.photoFilename = "mine.jpg"
+
+        let right = CardCatalog.amexGold.takingWalletPlace(of: wrong)
+
+        XCTAssertEqual(right.id, wrong.id, "the wallet slot has to survive, or replace() cannot find it")
+        XCTAssertTrue(right.isPinned)
+        XCTAssertEqual(right.photoFilename, "mine.jpg")
+
+        XCTAssertEqual(right.catalogProductID, "amex-gold")
+        XCTAssertEqual(right.name, "Gold")
+        XCTAssertEqual(right.annualFeeDollars, 325)
+        XCTAssertNil(right.rotatingProgram, "the wrong card's quarterly bonus must not come along")
+    }
+
+    func testChangingToTheSameCardChangesNothingThatMatters() {
+        let held = Fixture.pinning(CardCatalog.amexGold)
+        let again = CardCatalog.amexGold.takingWalletPlace(of: held)
+        XCTAssertEqual(again, held)
+    }
+
     // MARK: - The engine stays in charge
 
     /// A corrected card is ranked on the correction, because the correction is

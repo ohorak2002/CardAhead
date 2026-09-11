@@ -40,7 +40,8 @@ trade, and it is the user's call.
 Packages/CardKit/       Pure Swift. No UIKit, no Core Location, no SwiftUI.
   Sources/CardKit/
     Models/             Card, CategoryRule, EarnCap, Quarter, WelcomeBonus,
-                         Perk, CardFinish
+                         Perk, CardFinish, CardBenefit (the user-facing
+                         benefits layer), CardNetwork
     Engine/             PurchaseContext, CardScore, RecommendationEngine
     Data/               CardCatalog (seed cards), MerchantCategoryMap,
                          CardArtLibrary (licensed card art registry)
@@ -60,7 +61,8 @@ App/
   Location/ArrivalNotifier.swift         seam between arriving and being told
   Notifications/ReminderCenter.swift     UNUserNotificationCenter, both ends
   Places/PlacesProvider.swift            URLSession, and the API key or not
-  Views/                         see below
+  Views/                         see below. AddCardView + CardBenefitsView
+                         are the add flow; CardEditorView is the way out
 project.yml             XcodeGen spec. The .xcodeproj is generated, not
                          committed — run `xcodegen generate` after cloning.
 docs/card-art.md         runbook for adding a licensed card-art asset
@@ -81,20 +83,28 @@ seconds. Keep it that way — no SwiftUI, no UIKit, no Core Location imports in
    don't add non-card content back onto it. A "Why this card" bar at the
    bottom pushes to screen 2.
 2. **Why this card** (`WhyThisCardView`) — the ranking, the reasoning, the
-   caveats, and a hand-driven "where you are" control standing in for the
-   geofence until step 4 lands.
+   caveats, and a hand-driven "where you are" control. The geofence now exists
+   (step 4), so this control is a bench rather than a stand-in: it is how the
+   ranking gets exercised without walking into a shop.
 3. **Settings** (`SettingsView`) — behind a gear, top-left of the wallet
    toolbar. Point valuation (per currency, not per card), location status,
    card-artwork explainer, erase-everything.
 
-Adding/editing a card is `CardEditorView`, a sheet, not a fourth screen.
+Adding a card is a sheet, not a fourth screen, and it is three steps:
+`AddCardView` (bank, or search) -> the bank's products -> `CardBenefitsView`
+(confirm what it is good for). `CardBenefitsView` is also what opens from a
+card's **Benefits** button, where "this is the wrong card" and "correct the
+details myself" live.
+
+`CardEditorView` is the hand-typed fallback, reached only from "my card is not
+on the list" and from that Benefits screen. It is no longer on the wallet's
+plus button and must not go back there.
 
 ## Conventions established this session
 
-- **A fresh wallet starts empty. Never preload cards.** `CardCatalog` is a
-  typing shortcut *inside* the add flow (quick-fill chips), never a seeded
-  starter wallet. `WalletStore`'s doc comment states this explicitly — read it
-  before touching `init`/`load`.
+- **A fresh wallet starts empty. Never preload cards.** `CardCatalog` is the
+  list the add flow *searches*, never a seeded starter wallet. `WalletStore`'s
+  doc comment states this explicitly — read it before touching `init`/`load`.
 - **Confirmation dialogs go on destructive, irreversible actions — not on
   easily-undone ones.** Early in the session a confirm dialog was added to
   "prefer this card" (a harmless, instantly-reversible tiebreak toggle) while
@@ -146,17 +156,35 @@ Adding/editing a card is `CardEditorView`, a sheet, not a fourth screen.
   wording in `summary`; a test fails the build without it. Past the edge the
   app asks the user (`RotatingQuarterEditor`) — they got the email, and it is
   the only source that cannot go stale unnoticed.
-- **The add-card form owns six fields; everything else rides along.** This is
-  true of `CardEditorView.apply(to:)` when editing *and* of `template` when
-  adding from a quick-fill chip. Break the latter and a catalog card arrives
-  in the wallet with no rotating programme, no perks and no caps.
+- **The hand-typed form owns six fields; everything else rides along.** True
+  of `CardEditorView.apply(to:)` when editing. The `template` half of this trap
+  is gone with the quick-fill chips: a catalog card now arrives through
+  `CardBenefitsView` whole, rotating programme and perks and caps included.
+- **A card picked from the catalog carries its `productID`; a card typed over
+  loses it.** `Card.catalogProductID` is what lets the app show a source and a
+  date, offer "this is the wrong card", and one day match licensed artwork.
+  `CardEditorView.apply(to:)` clears it deliberately — somebody who has retyped
+  the rates is no longer making the catalog's claim about that product, and the
+  card must stop being dated against the issuer's page.
+- **`CardBenefit` is derived, never stored.** It is the card in plain English —
+  "4x at restaurants" — read out of the rules, perks, rotating programme and
+  signup bonus the ranking engine already uses. Storing a copy would be a
+  second description of the same card, free to drift from the one that decides
+  which card wins. Each benefit carries a `BenefitOrigin` saying which
+  structure it came from, and `Card.removingBenefit(_:)` writes a user's
+  correction straight back into that structure. **Do not build a second
+  ranking path in the Benefits UI**, and do not add a parallel list of
+  exceptions for the engine to learn about.
+- **Two benefits refuse to be removed.** The base rate is what every other rule
+  falls back to, and the rotating programme belongs to the issuer — hiding it
+  would only hide it from the person it is being kept honest for.
 
 ## Done vs. pending (build steps from the original spec)
 
 | Step | Status |
 |---|---|
 | 1. Data model | Done |
-| 2. Wallet UI (stack, add, edit, expand, pin, reorder) | Done |
+| 2. Wallet UI (stack, add, edit, expand, pin, reorder) | Done. Onboarding redesigned around card *selection* (roadmap v2 steps 1-5). |
 | 3. Recommendation engine, testable with no location | Done |
 | 4. Region monitoring + notification pipeline | **Built, unverifiable without a device.** `RegionMonitor` registers the nearest 20 relevant merchants as `CLCircularRegion`s, handles enter/exit, applies a four-minute dwell, and redraws on significant location change. `ReminderCenter` schedules the local notification on entry and cancels it on exit; a tap opens that card. Nothing is registered in practice until step 5 gives `MerchantSource` somewhere to get shops from. |
 | 5. Places API merchant resolution | **Done, needs a key.** `GooglePlacesSource` calls Places API (New) `searchNearby` behind `MerchantCache` (250m grid, one week, 40 squares, LRU). Resolution happens when the plan is redrawn, *not* when a geofence fires — the shop's name and category are already in the registered region by then. No key is committed; see `docs/places-api.md`. |
@@ -196,11 +224,15 @@ Also not built, flagged repeatedly, not yet done:
 
 - Windows dev machine (git-bash `Bash` tool + PowerShell both available; CRLF
   warnings on `git add` are expected and harmless).
+- **The Bash tool's heredocs eat backslashes, even quoted ones.** Writing Swift
+  through `cat > file <<'EOF'` silently mangles `\(interpolation)` and every
+  escape in a string literal, and a long one can break the heredoc outright.
+  Write Swift with the `Write` tool, or with a Python script written by `Write`
+  and then run. Small `sed`/`python -c` edits with no backslashes are fine.
+- CI is the compiler, so before pushing it is worth a crude structural check
+  (brace/paren balance across the changed files) — it catches the mistakes that
+  waste a whole CI round trip.
 - Push small, watch `gh run watch <id> --exit-status`, report the actual CI
   result — see the opening section.
-- Local preview server for the web mirror: `.claude/preview-server.py` +
-  `.claude/launch.json` (`preview_start` with name `card-preview`, port 8099).
-  Use forward slashes in any path passed to the launcher — backslashes get
-  mangled by the launch-config parser.
-- When editing the web preview's `<script>` block, syntax-check before
-  publishing: extract it and run `node --check`.
+- There is no local preview. See "There is no web preview any more" above:
+  nothing is visually verifiable before CI, and that is the trade.

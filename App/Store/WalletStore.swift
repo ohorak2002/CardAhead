@@ -116,6 +116,42 @@ final class WalletStore {
         update(cardID) { $0.currency.centsPerUnit = centsPerUnit }
     }
 
+    /// The point currencies actually present in the wallet, one entry each.
+    ///
+    /// Cash back is excluded on purpose: a cent is worth a cent, and offering
+    /// to revalue it would only invite someone to break their own ranking.
+    var valuablePointCurrencies: [RewardCurrency] {
+        var seen: Set<String> = []
+        return cards
+            .map(\.currency)
+            .filter { $0.style == .multiplier }
+            .filter { seen.insert($0.name).inserted }
+            .sorted { $0.name < $1.name }
+    }
+
+    /// Valuation belongs to the currency, not the card. Someone holding two
+    /// Chase cards should not have to state what a Chase point is worth twice.
+    func setValuation(_ centsPerUnit: Double, forCurrencyNamed name: String) {
+        for index in cards.indices where cards[index].currency.name == name {
+            cards[index].currency.centsPerUnit = centsPerUnit
+        }
+        save()
+    }
+
+    func valuation(forCurrencyNamed name: String) -> Double {
+        cards.first { $0.currency.name == name }?.currency.centsPerUnit ?? 1.0
+    }
+
+    /// Everything, including the photos. There is no account and no backup, so
+    /// this is genuinely irreversible — the caller must confirm first.
+    func eraseEverything() {
+        for card in cards {
+            if let name = card.photoFilename { deletePhoto(named: name) }
+        }
+        cards = []
+        save()
+    }
+
     func replace(_ card: Card) {
         guard let index = cards.firstIndex(where: { $0.id == card.id }) else { return }
         cards[index] = card

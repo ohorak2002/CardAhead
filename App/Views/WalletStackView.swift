@@ -43,6 +43,13 @@ struct WalletStackView: View {
             }
             .navigationTitle("Wallet")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink {
+                        SettingsView(auth: locationAuth)
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isAddingCard = true

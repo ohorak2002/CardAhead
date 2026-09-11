@@ -29,6 +29,16 @@ struct CardFaceView: View {
     private var art: CardArt { CardArt.art(for: card.artKey) }
     private var finish: CardFinish { card.appearance }
 
+    /// Only ever non-nil for artwork we hold a licence for. `CardArtLibrary`
+    /// does the refusing, so nothing here has to remember to check.
+    private var licensedArt: Image? {
+        guard case .licensed(let asset) = CardArtSource.resolve(for: card) else { return nil }
+        return Image(asset.imageName)
+    }
+
+    /// True when a real photograph is behind the text, licensed or the user's.
+    private var hasImageBehindText: Bool { licensedArt != nil || photo != nil }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             brandingStrip
@@ -51,7 +61,11 @@ struct CardFaceView: View {
     @ViewBuilder
     private var plate: some View {
         ZStack {
-            if let photo {
+            if let licensed = licensedArt {
+                licensed
+                    .resizable()
+                    .scaledToFill()
+            } else if let photo {
                 photo
                     .resizable()
                     .scaledToFill()
@@ -64,9 +78,9 @@ struct CardFaceView: View {
             // the moment someone drops in a photo of a pale card.
             LinearGradient(
                 stops: [
-                    .init(color: .black.opacity(photo == nil ? 0.18 : 0.58), location: 0),
-                    .init(color: .black.opacity(photo == nil ? 0.02 : 0.22), location: 0.34),
-                    .init(color: .black.opacity(photo == nil ? 0.10 : 0.40), location: 1)
+                    .init(color: .black.opacity(hasImageBehindText ? 0.58 : 0.18), location: 0),
+                    .init(color: .black.opacity(hasImageBehindText ? 0.22 : 0.02), location: 0.34),
+                    .init(color: .black.opacity(hasImageBehindText ? 0.40 : 0.10), location: 1)
                 ],
                 startPoint: .top, endPoint: .bottom
             )
@@ -124,7 +138,7 @@ struct CardFaceView: View {
             if let highlight {
                 Text(highlight)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(photo == nil ? art.accent : .white)
+                    .foregroundStyle(hasImageBehindText ? .white : art.accent)
                     .lineLimit(1)
                     .shadow(color: .black.opacity(0.4), radius: 2, x: 0, y: 1)
             }

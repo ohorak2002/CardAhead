@@ -106,6 +106,28 @@ final class WalletStore {
         }
     }
 
+    /// What the user read in their issuer's email, for a quarter nothing
+    /// shipped with the app could have known. Marked as theirs, so the UI can
+    /// say where it came from and a later build does not silently overwrite a
+    /// number they checked themselves.
+    func setRotatingCategories(
+        _ categories: [SpendingCategory],
+        activated: Bool,
+        cardID: UUID,
+        quarter: Quarter
+    ) {
+        update(cardID) { card in
+            guard var program = card.rotatingProgram else { return }
+            program.setQuarter(RotatingQuarter(
+                quarter: quarter,
+                categories: categories,
+                isActivated: activated,
+                enteredByUser: true
+            ))
+            card.rotatingProgram = program
+        }
+    }
+
     func setRotatingCapSpend(_ amount: Money, cardID: UUID) {
         update(cardID) { card in
             card.rotatingProgram?.cap?.spentDollars = amount

@@ -10,7 +10,8 @@ final class RecommendationEngineTests: XCTestCase {
         merchant: String? = nil,
         confidence: MerchantConfidence = .exact,
         traveling: Bool = false,
-        abroad: Bool = false
+        abroad: Bool = false,
+        on date: Date = Fixture.inQ3
     ) -> PurchaseContext {
         PurchaseContext(
             category: category,
@@ -18,7 +19,7 @@ final class RecommendationEngineTests: XCTestCase {
             confidence: confidence,
             isTraveling: traveling,
             isAbroad: abroad,
-            date: Fixture.inQ3
+            date: date
         )
     }
 
@@ -90,8 +91,10 @@ final class RecommendationEngineTests: XCTestCase {
     // MARK: - Rotating categories
 
     func testUnactivatedRotatingBonusDoesNotEarn() {
-        let flex = CardCatalog.chaseFreedomFlex // Q3 placeholder rotation covers groceries
-        let score = engine.score(flex, in: context(.groceries))
+        // Chase's real Q3 2026 rotation is gas and EV charging, public transit
+        // and live entertainment.
+        let flex = CardCatalog.chaseFreedomFlex
+        let score = engine.score(flex, in: context(.gas))
 
         XCTAssertTrue(score.isRotatingMatch)
         XCTAssertTrue(score.needsActivation)
@@ -100,7 +103,7 @@ final class RecommendationEngineTests: XCTestCase {
 
     func testActivatedRotatingBonusEarns() {
         let flex = Fixture.activatingRotation(CardCatalog.chaseFreedomFlex, quarter: Fixture.q3)
-        let score = engine.score(flex, in: context(.groceries))
+        let score = engine.score(flex, in: context(.gas))
 
         XCTAssertTrue(score.isRotatingMatch)
         XCTAssertFalse(score.needsActivation)
@@ -111,15 +114,38 @@ final class RecommendationEngineTests: XCTestCase {
         var flex = Fixture.activatingRotation(CardCatalog.chaseFreedomFlex, quarter: Fixture.q3)
         flex = Fixture.exhaustingRotatingCap(flex)
 
-        let score = engine.score(flex, in: context(.groceries))
+        let score = engine.score(flex, in: context(.gas))
         XCTAssertTrue(score.isCapExhausted)
         XCTAssertEqual(score.appliedRate, 1)
+    }
+
+    /// A quarter nobody has published is left out of the ranking, and said so
+    /// rather than passed over in silence — it is a 5% bonus going unmentioned.
+    func testAnUnpublishedQuarterIsLeftOutLoudly() {
+        let flex = CardCatalog.chaseFreedomFlex
+        let inQ4 = engine.score(flex, in: context(.dining, on: Fixture.makeDate(2026, 11, 10)))
+
+        XCTAssertFalse(inQ4.isRotatingMatch)
+        XCTAssertEqual(inQ4.appliedRate, 3, "the permanent dining rule still applies")
+        XCTAssertTrue(
+            inQ4.caveats.contains { $0.contains("Nobody has said") },
+            "\(inQ4.caveats)"
+        )
+    }
+
+    /// Discover publishes a year ahead, so its Q4 is known and gets no such note.
+    func testAPublishedQuarterSaysNothingAboutBeingUnpublished() {
+        let discover = CardCatalog.discoverIt
+        let inQ4 = engine.score(discover, in: context(.dining, on: Fixture.makeDate(2026, 11, 10)))
+
+        XCTAssertTrue(inQ4.isRotatingMatch)
+        XCTAssertFalse(inQ4.caveats.contains { $0.contains("Nobody has said") }, "\(inQ4.caveats)")
     }
 
     /// The differentiator in the product spec: tell the user they forgot to click activate.
     func testActivationNudgeAppearsWhenTheBonusWouldHaveWon() {
         let wallet = [CardCatalog.chaseFreedomFlex, CardCatalog.capitalOneSavor]
-        let recommendation = engine.recommend(from: wallet, in: context(.groceries))
+        let recommendation = engine.recommend(from: wallet, in: context(.entertainment))
 
         XCTAssertEqual(recommendation?.best.card.displayName, "Capital One Savor")
         XCTAssertNotNil(recommendation?.activationNudge)

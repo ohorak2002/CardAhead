@@ -59,25 +59,36 @@ public struct RecommendationEngine: Sendable {
             }
         }
 
-        // This quarter's rotating bonus, if it covers the category.
-        if let program = card.rotatingProgram,
-           let rotatingQuarter = program.quarter(quarter),
-           rotatingQuarter.categories.contains(context.category) {
-            isRotatingMatch = true
-            let activated = rotatingQuarter.isActivated || forcingRotatingActivation
-            if !rotatingQuarter.isActivated {
-                needsActivation = true
-            }
-            if !activated {
+        // This quarter's rotating bonus, if it covers the category — and a word
+        // about it when nobody has published this quarter yet, because leaving
+        // a 5% bonus silently out of a ranking is the one omission the user
+        // would want to know about.
+        if let program = card.rotatingProgram {
+            switch program.status(for: quarter) {
+            case .bonus(let rotatingQuarter) where rotatingQuarter.categories.contains(context.category):
+                isRotatingMatch = true
+                let activated = rotatingQuarter.isActivated || forcingRotatingActivation
+                if !rotatingQuarter.isActivated {
+                    needsActivation = true
+                }
+                if !activated {
+                    let rate = card.currency.formatted(rate: program.rate)
+                    caveats.append("The \(rate) bonus for this quarter has not been activated.")
+                } else if let cap = program.cap, cap.isExhausted {
+                    isCapExhausted = true
+                    let limit = Self.dollars(cap.limitDollars)
+                    caveats.append("Rotating bonus cap of \(limit) \(cap.period.displayName) is used up.")
+                } else if program.rate > appliedRate {
+                    appliedRate = program.rate
+                    source = .rotating(rotatingQuarter.quarter)
+                }
+
+            case .unannounced:
                 let rate = card.currency.formatted(rate: program.rate)
-                caveats.append("The \(rate) bonus for this quarter has not been activated.")
-            } else if let cap = program.cap, cap.isExhausted {
-                isCapExhausted = true
-                let limit = Self.dollars(cap.limitDollars)
-                caveats.append("Rotating bonus cap of \(limit) \(cap.period.displayName) is used up.")
-            } else if program.rate > appliedRate {
-                appliedRate = program.rate
-                source = .rotating(rotatingQuarter.quarter)
+                caveats.append("Nobody has said what \(card.displayName) pays \(rate) on this quarter, so this leaves it out.")
+
+            default:
+                break
             }
         }
 

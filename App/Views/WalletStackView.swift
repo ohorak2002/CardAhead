@@ -285,15 +285,23 @@ struct WalletStackView: View {
 
     /// The one thing this card is best at, shown on the visible top strip.
     private func highlight(for card: Card) -> String? {
-        if let program = card.rotatingProgram,
-           let quarter = program.quarter(Quarter.containing(Date())) {
+        if let program = card.rotatingProgram {
             let rate = card.currency.formatted(rate: program.rate)
-            let categories = quarter.categories
-                .map { $0.displayName.lowercased() }
-                .joined(separator: " and ")
-            return quarter.isActivated
-                ? "\(rate) on \(categories) this quarter"
-                : "Switch on \(rate) for \(categories)"
+            switch program.status(for: Quarter.containing(Date())) {
+            case .bonus(let quarter):
+                let categories = quarter.categories
+                    .map { $0.displayName.lowercased() }
+                    .joined(separator: " and ")
+                return quarter.isActivated
+                    ? "\(rate) on \(categories) this quarter"
+                    : "Switch on \(rate) for \(categories)"
+            case .unannounced:
+                // Said on the card face rather than in a banner, because it is
+                // a fact about this card and not about the app.
+                return "Nobody has published this quarter's \(rate) yet"
+            case .none:
+                break
+            }
         }
         if let best = card.rules.filter({ $0.category != .base }).max(by: { $0.rate < $1.rate }) {
             return "\(card.currency.formatted(rate: best.rate)) on \(best.category.displayName.lowercased())"

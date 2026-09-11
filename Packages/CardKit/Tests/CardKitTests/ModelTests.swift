@@ -94,8 +94,8 @@ final class CardTests: XCTestCase {
     func testBonusCategoriesIncludeTheCurrentRotation() {
         let flex = CardCatalog.chaseFreedomFlex
         let categories = flex.bonusCategories(asOf: Fixture.inQ3)
-        XCTAssertTrue(categories.contains(.dining))
-        XCTAssertTrue(categories.contains(.groceries), "Q3 rotation should appear alongside the permanent rules")
+        XCTAssertTrue(categories.contains(.dining), "permanent rule")
+        XCTAssertTrue(categories.contains(.gas), "Q3 2026 rotation, alongside the permanent rules")
         XCTAssertFalse(categories.contains(.base))
     }
 

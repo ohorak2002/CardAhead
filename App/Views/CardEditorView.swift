@@ -64,9 +64,19 @@ struct CardEditorView: View {
 
     // MARK: - The card as described right now
 
+    /// The catalog card a quick-fill chip was tapped, if one was.
+    ///
+    /// Held so that adding a card obeys the same rule editing already does: the
+    /// form owns six fields and everything else survives untouched. Without
+    /// this, tapping "Chase Freedom Flex" produced a card with no rotating
+    /// programme, no perks and no coding notes — which meant the quarterly
+    /// bonus, the whole reason that card is interesting, never reached the
+    /// wallet at all.
+    @State private var template: Card?
+
     /// Used for the live preview, and as the starting point when adding.
     private var draft: Card {
-        apply(to: mode.existingCard ?? Card(
+        apply(to: mode.existingCard ?? template ?? Card(
             issuer: "",
             name: "Your card",
             artKey: artKey
@@ -189,8 +199,19 @@ struct CardEditorView: View {
         } footer: {
             Text(isEditing
                  ? "However you would describe it out loud."
-                 : "However you would describe it out loud. Tap a known card to fill it all in.")
+                 : "However you would describe it out loud. Tap a known card to fill it all in — \(catalogFreshness) Check the rates against your own statement either way; issuers change them without saying so.")
         }
+    }
+
+    /// The seed rates carry the day somebody last read them off the issuer's
+    /// own page. Stating it is the difference between a shortcut and a claim.
+    private var catalogFreshness: String {
+        let checked = CardCatalog.checkedOn.formatted(date: .abbreviated, time: .omitted)
+        let entry = CardCatalog.entries.first
+        if entry?.isStale() == true {
+            return "those rates were last checked on \(checked) and are now old enough to be wrong."
+        }
+        return "those rates were last checked on \(checked)."
     }
 
     // MARK: - What does it look like?
@@ -361,6 +382,7 @@ struct CardEditorView: View {
     /// Filling from a known card is a shortcut, not an import. Everything it
     /// writes is still editable before the card is saved.
     private func fill(from card: Card) {
+        template = card
         issuer = card.issuer
         cardName = card.name
         artKey = card.artKey

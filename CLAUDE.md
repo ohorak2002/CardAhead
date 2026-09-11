@@ -126,6 +126,25 @@ Adding/editing a card is `CardEditorView`, a sheet, not a fourth screen.
 - **Avoid the AI-design tells the `frontend-design`/`artifact-design` skills
   flag**: no tracked-out ALL-CAPS labels, no monospace on labels (numbers
   only, for tabular alignment), no dot-joined meta strings.
+- **Every number in `CardCatalog` cites the issuer's own page and the day
+  somebody read it.** That is what `CatalogEntry` is for, and
+  `CardCatalogTests` enforces it: an https URL on an issuer domain, never a
+  review site, and one shared `checkedOn` date. Things the model cannot
+  express go in `notModelled` as prose rather than being approximated into a
+  rule — an approximation reads as a fact. Re-audit when `isStale` starts
+  returning true (180 days).
+- **Rotating quarters may never be invented.** This was violated once and the
+  fake Q3/Q4 categories sat in the catalog for a whole build. `RotatingProgram`
+  now has `knownThrough`, so "this quarter pays nothing extra" and "nobody has
+  published this quarter" are different answers, and `status(for:)` returns
+  `.unannounced` past the edge. Ship a quarter only with the issuer's own
+  wording in `summary`; a test fails the build without it. Past the edge the
+  app asks the user (`RotatingQuarterEditor`) — they got the email, and it is
+  the only source that cannot go stale unnoticed.
+- **The add-card form owns six fields; everything else rides along.** This is
+  true of `CardEditorView.apply(to:)` when editing *and* of `template` when
+  adding from a quick-fill chip. Break the latter and a catalog card arrives
+  in the wallet with no rotating programme, no perks and no caps.
 
 ## Done vs. pending (build steps from the original spec)
 
@@ -143,16 +162,9 @@ Also not built, flagged repeatedly, not yet done:
 
 - **Undo on Remove** (or a confirmation on it) — the one item from the Apple
   fluid-interfaces audit still outstanding.
-- **Velocity/momentum on the drag-to-reorder gesture** — both the Swift
-  version (`value.translation` should become `value.predictedEndTranslation`,
-  a near-one-line fix) and the web version (needs actual velocity tracking,
-  currently has none). This was the #1 finding in the audit.
-- **Real rotating-quarter data feed.** The Q3/Q4 categories in `CardCatalog`
-  are invented placeholders, clearly marked as such in card notes — do not
-  treat them as real Chase/Discover announcements.
-- **Verification of every seeded rate/cap/fee against issuer terms.** None of
-  `CardCatalog`'s numbers have been checked against real issuer terms; treat
-  them as structurally realistic, not factually current.
+- **Velocity/momentum on the drag-to-reorder gesture** —
+  `value.translation` should become `value.predictedEndTranslation`, a
+  near-one-line fix. This was the #1 finding in the audit.
 - Haptics (`sensoryFeedback`) at commit points — audit finding, not started.
 - Editing a cap's *limit* (only its spend is currently editable).
 

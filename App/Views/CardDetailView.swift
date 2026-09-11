@@ -26,44 +26,96 @@ struct CardDetailView: View {
 
     // MARK: - Rotating
 
+    @State private var isEnteringQuarter = false
+
     @ViewBuilder
     private var rotatingSection: some View {
-        if let program = card.rotatingProgram,
-           let quarter = program.quarter(currentQuarter) {
+        if let program = card.rotatingProgram {
             VStack(alignment: .leading, spacing: 10) {
                 sectionTitle("This quarter")
 
-                HStack(alignment: .top, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(quarter.categories.map(\.displayName).joined(separator: " · "))
-                            .font(.subheadline.weight(.semibold))
-                        Text("\(card.currency.formatted(rate: program.rate)) until \(quarter.quarter.rawValue) ends")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 8)
-                    Button(quarter.isActivated ? "Activated" : "Activate") {
-                        store.setActivated(!quarter.isActivated, cardID: card.id, quarter: quarter.quarter)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(quarter.isActivated ? .secondary : art.accent)
-                    .disabled(quarter.isActivated)
-                }
-
-                if !quarter.isActivated {
-                    Label(
-                        "You are not earning this bonus until you activate it with the issuer.",
-                        systemImage: "exclamationmark.triangle.fill"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                }
-
-                if let cap = program.cap {
-                    capBar(cap, label: "Rotating bonus")
+                switch program.status(for: currentQuarter) {
+                case .bonus(let quarter):
+                    publishedQuarter(quarter, in: program)
+                case .unannounced:
+                    unpublishedQuarter(program)
+                case .none:
+                    Text("Nothing extra on this card this quarter.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
             }
+            .sheet(isPresented: $isEnteringQuarter) {
+                RotatingQuarterEditor(
+                    card: store.card(withID: card.id) ?? card,
+                    quarter: currentQuarter
+                )
+            }
         }
+    }
+
+    @ViewBuilder
+    private func publishedQuarter(_ quarter: RotatingQuarter, in program: RotatingProgram) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                // The issuer's own wording when we have it: a quarter is often
+                // wider than the categories this app can act on, and showing
+                // only the narrow list reads as though the rest is not covered.
+                Text(quarter.summary ?? quarter.categories.map(\.displayName).joined(separator: " · "))
+                    .font(.subheadline.weight(.semibold))
+                Text("\(card.currency.formatted(rate: program.rate)) until \(quarter.quarter.rawValue) ends")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Button(quarter.isActivated ? "Activated" : "Activate") {
+                store.setActivated(!quarter.isActivated, cardID: card.id, quarter: quarter.quarter)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(quarter.isActivated ? Color.secondary : art.accent)
+            .disabled(quarter.isActivated)
+        }
+
+        if !quarter.isActivated {
+            Label(
+                "You are not earning this bonus until you activate it with the issuer.",
+                systemImage: "exclamationmark.triangle.fill"
+            )
+            .font(.caption)
+            .foregroundStyle(.orange)
+        }
+
+        if quarter.enteredByUser {
+            Button("You added these. Change them") { isEnteringQuarter = true }
+                .font(.caption)
+        }
+
+        if let cap = program.cap {
+            capBar(cap, label: "Rotating bonus")
+        }
+    }
+
+    /// The honest state, and the one that used to be filled with invented
+    /// categories. Nobody has published this quarter, so the app says so and
+    /// offers the only fix available to it.
+    @ViewBuilder
+    private func unpublishedQuarter(_ program: RotatingProgram) -> some View {
+        Text("\(card.issuer) has not said what earns \(card.currency.formatted(rate: program.rate)) this quarter.")
+            .font(.subheadline.weight(.semibold))
+
+        Text("They announce it a quarter at a time, so nothing shipped with this app can know it. Until somebody tells us, this card is ranked on its everyday rates alone.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+        HStack(spacing: 12) {
+            Button("Add this quarter") { isEnteringQuarter = true }
+                .buttonStyle(.borderedProminent)
+                .tint(art.accent)
+            if let source = program.sourceURL, let url = URL(string: source) {
+                Link("Look it up", destination: url)
+            }
+        }
+        .font(.subheadline)
     }
 
     // MARK: - Rules

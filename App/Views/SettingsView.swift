@@ -15,14 +15,15 @@ struct SettingsView: View {
     @Environment(ImpactStore.self) private var impact
     let auth: LocationAuthorization
 
+    @AppStorage("preferredName") private var preferredName = ""
     @State private var isConfirmingErase = false
     @State private var isShowingArtworkDetail = false
 
     var body: some View {
         List {
+            nameSection
             valuationSection
             remindersSection
-            impactSection
             artworkSection
             dataSection
         }
@@ -39,6 +40,22 @@ struct SettingsView: View {
             }
         } message: {
             Text("Removes every card, every photo, and the record of what these reminders earned you. There is no account and no backup, so this cannot be undone.")
+        }
+    }
+
+    // MARK: - What to call you
+
+    /// Asked for nowhere else, and the app works perfectly without it. A
+    /// greeting is worth having and not worth an onboarding step.
+    private var nameSection: some View {
+        Section {
+            TextField("Your name", text: $preferredName)
+                .textContentType(.givenName)
+                .autocorrectionDisabled()
+        } header: {
+            Text("Greeting").textCase(nil)
+        } footer: {
+            Text("Only used to say hello on the home screen. Leave it blank and it just says good morning.")
         }
     }
 
@@ -141,35 +158,6 @@ struct SettingsView: View {
         if reminders.isAuthorized { return "On" }
         if reminders.isBlocked { return "Off" }
         return "Not set"
-    }
-
-    // MARK: - Was any of this worth it
-
-    private var impactSection: some View {
-        Section {
-            NavigationLink {
-                ImpactView()
-            } label: {
-                HStack {
-                    Text("Your impact")
-                    Spacer(minLength: 8)
-                    Text(impactSummary)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        } header: {
-            Text("What this has been worth").textCase(nil)
-        } footer: {
-            Text("An estimate of the extra rewards these reminders have earned you, over the next best card you already hold. Worked out on this iPhone, from purchases you chose to put a number on.")
-        }
-    }
-
-    private var impactSummary: String {
-        guard impact.isRecording else { return "Off" }
-        let summary = impact.summary
-        guard summary.priced > 0 else { return summary.hasAnythingToShow ? "Nothing priced yet" : "Nothing yet" }
-        let dollars = summary.estimatedIncrementalValueCents / 100
-        return String(format: "$%.2f extra", dollars)
     }
 
     // MARK: - Artwork

@@ -43,8 +43,7 @@ struct WalletStackView: View {
     @ScaledMetric(relativeTo: .title3) private var cardHeight: CGFloat = 216
 
     var body: some View {
-        NavigationStack {
-            Group {
+        Group {
                 if store.cards.isEmpty {
                     EmptyStateView { isAddingCard = true }
                 } else {
@@ -53,13 +52,6 @@ struct WalletStackView: View {
             }
             .navigationTitle("Wallet")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    NavigationLink {
-                        SettingsView(auth: locationAuth)
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
-                    }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isAddingCard = true
@@ -69,10 +61,9 @@ struct WalletStackView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                // The undo banner has to survive the wallet going empty — you
-                // can remove your only card and still want it back — so it is
-                // not inside the `!store.cards.isEmpty` guard that hides `whyBar`.
-                if store.lastRemoved != nil || !store.cards.isEmpty {
+                // Both banners have to survive the wallet going empty — you
+                // can remove your only card and still want it back.
+                if store.lastRemoved != nil || impact.followUp != nil {
                     VStack(spacing: 10) {
                         if let removed = store.lastRemoved {
                             undoRemovedBanner(removed)
@@ -89,7 +80,6 @@ struct WalletStackView: View {
                             }
                             .padding(.top, 10)
                         }
-                        if !store.cards.isEmpty { whyBar }
                     }
                     .animation(motion, value: store.lastRemoved)
                 }
@@ -117,7 +107,6 @@ struct WalletStackView: View {
                 else { return }
                 shouldOfferPrimer = true
             }
-        }
     }
 
     /// Yes opens the optional second question; everything else is the end of
@@ -262,29 +251,6 @@ struct WalletStackView: View {
         return reminders.isBlocked
             ? "We can see where you are, but notifications are switched off."
             : "We can see where you are. The reminder itself still needs a yes."
-    }
-
-    private var whyBar: some View {
-        NavigationLink {
-            WhyThisCardView()
-        } label: {
-            HStack {
-                Text("Why this card")
-                    .font(.body.weight(.semibold))
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 15)
-            .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 20)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
-        .background(.bar)
     }
 
     /// Removing a card asks no question first — see `WalletStore.remove(_:)`.

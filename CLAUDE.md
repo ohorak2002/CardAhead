@@ -70,6 +70,12 @@ App/
   Places/PlacesProvider.swift            URLSession, and the API key or not
   Theme/CardWiseColor.swift              the brand palette, chrome only —
                          never a card face; see CardArt below
+  Theme/CardWiseStyle.swift              the design system: Metric (8pt grid),
+                         the two gradients, per-category tint and symbol, and
+                         the shared pieces (CategoryIcon, StatTile, TagPill,
+                         SectionHeader, .cardWisePanel())
+  Store/DemoSeed.swift                   debug-only seeded wallet, so CI can
+                         photograph screens with something on them
   Theme/CardArt.swift                    the colours a *user* picks for a
                          card face; deliberately unrelated to the brand
   Assets.xcassets/                       AppIcon (single 1024px), AccentColor,
@@ -88,30 +94,35 @@ platform dependencies, so the ranking logic is testable on Linux CI in
 seconds. Keep it that way — no SwiftUI, no UIKit, no Core Location imports in
 `Packages/CardKit`.
 
-## The app's three screens
+## The app's four tabs
 
-1. **Wallet** (`WalletStackView`) — home, and *only* the cards plus a way to
-   add one. A phone screen holding two subjects at once is a phone screen
-   nobody reads — this was a deliberate redesign partway through the session;
-   don't add non-card content back onto it. A "Why this card" bar at the
-   bottom pushes to screen 2.
-2. **Why this card** (`WhyThisCardView`) — the ranking, the reasoning, the
-   caveats, and a hand-driven "where you are" control. The geofence now exists
-   (step 4), so this control is a bench rather than a stand-in: it is how the
-   ranking gets exercised without walking into a shop.
-3. **Settings** (`SettingsView`) — behind a gear, top-left of the wallet
-   toolbar. Point valuation (per currency, not per card), location status,
-   **Your impact** (`ImpactView`), card-artwork explainer, erase-everything.
+`RootTabView` is the shell. **This replaced a single-screen app on purpose,
+and kept the reason that app was single-screen.** The wallet used to be
+everything, deliberately holding only cards, because a screen with two
+subjects on it is a screen nobody reads. That principle is intact — the Wallet
+tab is *still* nothing but cards. What changed is that everything else had
+grown a tail of bars and sheets hanging off the bottom of it, and a tab bar is
+the Apple answer to that. Four tabs, not five: five reads as a menu.
 
-Adding a card is a sheet, not a fourth screen, and it is three steps:
+1. **Home** (`HomeView`) — a navy gradient header, what the app is doing right
+   now, up to two things worth doing, and a horizontal peek at the wallet.
+   Every line on it is derived from something real; see its doc comment for
+   the list. It must never claim to have found opportunities it has not.
+2. **Wallet** (`WalletStackView`) — the stack, and a plus. Nothing else. It no
+   longer owns a `NavigationStack` (the tab does) and no longer carries the
+   settings gear or the "Why this card" bar.
+3. **Benefits** (`BenefitsBrowserView`) — the wallet's benefits by shelf, not
+   by card, over `WalletInsights.benefitGroups`. A two-column grid of category
+   tiles, a filter, and a "Running out" list.
+4. **More** (`MoreView`) — Your impact (`ImpactView`), Why this card
+   (`WhyThisCardView`), Settings (`SettingsView`).
+
+Adding a card is a sheet, not a fifth tab, and it is three steps:
 `AddCardView` (bank, or search) -> the bank's products -> `CardBenefitsView`
-(confirm what it is good for). `CardBenefitsView` is also what opens from a
-card's **Benefits** button, where "this is the wrong card" and "correct the
-details myself" live.
-
-`CardEditorView` is the hand-typed fallback, reached only from "my card is not
-on the list" and from that Benefits screen. It is no longer on the wallet's
-plus button and must not go back there.
+(confirm what it is good for), where "this is the wrong card" and "correct the
+details myself" also live. `CardEditorView` is reached only from "my card is
+not on the list" and from that screen; it is not on the plus button and must
+not go back there.
 
 ## Conventions established this session
 
@@ -281,6 +292,44 @@ plus button and must not go back there.
   spend — still needs the frozen numbers behind it. `expireStale` skips those
   when raising `.recommendationIgnored`, because somebody who said yes and
   never got round to a number has not ignored anything.
+
+- **The design system is `App/Theme/CardWiseStyle.swift`, and nothing should
+  hardcode a spacing or a radius.** `Metric` is an 8-point grid, `Metric.margin`
+  is the one screen margin, and `.cardWisePanel()` is the surface everything
+  sits on — with a *navy-tinted* shadow, because a grey shadow on a coloured
+  ground is the single most common tell of an interface nobody looked at
+  twice. `BenefitGroup.tint`/`.symbolName` make a category recognisable before
+  its label is read, and the same green means groceries on every screen.
+  The navy→blue gradient appears on exactly two surfaces (the Home header and
+  the Impact hero); a gradient that turns up everywhere stops meaning
+  anything.
+- **Home must not invent an opportunity.** `WalletInsights.opportunities`
+  surfaces only things with a real action and a real deadline: a rotating
+  quarter nobody switched on, and an open signup bonus. "Your $200 travel
+  credit is unused" is the obvious third case and is deliberately absent —
+  `Perk` records that a card *has* a travel credit, not its size, its reset
+  date or whether it has been spent, and a guessed deadline in a list headed
+  "worth doing" is the one somebody rearranges a week around. Same rule
+  governs `expiringSoon`.
+- **"Best for dining" has to be true of *this* wallet.**
+  `WalletInsights.bestCategory` ranks the whole wallet and only labels a card
+  with a category it actually wins. A 3x dining card sitting beside a 4x
+  dining card gets no dining label — a small lie told on every scroll is still
+  a lie, and this app's whole value is being right about which card to reach
+  for.
+- **CI photographs the app; that is the only way anybody sees it.** The
+  `screenshots` job boots a simulator, installs a debug build, and relaunches
+  it once per tab with `-CardWiseDemoSeed -CardWiseDemoTab <tab>`, light and
+  dark, uploading PNGs as an artifact. One relaunch per screen rather than
+  scripted taps: `simctl` cannot tap, and taps against a UI being redesigned
+  are the flakiest part of any screenshot pipeline. `DemoSeed` is behind
+  `#if DEBUG` *and* a launch argument, and writes to its own directory so it
+  can never touch a real `wallet.json`. The job is `continue-on-error` — a
+  flaky simulator boot must never block a correct change.
+- **`python scripts/brace-scan.py <files>` before pushing.** CI is the
+  compiler, and a missing brace otherwise costs a full round trip to find. It
+  understands comments, multiline strings, escapes and interpolation. OK does
+  not mean it compiles; BAD means it definitely does not.
 
 ## Done vs. pending (build steps from the original spec)
 

@@ -32,6 +32,9 @@ import CardKit
 struct NearbyMapView: View {
 
     @Environment(NearbyPlacesStore.self) private var places
+    /// Only ever read, and only for one thing: which of these shops already
+    /// has a geofence around it. See `watchedIDs`.
+    @Environment(RegionMonitor.self) private var monitor
 
     @State private var camera: MapCameraPosition = .userLocation(fallback: .automatic)
     @State private var selectedID: String?
@@ -40,6 +43,10 @@ struct NearbyMapView: View {
     /// Where the camera is now, as opposed to where the results were measured
     /// from. The gap between the two is what raises "Search this area".
     @State private var cameraCenter: GeoCoordinate?
+    /// How much ground the map is showing. Pins are grouped against this: two
+    /// shops that overlap when you can see a mile do not overlap when you can
+    /// see a street, so the clustering has to loosen as you zoom out.
+    @State private var cameraSpan: MKCoordinateSpan?
 
     var body: some View {
         @Bindable var places = places
@@ -134,7 +141,7 @@ struct NearbyMapView: View {
                         FilterChip(
                             title: category.shortName,
                             isOn: !places.filter.isShowingEverything && places.filter.categories == [category],
-                            tint: tint(for: category)
+                            tint: category.mapTint
                         ) {
                             // A chip is a "show me only this" switch, and
                             // tapping the one already on goes back to
@@ -181,26 +188,61 @@ struct NearbyMapView: View {
     /// that cost a whole CI round trip on the wallet stack.
     private static let mapHeight: CGFloat = 300
 
+    /// The shops that already have a geofence around them.
+    ///
+    /// Reminders arriving out of nowhere are the part of this app that feels
+    /// like magic, and magic is the thing people distrust. Marking the watched
+    /// shops turns "how did it know?" into "of course, it said so".
+    private var watchedIDs: Set<String> {
+        monitor.plan?.watchedPlaceIDs ?? []
+    }
+
+    /// Pins, grouped so they cannot sit on top of each other.
+    ///
+    /// The grouping distance comes from the camera rather than a constant: a
+    /// pin is about 40 points across and the map is 300 points tall, so two
+    /// pins are touching when they are closer than `40/300` of whatever the
+    /// map is currently showing. Zoom in and the same two shops come apart on
+    /// their own.
+    private var pinGroups: [MapPinGroup] {
+        let latitudeDelta = cameraSpan?.latitudeDelta ?? span(for: places.filter.distance).latitudeDelta
+        let separation = (NearbyPlaces.pinDiameterPoints / Double(Self.mapHeight)) * latitudeDelta
+        return NearbyPlaces.pinGroups(
+            for: places.results,
+            separationDegrees: separation,
+            referenceLatitude: places.center?.latitude ?? 0
+        )
+    }
+
     private var map: some View {
         ZStack(alignment: .bottom) {
-            Map(position: $camera, selection: $selectedID) {
+            Map(position: $camera) {
                 UserAnnotation()
-                ForEach(places.results) { result in
+                ForEach(pinGroups) { group in
                     Annotation(
-                        result.place.name,
+                        group.id,
                         coordinate: CLLocationCoordinate2D(
-                            latitude: result.place.coordinate.latitude,
-                            longitude: result.place.coordinate.longitude
+                            latitude: group.coordinate.latitude,
+                            longitude: group.coordinate.longitude
                         ),
-                        anchor: .bottom
+                        anchor: .center
                     ) {
-                        MapPin(
-                            category: result.place.mapCategory,
-                            isOpportunity: result.isOpportunity,
-                            isSelected: selectedID == result.id
-                        )
+                        // **A button rather than `Map(selection:)`.** A tap on
+                        // a cluster has to zoom and a tap on a single shop has
+                        // to select it; one selection binding cannot say which
+                        // happened, and working it back out of the tag was two
+                        // code paths that had to agree with each other.
+                        Button {
+                            tap(group)
+                        } label: {
+                            MapPin(
+                                group: group,
+                                isSelected: selectedID == group.id,
+                                isWatched: isWatched(group)
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .tag(result.id)
                     .annotationTitles(.hidden)
                 }
             }
@@ -212,6 +254,7 @@ struct NearbyMapView: View {
                     latitude: context.region.center.latitude,
                     longitude: context.region.center.longitude
                 )
+                cameraSpan = context.region.span
             }
 
             VStack(spacing: Metric.tight) {
@@ -231,7 +274,10 @@ struct NearbyMapView: View {
                 }
                 Spacer(minLength: 0)
                 if let selected {
-                    SelectedPlaceCard(result: selected) {
+                    SelectedPlaceCard(
+                        result: selected,
+                        isWatched: watchedIDs.contains(selected.place.id)
+                    ) {
                         openPlace = selected.place
                     } onDismiss: {
                         selectedID = nil
@@ -275,9 +321,37 @@ struct NearbyMapView: View {
         .padding(.bottom, selected == nil ? 0 : 96)
     }
 
+    private func isWatched(_ group: MapPinGroup) -> Bool {
+        let watched = watchedIDs
+        guard !watched.isEmpty else { return false }
+        return group.results.contains { watched.contains($0.place.id) }
+    }
+
+    /// A single shop selects; a heap of them zooms until it is not a heap.
+    private func tap(_ group: MapPinGroup) {
+        guard group.isCluster else {
+            selectedID = group.id
+            return
+        }
+        selectedID = nil
+        // Enough to pull the members apart, floored so a pair of shops in the
+        // same building does not zoom to the doorstep.
+        let minimum = 250 / 111_194.93
+        camera = .region(MKCoordinateRegion(
+            center: CLLocationCoordinate2D(
+                latitude: group.coordinate.latitude,
+                longitude: group.coordinate.longitude
+            ),
+            span: MKCoordinateSpan(
+                latitudeDelta: max(group.latitudeSpread * 3, minimum),
+                longitudeDelta: max(group.longitudeSpread * 3, minimum)
+            )
+        ))
+    }
+
     private var selected: MapPlaceResult? {
         guard let selectedID else { return nil }
-        return places.results.first { $0.id == selectedID }
+        return pinGroups.first { $0.id == selectedID }?.single
     }
 
     /// The camera has moved far enough from where the results were measured
@@ -301,8 +375,10 @@ struct NearbyMapView: View {
     /// when there are none yet.
     private func focusCamera() {
         guard let center = places.center else { return }
-        camera = .region(fittedRegion(around: center))
+        let region = fittedRegion(around: center)
+        camera = .region(region)
         cameraCenter = nil
+        cameraSpan = region.span
     }
 
     private func fittedRegion(around center: GeoCoordinate) -> MKCoordinateRegion {
@@ -370,21 +446,27 @@ struct NearbyMapView: View {
                 } else if places.results.isEmpty {
                     emptyMessage
                 } else {
-                    LazyVStack(spacing: Metric.snug) {
-                        ForEach(places.results) { result in
-                            Button {
-                                openPlace = result.place
-                            } label: {
-                                PlaceRow(result: result)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, Metric.margin)
+                    resultRows
                 }
             }
             .padding(.bottom, 90)
         }
+    }
+
+    private var resultRows: some View {
+        // Read once rather than per row: it walks the whole region plan.
+        let watched = watchedIDs
+        return LazyVStack(spacing: Metric.snug) {
+            ForEach(places.results) { result in
+                Button {
+                    openPlace = result.place
+                } label: {
+                    PlaceRow(result: result, isWatched: watched.contains(result.place.id))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, Metric.margin)
     }
 
     private var loadingRow: some View {
@@ -400,9 +482,13 @@ struct NearbyMapView: View {
         .padding(.horizontal, Metric.margin)
     }
 
-    /// Three different silences, and they need three different sentences. A
-    /// map that is blank because no key was built in looks exactly like a map
-    /// that is blank because it is three in the morning in a field.
+    /// Four different silences, and they need four different sentences. A map
+    /// that is blank because no key was built in looks exactly like a map that
+    /// is blank because it is three in the morning in a field.
+    ///
+    /// Two of the four are a filter set too narrowly, and those two carry the
+    /// way out as a button. Telling somebody what to do and leaving them to go
+    /// and find it is the kind of empty state that reads as an apology.
     @ViewBuilder
     private var emptyMessage: some View {
         if places.hasNoProvider {
@@ -421,55 +507,102 @@ struct NearbyMapView: View {
             message(
                 symbolName: "magnifyingglass",
                 title: "Nothing matched",
-                detail: "No place within \(places.filter.distance.displayName) matched that. Try a wider distance, or a different word."
-            )
+                detail: "No place within \(places.filter.distance.displayName) matched that."
+            ) {
+                widenButton
+                Button("Clear the search") { places.clearSearch() }
+                    .buttonStyle(.bordered)
+            }
         } else {
             message(
                 symbolName: "mappin.and.ellipse",
                 title: "Nothing within \(places.filter.distance.displayName)",
-                detail: "Widen the distance, or turn more kinds of place back on in the filters."
-            )
+                detail: "Nothing of the kind you asked for is in range."
+            ) {
+                widenButton
+                if !places.filter.isShowingEverything {
+                    Button("Show every kind of place") { places.filter.showEverything() }
+                        .buttonStyle(.bordered)
+                }
+            }
         }
     }
 
-    private func message(symbolName: String, title: String, detail: String) -> some View {
+    /// Widens to the next step out. Absent at ten miles, because a button that
+    /// does nothing is worse than no button.
+    @ViewBuilder
+    private var widenButton: some View {
+        if let wider = nextDistanceOut {
+            Button("Widen to \(wider.displayName)") {
+                places.filter.distance = wider
+            }
+            .buttonStyle(.borderedProminent)
+        }
+    }
+
+    private var nextDistanceOut: MapDistance? {
+        let all = MapDistance.allCases
+        guard let index = all.firstIndex(of: places.filter.distance),
+              index + 1 < all.count
+        else { return nil }
+        return all[index + 1]
+    }
+
+    private func message<Actions: View>(
+        symbolName: String,
+        title: String,
+        detail: String,
+        @ViewBuilder actions: () -> Actions = { EmptyView() }
+    ) -> some View {
         VStack(alignment: .leading, spacing: Metric.tight) {
             Label(title, systemImage: symbolName)
                 .font(.subheadline.weight(.semibold))
             Text(detail)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: Metric.tight) {
+                actions()
+            }
+            .font(.subheadline)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Metric.regular)
         .cardWisePanel()
         .padding(.horizontal, Metric.margin)
     }
-
-    private func tint(for category: MapCategory) -> Color {
-        category.benefitGroup?.tint ?? Color(red: 0.392, green: 0.455, blue: 0.545)
-    }
 }
 
 // MARK: - Pieces
 
-/// One of the map's own pins.
+extension Color {
+    /// The slate `MapCategory.other` wears, since it has no benefit shelf to
+    /// borrow a colour from. Declared once so three views cannot drift.
+    static let mapOther = Color(red: 0.392, green: 0.455, blue: 0.545)
+}
+
+extension MapCategory {
+    var mapTint: Color { benefitGroup?.tint ?? .mapOther }
+}
+
+/// One of the map's own pins, standing for one shop or for several.
 ///
-/// A teardrop rather than a plain dot so a pin reads as a place even at the
-/// size the map draws it, in its category's colour so the shelf is
-/// recognisable before anything is tapped, and with a ring around it when a
-/// card in the wallet pays more than its everyday rate there — which is the
-/// one thing on this screen worth spotting from across a map.
+/// Three things are readable without tapping anything: what kind of place it
+/// is (the colour and the symbol), whether a card in the wallet beats its
+/// everyday rate there (the thick white ring), and whether CardWise is already
+/// watching it for you (the small bell). A cluster shows a count instead of a
+/// symbol, in the colour of whatever it is mostly made of.
 private struct MapPin: View {
-    let category: MapCategory
-    let isOpportunity: Bool
+    let group: MapPinGroup
     let isSelected: Bool
+    let isWatched: Bool
 
-    private var tint: Color {
-        category.benefitGroup?.tint ?? Color(red: 0.392, green: 0.455, blue: 0.545)
+    private var tint: Color { group.dominantCategory.mapTint }
+
+    private var size: CGFloat {
+        if group.isCluster { return isSelected ? 48 : 42 }
+        return isSelected ? 42 : 32
     }
-
-    private var size: CGFloat { isSelected ? 42 : 32 }
 
     var body: some View {
         ZStack {
@@ -478,14 +611,41 @@ private struct MapPin: View {
                 .frame(width: size, height: size)
                 .overlay {
                     Circle()
-                        .strokeBorder(.white, lineWidth: isOpportunity ? 3 : 1.5)
+                        .strokeBorder(.white, lineWidth: group.hasOpportunity ? 3 : 1.5)
                 }
                 .shadow(color: Color.cardWiseNavy.opacity(0.28), radius: 4, y: 2)
-            Image(systemName: category.symbolName)
-                .font(.system(size: size * 0.42, weight: .semibold))
-                .foregroundStyle(.white)
+
+            if group.isCluster {
+                Text("\(group.count)")
+                    .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .monospacedDigit()
+            } else {
+                Image(systemName: group.dominantCategory.symbolName)
+                    .font(.system(size: size * 0.42, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+
+            if isWatched {
+                Image(systemName: "bell.fill")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(tint)
+                    .frame(width: 16, height: 16)
+                    .background(.white, in: Circle())
+                    .offset(x: size * 0.38, y: -size * 0.38)
+            }
         }
-        .accessibilityHidden(true)
+        .accessibilityElement()
+        .accessibilityLabel(label)
+    }
+
+    private var label: String {
+        var words = group.isCluster
+            ? "\(group.count) places"
+            : (group.single?.place.name ?? "A place")
+        if group.hasOpportunity { words += ", a card here pays more than usual" }
+        if isWatched { words += ", being watched for a reminder" }
+        return words
     }
 }
 
@@ -516,6 +676,7 @@ private struct FilterChip: View {
 /// The card that slides up over the map when a pin is tapped.
 private struct SelectedPlaceCard: View {
     let result: MapPlaceResult
+    var isWatched: Bool
     var onOpen: () -> Void
     var onDismiss: () -> Void
 
@@ -527,14 +688,17 @@ private struct SelectedPlaceCard: View {
         HStack(spacing: Metric.snug) {
             CategoryIcon(
                 symbolName: result.place.mapCategory.symbolName,
-                tint: result.place.mapCategory.benefitGroup?.tint ?? .secondary,
+                tint: result.place.mapCategory.mapTint,
                 size: 44
             )
             VStack(alignment: .leading, spacing: 3) {
-                Text(result.place.name)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(result.place.name)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    if isWatched { WatchingMark() }
+                }
                 Text("\(result.place.subtitle) · \(result.distanceText)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -564,8 +728,21 @@ private struct SelectedPlaceCard: View {
             .accessibilityLabel("Close")
         }
         .padding(Metric.snug)
-        .background(.background, in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous))
         .shadow(color: Color.cardWiseNavy.opacity(0.2), radius: 12, y: 4)
+    }
+}
+
+/// The bell that means "a reminder is already set up for this shop".
+///
+/// One glyph on the map and on a row, a whole sentence on the place detail —
+/// which is the only one of the three where somebody has time to read one.
+struct WatchingMark: View {
+    var body: some View {
+        Image(systemName: "bell.fill")
+            .font(.caption2)
+            .foregroundStyle(Color.cardWiseBlue)
+            .accessibilityLabel("CardWise is watching this place")
     }
 }
 
@@ -578,12 +755,13 @@ private struct SelectedPlaceCard: View {
 /// the same colour the pin was, which is the actual job the picture was doing.
 struct PlaceRow: View {
     let result: MapPlaceResult
+    var isWatched: Bool = false
 
     var body: some View {
         HStack(spacing: Metric.snug) {
             CategoryIcon(
                 symbolName: result.place.mapCategory.symbolName,
-                tint: result.place.mapCategory.benefitGroup?.tint ?? Color(red: 0.392, green: 0.455, blue: 0.545),
+                tint: result.place.mapCategory.mapTint,
                 size: 48
             )
             VStack(alignment: .leading, spacing: 3) {
@@ -613,9 +791,12 @@ struct PlaceRow: View {
                     .lineLimit(1)
             }
             Spacer(minLength: Metric.tight)
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.tertiary)
+            VStack(spacing: 6) {
+                if isWatched { WatchingMark() }
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
         }
         .padding(Metric.snug)
         .cardWisePanel(radius: Metric.tileRadius)
@@ -629,4 +810,5 @@ struct PlaceRow: View {
     }
     .environment(WalletStore.previewStore())
     .environment(NearbyPlacesStore())
+    .environment(RegionMonitor())
 }

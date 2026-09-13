@@ -48,10 +48,12 @@ Packages/CardKit/       Pure Swift. No UIKit, no Core Location, no SwiftUI.
     Geo/                GeoCoordinate, Merchant, RegionPlanner (which 20
                          places to watch), ArrivalTracker (the dwell rule),
                          ReminderThrottle (daily/per-merchant limits),
-                         MerchantSource. And the map's own three:
+                         MerchantSource. And the map's own four:
                          MapCategory (what kind of shop), MapPlace (a pin,
                          with an optional earning category), MapFilter +
-                         NearbyPlaces (filter, measure, rank, order)
+                         NearbyPlaces (filter, measure, rank, order),
+                         MapCluster (pins that would overlap, and the
+                         RegionPlan.watchedPlaceIDs join)
     Engine/ArrivalReminder.swift   the words on the lock screen, and the
                          ArrivalDecision that carries either those words or
                          the reason there were none
@@ -129,10 +131,13 @@ thing goes inside More, the way Impact did.
    the list. It must never claim to have found opportunities it has not.
 2. **Map** (`NearbyMapView`) — the Nearby Map: search box, category chips, a
    distance, a MapKit map with a pin per place, and a list underneath saying
-   which card wins at each. `NearbyPlacesStore` owns the state; everything
-   that could be *wrong* about it is in CardKit (`NearbyPlaces.results`) and
-   tested on Linux. `MapFiltersView` is the sheet, `MapSettingsView` the
-   standing preferences under Settings, `PlaceDetailView` one place opened.
+   which card wins at each. Pins that would overlap are drawn as one carrying
+   a count (`NearbyPlaces.pinGroups`), and tapping it zooms until they come
+   apart. A bell on a pin or a row means that shop already has a geofence.
+   `NearbyPlacesStore` owns the state; everything that could be *wrong* about
+   it is in CardKit (`NearbyPlaces.results`, `pinGroups`) and tested on Linux.
+   `MapFiltersView` is the sheet, `MapSettingsView` the standing preferences
+   under Settings, `PlaceDetailView` one place opened.
 3. **Wallet** (`WalletStackView`) — the stack, and a plus. Nothing else. It no
    longer owns a `NavigationStack` (the tab does) and no longer carries the
    settings gear or the "Why this card" bar.
@@ -406,6 +411,34 @@ not go back there.
   `MapCategory.placeTypes` is conservative, and `NearbyMapView` puts a lookup
   failure on the screen in words rather than showing an empty map, so a bad
   type is diagnosable on a device instead of reading as "nothing nearby".
+- **Every pin on the map is a `MapPinGroup`, even a group of one.** A high
+  street puts twenty shops inside a hundred metres; drawn one pin each they
+  heap up, the ones underneath cannot be tapped, and the heap does not even
+  say how many are in it. `NearbyPlaces.pinGroups` is greedy, single-pass and
+  deterministic — not the tightest clustering available, and deliberately so:
+  a k-means that reshuffled between two identical refreshes would make the map
+  twitch for no visible reason. Two details that are load-bearing: the group's
+  **id is its lowest member's, not its first**, because an identity that
+  changes under a re-sort makes SwiftUI rebuild every annotation; and the
+  catchment is widened by `1/cos(latitude)` in longitude so it is a circle on
+  the ground rather than an ellipse. The separation comes from the camera, not
+  a constant — zoom in and shops come apart on their own.
+- **The map's annotations are `Button`s, not `Map(selection:)`.** A tap on a
+  cluster must zoom and a tap on a single shop must select it. One selection
+  binding cannot say which happened, and working it back out of the tag was
+  two code paths that had to agree with each other.
+- **`RegionPlan.watchedPlaceIDs` is the join between the two halves of the
+  app**, and it works only because both keep the place provider's own id
+  (`Merchant.id` and `MapPlace.id`). It is what lets the map put a bell on the
+  shops that already have a geofence — reminders arriving out of nowhere are
+  the part of this app that feels like magic, and magic is what people
+  distrust. **If a second place provider is ever added this join breaks
+  silently, by matching nothing.** There is a test pinning it.
+- **An empty state that names a filter carries the way out as a button.**
+  The map's "nothing within 3 miles" offers "Widen to 5 miles" and "Show every
+  kind of place". Telling somebody what to do and leaving them to go and find
+  it is the kind of empty state that reads as an apology. The widen button is
+  absent at ten miles, because a button that does nothing is worse than none.
 - **`python scripts/brace-scan.py <files>` before pushing.** CI is the
   compiler, and a missing brace otherwise costs a full round trip to find. It
   understands comments, multiline strings, escapes and interpolation. OK does
@@ -456,6 +489,18 @@ Also not built, flagged repeatedly, not yet done:
   currency string** — assert that it contains the digits. iOS is the only
   platform the app ships on, so the formatting itself is not a bug; a test
   that cares which CI job ran it is.
+- **`.background` is pure black in dark mode, and so is the page under it.**
+  `.cardWisePanel()` filled with `.background` (= `systemBackground`) while
+  every screen sits on `systemGroupedBackground`. In light mode that is white
+  on grey and looks right; at night both are `#000` and every panel in the app
+  was black on black, separated only by a navy shadow that is itself invisible
+  against black. The map's dense list showed it as a column of floating text
+  with no cards under it. The fix is the role that means what was meant:
+  `secondarySystemGroupedBackground` for a card on a grouped page,
+  `tertiarySystemGroupedBackground` for a tile on a card. **The same trap in
+  miniature caught the map's search field and filter chips**, which used
+  `.background.secondary` — visible at night, invisible on the light grouped
+  background. If a surface disappears in exactly one appearance, this is why.
 - **`Color` and `HierarchicalShapeStyle` don't unify in a ternary** passed to
   `.foregroundStyle(...)` — write `condition ? Color.x : Color.y` explicitly.
   **This one was hit a second time, by Claude, in the same file, after this

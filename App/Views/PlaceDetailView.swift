@@ -22,6 +22,7 @@ struct PlaceDetailView: View {
 
     @Environment(NearbyPlacesStore.self) private var places
     @Environment(WalletStore.self) private var wallet
+    @Environment(RegionMonitor.self) private var monitor
     @Environment(\.openURL) private var openURL
 
     /// The row the list already had. Replaced by a richer copy once the
@@ -32,6 +33,14 @@ struct PlaceDetailView: View {
 
     init(place: MapPlace) {
         _place = State(initialValue: place)
+    }
+
+    /// Whether this exact shop is one of the twenty currently geofenced.
+    ///
+    /// The join is the place provider's own id, kept by both halves of the
+    /// app — see `RegionPlan.watchedPlaceIDs`.
+    private var isWatched: Bool {
+        monitor.plan?.watchedPlaceIDs.contains(place.id) ?? false
     }
 
     private var recommendation: Recommendation? {
@@ -225,6 +234,20 @@ struct PlaceDetailView: View {
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    if isWatched {
+                        // Spelled out rather than shown as the bell the map
+                        // and the list use, because this is the one screen
+                        // where somebody has time to read a sentence — and
+                        // a reminder arriving out of nowhere is the part of
+                        // this app that feels like magic.
+                        Label(
+                            "CardWise is watching this place, so you will be reminded when you arrive without opening the app.",
+                            systemImage: "bell.fill"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(Color.cardWiseBlue)
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
                     if place.confidence == .categoryOnly {
                         Label(
                             "This is one set of coordinates with a lot of tills behind it, so this is the answer for \(place.mapCategory.displayName.lowercased()) rather than for one shop.",
@@ -401,4 +424,5 @@ private struct ActionButton: View {
     }
     .environment(WalletStore.previewStore())
     .environment(NearbyPlacesStore())
+    .environment(RegionMonitor())
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import CardKit
 
 /// The shapes and spacings the redesign is built out of, in one place.
@@ -155,7 +156,13 @@ struct StatTile: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Metric.snug)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous))
+        // A tile sits *on* a panel, so it takes the role one step further in
+        // than the panel's own — same reasoning as `PanelBackground`, one
+        // level down.
+        .background(
+            Color(.tertiarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
+        )
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(value) \(label)")
     }
@@ -164,12 +171,28 @@ struct StatTile: View {
 /// The surface most content sits on: a rounded panel with a soft, *tinted*
 /// shadow rather than a grey one. Grey shadows on a coloured ground are the
 /// single most common tell of an interface nobody looked at twice.
+///
+/// **The fill is `secondarySystemGroupedBackground`, not `.background`, and
+/// the difference only shows at night.** `.background` is `systemBackground`,
+/// which is pure black in dark mode — and every screen in this app sits on
+/// `systemGroupedBackground`, which is *also* pure black. So a panel drawn
+/// with it was black on black, and the only thing separating a row from the
+/// page was a navy shadow that is itself invisible against black. The
+/// screenshots of the map's list showed a column of floating text with no
+/// cards under it at all.
+///
+/// The grouped-secondary role is the one that means exactly this: a card
+/// sitting on a grouped page. White on light, near-black-but-not-black on
+/// dark, and it stays correct if Apple ever moves either.
 struct PanelBackground: ViewModifier {
     var radius: CGFloat = Metric.cardRadius
 
     func body(content: Content) -> some View {
         content
-            .background(.background, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(
+                Color(.secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: radius, style: .continuous)
+            )
             .shadow(color: Color.cardWiseNavy.opacity(0.07), radius: 12, x: 0, y: 4)
     }
 }

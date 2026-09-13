@@ -113,12 +113,21 @@ public enum MapCategory: String, Codable, CaseIterable, Sendable, Hashable {
     /// Priority order for resolving a place that matches more than one.
     ///
     /// Google hands back several types per place and the useful one is not
-    /// always first. A petrol station is very often also a `convenience_store`,
-    /// and a mall is nearly always also a `store` — so the more specific
-    /// answer has to win regardless of the order the types arrived in, which
-    /// means iterating categories rather than iterating the place's types.
+    /// always first. A petrol station is very often also a
+    /// `convenience_store`, and a mall is nearly always also a `store` — so
+    /// the more specific answer has to win regardless of the order the types
+    /// arrived in, which means iterating categories rather than iterating the
+    /// place's types.
+    ///
+    /// **Specific beats generic, which is why `shopping` is last.** Its list
+    /// contains `store`, which Google attaches to a chemist, a petrol station
+    /// shop and a phone repair counter alike. Every named category — `other`
+    /// included, since a pharmacy or a bank is a specific thing and not
+    /// "retail" — has to be asked before the bucket holding the catch-all.
+    /// This was written the other way round first, and a test caught a
+    /// Walgreens filed under "Shopping & retail".
     private static let resolutionOrder: [MapCategory] = [
-        .gasStations, .malls, .restaurants, .groceries, .hotels, .entertainment, .shopping, .other
+        .gasStations, .malls, .restaurants, .groceries, .hotels, .entertainment, .other, .shopping
     ]
 
     /// Which chip a place belongs under. Never nil: a place whose types mean

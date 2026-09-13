@@ -98,7 +98,7 @@ struct BenefitsBrowserView: View {
                             Button {
                                 openGroup = summary.group
                             } label: {
-                                BenefitGroupTile(summary: summary)
+                                BenefitGroupTile(summary: summary, wallet: store.cards)
                             }
                             .buttonStyle(.plain)
                         }
@@ -110,7 +110,7 @@ struct BenefitsBrowserView: View {
                     expiringSection
                 }
             }
-            .padding(.bottom, Metric.loose)
+            .padding(.bottom, 90)
         }
     }
 
@@ -182,6 +182,9 @@ struct BenefitsBrowserView: View {
 /// paying right now.
 private struct BenefitGroupTile: View {
     let summary: BenefitGroupSummary
+    /// Needed to know what units the cards on this shelf state their rates in.
+    /// See `BenefitGroupSummary.bestRateText`.
+    let wallet: [Card]
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metric.tight) {
@@ -192,8 +195,8 @@ private struct BenefitGroupTile: View {
                     size: 38
                 )
                 Spacer(minLength: 0)
-                if let rate = summary.bestRate {
-                    Text(rateText(rate))
+                if let rate = summary.bestRateText(in: wallet) {
+                    Text("up to \(rate)")
                         .font(.system(.subheadline, design: .rounded).weight(.bold))
                         .foregroundStyle(summary.group.tint)
                         .monospacedDigit()
@@ -213,14 +216,6 @@ private struct BenefitGroupTile: View {
         .cardWisePanel(radius: Metric.tileRadius)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(summary.group.displayName), \(countText)")
-    }
-
-    /// The highest rate anybody pays here. Written without a currency symbol
-    /// because two cards on this shelf may pay in different ones, and "4" with
-    /// the shelf's own colour behind it is unambiguous enough for a tile.
-    private func rateText(_ rate: Double) -> String {
-        let number = rate == rate.rounded() ? String(Int(rate)) : String(format: "%.1f", rate)
-        return "up to \(number)"
     }
 
     private var countText: String {

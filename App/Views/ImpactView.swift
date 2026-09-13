@@ -39,7 +39,9 @@ struct ImpactView: View {
             }
             .padding(.horizontal, Metric.margin)
             .padding(.top, Metric.regular)
-            .padding(.bottom, Metric.loose)
+            // Clear of the floating tab bar, which draws over the end of a
+            // scroll view rather than shortening it.
+            .padding(.bottom, 90)
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Your impact")

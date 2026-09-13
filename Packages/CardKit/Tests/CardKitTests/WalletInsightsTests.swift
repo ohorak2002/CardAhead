@@ -122,6 +122,26 @@ final class WalletInsightsTests: XCTestCase {
         XCTAssertEqual(dining.bestRate ?? 0, 4, accuracy: 0.0001)
     }
 
+    /// A tile saying "up to 4" beside a 4x points card and a 4% cash back card
+    /// invites the reader to decide which one it meant. No number is worse
+    /// looking and not wrong.
+    func testAShelfWithMixedUnitsRefusesToNameARate() throws {
+        // Amex Gold states 4x in points; Blue Cash Preferred states 6% in cash.
+        let wallet = [CardCatalog.amexGold, CardCatalog.amexBlueCashPreferred]
+        let groups = WalletInsights.benefitGroups(in: wallet, asOf: today)
+        let groceries = try XCTUnwrap(groups.first { $0.group == .groceries })
+
+        XCTAssertNotNil(groceries.bestRate, "there is a best rate")
+        XCTAssertNil(groceries.bestRateText(in: wallet), "but no honest way to write it")
+    }
+
+    func testAShelfWhereEverybodyAgreesNamesTheRate() throws {
+        let wallet = [CardCatalog.amexGold]
+        let groups = WalletInsights.benefitGroups(in: wallet, asOf: today)
+        let dining = try XCTUnwrap(groups.first { $0.group == .dining })
+        XCTAssertEqual(dining.bestRateText(in: wallet), "4x")
+    }
+
     /// A cap that is spent is not something you "have" this month.
     func testASpentCapDoesNotCountAsPayingRightNow() throws {
         let spent = Fixture.exhaustingCap(CardCatalog.amexBlueCashPreferred, category: .groceries)

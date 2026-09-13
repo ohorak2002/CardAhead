@@ -19,6 +19,9 @@ struct WalletStackView: View {
     @State private var draggingCardID: UUID?
     @State private var dragTranslation: CGFloat = 0
     @State private var isAddingCard = false
+    /// Measured, because a card cannot be sized any other way here. See
+    /// `row(for:at:)`.
+    @State private var cardWidth: CGFloat = 0
     /// Set when somebody says yes to the follow-up, which is the only route to
     /// the one screen in this app that asks for a number.
     @State private var pricing: OpenRecommendation?
@@ -164,9 +167,18 @@ struct WalletStackView: View {
                         .foregroundStyle(.secondary)
                         .padding(.top, cardHeight - peekHeight + 18)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-                .padding(.bottom, 20)
+                .padding(.horizontal, Metric.margin)
+                .padding(.top, Metric.tight)
+                // Clear of the floating tab bar, which draws over the end of
+                // any scroll view rather than shortening it.
+                .padding(.bottom, 90)
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onAppear { cardWidth = proxy.size.width }
+                            .onChange(of: proxy.size.width) { _, width in cardWidth = width }
+                    }
+                }
             }
             // Both, because a tap on a reminder can either wake an app that is
             // already showing this screen or launch one that is not, and the
@@ -185,14 +197,24 @@ struct WalletStackView: View {
         let isDragging = draggingCardID == card.id
 
         return VStack(spacing: 0) {
-            // No fixed height: the card sizes itself to the real 1.586 card
-            // ratio, and the row's frame below clips the *layout* height to the
-            // peek, which is what makes the stack overlap.
+            // **Explicitly sized, and it has to be.** `CardFaceView` sizes
+            // itself with `aspectRatio(1.586, contentMode: .fit)`, and the
+            // row's `frame(height: peekHeight)` below does not clip that — it
+            // *proposes* 96pt, which an aspect-fit view answers by shrinking
+            // to 152pt wide. Every card rendered at a third of the screen with
+            // its own name truncated, and nobody could see it until CI started
+            // taking screenshots. An explicit frame ignores the proposal, so
+            // the card keeps its full width and the row still only advances
+            // the layout by the peek — which is what makes the stack overlap.
             CardFaceView(
                 card: card,
                 highlight: highlight(for: card),
                 photo: store.photo(for: card)
             )
+                .frame(
+                    width: cardWidth > 0 ? cardWidth : nil,
+                    height: cardWidth > 0 ? cardWidth / 1.586 : nil
+                )
                 .contentShape(Rectangle())
                 .onTapGesture { toggle(card) }
                 .gesture(dragGesture(for: card, at: index))

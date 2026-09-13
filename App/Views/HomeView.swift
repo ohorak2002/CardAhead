@@ -55,7 +55,7 @@ struct HomeView: View {
                     walletPeek
                 }
             }
-            .padding(.bottom, Metric.loose)
+            .padding(.bottom, 90)
         }
         .background(Color(.systemGroupedBackground))
         .navigationBarTitleDisplayMode(.inline)

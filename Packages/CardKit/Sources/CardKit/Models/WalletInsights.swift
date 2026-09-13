@@ -36,10 +36,27 @@ public struct BenefitGroupSummary: Identifiable, Hashable, Sendable {
     public var activeCount: Int { benefits.filter(\.benefit.isActive).count }
     public var totalCount: Int { benefits.count }
 
-    /// The best rate anybody in the wallet pays in this category, for the
-    /// one-line summary: "up to 4x".
+    /// The best rate anybody in the wallet pays in this category.
     public var bestRate: Double? {
         benefits.filter(\.benefit.isActive).compactMap(\.benefit.rate).max()
+    }
+
+    /// "4x", "4%" — or nothing at all.
+    ///
+    /// Nothing when the cards on this shelf state their rates in different
+    /// units, because there is then no honest way to write one number. A 4x
+    /// points card and a 4% cash back card are not the same offer, and "up to
+    /// 4" on a tile invites the reader to decide which one it meant. A tile
+    /// with no number on it is worse-looking and not wrong.
+    public func bestRateText(in wallet: [Card]) -> String? {
+        guard let rate = bestRate else { return nil }
+        let earning = benefits.filter(\.benefit.isActive).compactMap { entry in
+            wallet.first { $0.id == entry.cardID }?.currency.style
+        }
+        let styles = Set(earning)
+        guard let style = styles.first, styles.count == 1 else { return nil }
+        let number = rate == rate.rounded() ? String(Int(rate)) : String(format: "%.1f", rate)
+        return style == .percent ? "\(number)%" : "\(number)x"
     }
 }
 

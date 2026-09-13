@@ -67,6 +67,14 @@ struct NearbyMapView: View {
         }
         .onChange(of: places.center) { _, _ in focusCamera() }
         .onChange(of: places.filter.distance) { _, _ in focusCamera() }
+        // The first look almost always happens before the lookup answers, so
+        // the fit has to happen again when the places land. Not if the map has
+        // been taken somewhere, though: refitting under somebody's thumb is
+        // the map yanking itself out of their hand.
+        .onChange(of: places.places.count) { _, _ in
+            guard pannedAway == nil else { return }
+            focusCamera()
+        }
     }
 
     // MARK: - The navy top
@@ -104,7 +112,13 @@ struct NearbyMapView: View {
             }
             .padding(.horizontal, Metric.snug)
             .padding(.vertical, 10)
-            .background(.background.secondary, in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous))
+            // **Not `.background.secondary`.** In dark mode that is a visible
+            // grey, but on the light grouped background it resolves to very
+            // nearly the same grey as the page and the field disappeared
+            // entirely — which is what the first screenshots showed. The
+            // grouped-secondary role is white on light and grey on dark, which
+            // is the one that means "a control sitting on a grouped page".
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous))
             .padding(.horizontal, Metric.margin)
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -149,7 +163,7 @@ struct NearbyMapView: View {
                         .foregroundStyle(Color.primary)
                         .padding(.horizontal, Metric.snug)
                         .padding(.vertical, 7)
-                        .background(.background.secondary, in: Capsule())
+                        .background(Color(.secondarySystemGroupedBackground), in: Capsule())
                     }
                 }
                 .padding(.horizontal, Metric.margin)
@@ -277,15 +291,40 @@ struct NearbyMapView: View {
         return cameraCenter
     }
 
-    /// Points the camera at wherever the results are measured from, zoomed to
-    /// the radius they were measured at.
+    /// Points the camera at the places, not at the radius.
+    ///
+    /// **Zooming to the search radius was wrong, and the first screenshots
+    /// showed exactly how wrong.** A three-mile radius with everything inside
+    /// the nearest half mile gave a map of the whole of Atlanta with ten pins
+    /// in a heap at the middle. What somebody wants to see is the places, so
+    /// the camera is fitted to them and the radius is only the fallback for
+    /// when there are none yet.
     private func focusCamera() {
         guard let center = places.center else { return }
-        camera = .region(MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude),
-            span: span(for: places.filter.distance)
-        ))
+        camera = .region(fittedRegion(around: center))
         cameraCenter = nil
+    }
+
+    private func fittedRegion(around center: GeoCoordinate) -> MKCoordinateRegion {
+        let middle = CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
+        let coordinates = places.results.map(\.place.coordinate)
+        guard !coordinates.isEmpty else {
+            return MKCoordinateRegion(center: middle, span: span(for: places.filter.distance))
+        }
+
+        // The furthest pin in each direction, mirrored so the anchor stays in
+        // the middle, with a little air around the edge. Floored at ~500m
+        // across so three shops on one block do not zoom to the pavement.
+        let minimum = 500 / 111_194.93
+        let latitude = coordinates.map { abs($0.latitude - center.latitude) }.max() ?? 0
+        let longitude = coordinates.map { abs($0.longitude - center.longitude) }.max() ?? 0
+        return MKCoordinateRegion(
+            center: middle,
+            span: MKCoordinateSpan(
+                latitudeDelta: max(latitude * 2.5, minimum),
+                longitudeDelta: max(longitude * 2.5, minimum)
+            )
+        )
     }
 
     private func span(for distance: MapDistance) -> MKCoordinateSpan {
@@ -462,9 +501,12 @@ private struct FilterChip: View {
             Text(title)
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(isOn ? Color.white : Color.primary)
-                .padding(.horizontal, Metric.regular)
+                .padding(.horizontal, Metric.snug)
                 .padding(.vertical, 7)
-                .background(isOn ? AnyShapeStyle(tint) : AnyShapeStyle(.background.secondary), in: Capsule())
+                .background(
+                    isOn ? AnyShapeStyle(tint) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
+                    in: Capsule()
+                )
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isOn ? [.isSelected] : [])

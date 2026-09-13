@@ -151,8 +151,15 @@ struct WalletStackView: View {
     // MARK: - The stack
 
     private var stack: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
+        // **Measured from the container, not from the content.** The first
+        // attempt put the GeometryReader behind the VStack, which is circular:
+        // the VStack's width comes from its children, the children are sized
+        // from the measurement, and the cards settled at whatever width the
+        // longest line of text happened to want. The screen's width depends on
+        // nothing inside it.
+        GeometryReader { outer in
+            ScrollViewReader { proxy in
+                ScrollView {
                 VStack(spacing: 0) {
                     if remindersAreOff { locationRow }
 
@@ -167,27 +174,26 @@ struct WalletStackView: View {
                         .foregroundStyle(.secondary)
                         .padding(.top, cardHeight - peekHeight + 18)
                 }
+                .frame(maxWidth: .infinity)
                 .padding(.horizontal, Metric.margin)
                 .padding(.top, Metric.tight)
                 // Clear of the floating tab bar, which draws over the end of
                 // any scroll view rather than shortening it.
                 .padding(.bottom, 90)
-                .background {
-                    GeometryReader { proxy in
-                        Color.clear
-                            .onAppear { cardWidth = proxy.size.width }
-                            .onChange(of: proxy.size.width) { _, width in cardWidth = width }
-                    }
+                }
+                // Both, because a tap on a reminder can either wake an app
+                // that is already showing this screen or launch one that is
+                // not, and the order those happen in is not ours to decide.
+                .onChange(of: reminders.cardToOpen) { _, id in
+                    openCardFromReminder(id, using: proxy)
+                }
+                .onAppear {
+                    openCardFromReminder(reminders.cardToOpen, using: proxy)
                 }
             }
-            // Both, because a tap on a reminder can either wake an app that is
-            // already showing this screen or launch one that is not, and the
-            // order those happen in is not ours to decide.
-            .onChange(of: reminders.cardToOpen) { _, id in
-                openCardFromReminder(id, using: proxy)
-            }
-            .onAppear {
-                openCardFromReminder(reminders.cardToOpen, using: proxy)
+            .onAppear { cardWidth = outer.size.width - Metric.margin * 2 }
+            .onChange(of: outer.size.width) { _, width in
+                cardWidth = width - Metric.margin * 2
             }
         }
     }
@@ -372,7 +378,12 @@ struct WalletStackView: View {
             }
         }
         if let best = card.rules.filter({ $0.category != .base }).max(by: { $0.rate < $1.rate }) {
-            return "\(card.currency.formatted(rate: best.rate)) on \(best.category.displayName.lowercased())"
+            // The shelf, not the raw category: `travelPortal` reads as "travel
+            // booked through the issuer", which truncates on a card face and
+            // is not how anybody describes their own card. Same reasoning as
+            // `HomeView.bestFor`.
+            let where_ = BenefitGroup.containing(best.category).displayName.lowercased()
+            return "\(card.currency.formatted(rate: best.rate)) on \(where_)"
         }
         if let base = card.rule(for: .base) {
             return "\(card.currency.formatted(rate: base.rate)) on everything"

@@ -8,17 +8,26 @@ on:
   workflow_dispatch:
 
 jobs:
-  cardkit:
-    name: CardKit unit tests
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Swift version
-        run: swift --version
-      - name: Build
-        run: swift build --package-path Packages/CardKit
-      - name: Test
-        run: swift test --package-path Packages/CardKit
+  # **Read this before adding a macOS job.** GitHub bills macOS runners at
+  # **ten times** the rate of Linux, against a 2,000-minute monthly free
+  # allowance — so 200 real macOS minutes is the whole month. A day of pushing
+  # exhausted it once, and the symptom is ugly: every job fails instantly with
+  # zero steps run, which looks exactly like a broken build and is not one.
+  #
+  # So: Linux does everything it can, macOS does only what it alone can do
+  # (SwiftUI needs Apple's frameworks), and the expensive jobs are opt-in.
+  # CardKit's tests used to run here on macOS as well as on Linux; that was
+  # ten times the price to learn the same thing, so they run on Linux only.
+
+  # **Read this before adding a macOS job.** GitHub bills macOS runners at
+  # **ten times** the rate of Linux, against a 2,000-minute monthly free
+  # allowance — so 200 real macOS minutes is the whole month. A day of pushing
+  # exhausted it once already, and the symptom is ugly: every job fails
+  # instantly with zero steps run, which looks exactly like a broken build and
+  # is not one.
+  #
+  # So: Linux does everything it can, macOS does only what it alone can do,
+  # and the expensive jobs are opt-in.
 
   app:
     name: iOS app builds
@@ -49,6 +58,10 @@ jobs:
   # flaky simulator boot must never be the reason a correct change is blocked.
   screenshots:
     name: Screenshots
+    # On demand only. Seven macOS minutes is seventy billable ones, and most
+    # pushes do not change a pixel. Run it from Actions -> CI -> Run workflow
+    # when the UI has actually moved:  gh workflow run ci.yml --ref <branch>
+    if: github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     continue-on-error: true
     steps:

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import CardKit
 
 /// The app, as four places rather than one screen with everything pushed onto
@@ -89,6 +90,8 @@ struct MoreView: View {
     @State private var isShowingImpact = false
 
     var body: some View {
+        VStack(spacing: 0) {
+        ScreenHeader("More")
         List {
             Section {
                 NavigationLink {
@@ -123,7 +126,11 @@ struct MoreView: View {
                 }
             }
         }
-        .navigationTitle("More")
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        }
+        .background(Color(.systemGroupedBackground))
+        .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(isPresented: $isShowingImpact) { ImpactView() }
         .onAppear {
             guard startOnImpact, !isShowingImpact else { return }

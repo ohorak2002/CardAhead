@@ -1,9 +1,8 @@
 import SwiftUI
 import CardKit
 
-/// The second and only other screen. Everything that is not the wallet lives
-/// here: what each card would earn, the caveats behind the answer, and how the
-/// ranking arrives at it.
+/// What each card would earn here, the caveats behind the answer, and how the
+/// ranking arrives at it. Reached from the More tab.
 ///
 /// The "where you are" controls at the top are a bench, not a stand-in: the
 /// geofence exists and does this on its own, and these are how the ranking
@@ -47,6 +46,9 @@ struct WhyThisCardView: View {
         }
         .navigationTitle("Why this card")
         .navigationBarTitleDisplayMode(.inline)
+        // The floating tab bar draws over the end of a scroll view rather
+        // than shortening it, so the last section was half-hidden behind it.
+        .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 60) }
     }
 
     // MARK: - Where you are
@@ -69,7 +71,7 @@ struct WhyThisCardView: View {
         } header: {
             Text("Where you are").textCase(nil)
         } footer: {
-            Text("Standing in for the geofence that will do this on its own.")
+            Text("A bench for the ranking. The geofence does this on its own when you actually arrive somewhere.")
         }
     }
 

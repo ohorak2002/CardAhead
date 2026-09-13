@@ -282,6 +282,29 @@ final class WalletInsightsTests: XCTestCase {
         XCTAssertEqual(cash.first?.value.hasSuffix("%"), true, "\(cash.first?.value ?? "nil")")
     }
 
+    // MARK: - The wallet on a real phone
+
+    /// Reproducing what a real wallet showed on a real device: Blue Cash
+    /// Preferred and Sapphire Preferred, asked about dining. The screen
+    /// reported both at 1.00 cents, which would mean Sapphire's 3x on
+    /// restaurants had gone missing somewhere between the catalog and the
+    /// ranking.
+    func testSapphirePreferredStillEarnsThreeAtRestaurants() throws {
+        let wallet = [CardCatalog.amexBlueCashPreferred, CardCatalog.chaseSapphirePreferred]
+        let context = PurchaseContext(category: .dining, confidence: .exact, date: today)
+        let ranked = RecommendationEngine().rank(wallet, in: context)
+
+        let sapphire = try XCTUnwrap(ranked.first { $0.card.name == "Sapphire Preferred" })
+        XCTAssertEqual(sapphire.appliedRate, 3, accuracy: 0.0001, sapphire.reason)
+        XCTAssertEqual(sapphire.effectiveCentsPerDollar, 3, accuracy: 0.0001)
+        XCTAssertEqual(ranked.first?.card.name, "Sapphire Preferred", "and it should win")
+
+        // Blue Cash Preferred genuinely has no dining rule, so its 1% base is
+        // correct — half of what the screen showed was right.
+        let amex = try XCTUnwrap(ranked.first { $0.card.name == "Blue Cash Preferred" })
+        XCTAssertEqual(amex.appliedRate, 1, accuracy: 0.0001)
+    }
+
     // MARK: - The clock on a quarter
 
     func testAQuarterKnowsWhenItEnds() {

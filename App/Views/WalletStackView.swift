@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import CardKit
 
 /// The home screen, and deliberately the only thing on it: the cards, and a way
@@ -46,23 +47,22 @@ struct WalletStackView: View {
     @ScaledMetric(relativeTo: .title3) private var cardHeight: CGFloat = 216
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
+            ScreenHeader(title: "Wallet", subtitle: walletSubtitle) {
+                HeaderButton(symbolName: "plus", label: "Add a card") {
+                    isAddingCard = true
+                }
+            }
+            Group {
                 if store.cards.isEmpty {
                     EmptyStateView { isAddingCard = true }
                 } else {
                     stack
                 }
             }
-            .navigationTitle("Wallet")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isAddingCard = true
-                    } label: {
-                        Label("Add a card", systemImage: "plus")
-                    }
-                }
             }
+            .background(Color(.systemGroupedBackground))
+            .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .bottom) {
                 // Both banners have to survive the wallet going empty — you
                 // can remove your only card and still want it back.
@@ -128,6 +128,17 @@ struct WalletStackView: View {
         guard shouldOfferPrimer else { return }
         shouldOfferPrimer = false
         isShowingLocationPrimer = true
+    }
+
+    /// "3 cards · 12 active benefits", or nothing at all when the wallet is
+    /// empty and there is no count worth printing.
+    private var walletSubtitle: String? {
+        guard !store.cards.isEmpty else { return nil }
+        let cards = store.cards.count == 1 ? "1 card" : "\(store.cards.count) cards"
+        let active = WalletInsights.activeBenefitCount(in: store.cards)
+        guard active > 0 else { return cards }
+        let benefits = active == 1 ? "1 active benefit" : "\(active) active benefits"
+        return "\(cards) · \(benefits)"
     }
 
     /// The app cannot do its job without both permissions. Missing either one

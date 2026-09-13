@@ -272,3 +272,74 @@ struct IssuerMonogram: View {
             .accessibilityHidden(true)
     }
 }
+
+/// The navy top the whole app wears.
+///
+/// Home had this and the other tabs had a plain system title on a black
+/// ground, which made Home look like a different app's front door rather than
+/// this app's. One header, used everywhere, is most of what makes a set of
+/// screens read as one product.
+///
+/// It replaces the navigation bar rather than sitting under it — the tab roots
+/// have nothing to navigate back to, so the bar was only ever holding a title
+/// and, on the wallet, a plus. Both live here now.
+struct ScreenHeader<Trailing: View>: View {
+    let title: String
+    var subtitle: String?
+    @ViewBuilder var trailing: Trailing
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Spacer(minLength: Metric.tight)
+                trailing
+            }
+            if let subtitle {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.75))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Metric.margin)
+        .padding(.top, Metric.roomy)
+        .padding(.bottom, Metric.roomy)
+        .background(.cardWiseHeader)
+        .clipShape(UnevenRoundedRectangle(
+            bottomLeadingRadius: 28,
+            bottomTrailingRadius: 28,
+            style: .continuous
+        ))
+        .ignoresSafeArea(edges: .top)
+    }
+}
+
+extension ScreenHeader where Trailing == EmptyView {
+    init(_ title: String, subtitle: String? = nil) {
+        self.init(title: title, subtitle: subtitle) { EmptyView() }
+    }
+}
+
+/// The circular button that sits in a `ScreenHeader` — white on navy, which
+/// the system toolbar button is not.
+struct HeaderButton: View {
+    let symbolName: String
+    let label: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbolName)
+                .font(.headline)
+                .foregroundStyle(.white)
+                .frame(width: 36, height: 36)
+                .background(.white.opacity(0.18), in: Circle())
+        }
+        .accessibilityLabel(label)
+    }
+}

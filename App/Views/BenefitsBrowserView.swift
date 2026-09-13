@@ -56,21 +56,30 @@ struct BenefitsBrowserView: View {
     ]
 
     var body: some View {
-        Group {
-            if store.cards.isEmpty {
-                emptyState
-            } else {
-                content
+        VStack(spacing: 0) {
+            ScreenHeader("Benefits", subtitle: headerSubtitle)
+            Group {
+                if store.cards.isEmpty {
+                    emptyState
+                } else {
+                    content
+                }
             }
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("Benefits")
+        .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(item: $openGroup) { group in
             BenefitGroupDetailView(
                 group: group,
                 benefits: groups.first { $0.group == group }?.benefits ?? []
             )
         }
+    }
+
+    private var headerSubtitle: String? {
+        guard !store.cards.isEmpty else { return nil }
+        let active = WalletInsights.activeBenefitCount(in: store.cards)
+        return active == 1 ? "1 paying right now" : "\(active) paying right now"
     }
 
     private var content: some View {

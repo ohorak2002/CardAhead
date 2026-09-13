@@ -89,13 +89,19 @@ struct HomeView: View {
         .padding(.horizontal, Metric.margin)
         .padding(.top, Metric.roomy)
         .padding(.bottom, Metric.roomy)
-        .background(.cardWiseHeader)
-        .clipShape(UnevenRoundedRectangle(
-            bottomLeadingRadius: 28,
-            bottomTrailingRadius: 28,
-            style: .continuous
-        ))
-        .ignoresSafeArea(edges: .top)
+        // **The gradient reaches under the status bar; the text does not.**
+        // `ignoresSafeArea` applied to the header itself moves the whole
+        // thing up, and the title lands on top of the clock. Applied to the
+        // background shape alone, only the paint extends.
+        .background {
+            UnevenRoundedRectangle(
+                bottomLeadingRadius: 28,
+                bottomTrailingRadius: 28,
+                style: .continuous
+            )
+            .fill(.cardWiseHeader)
+            .ignoresSafeArea(edges: .top)
+        }
     }
 
     private var greeting: String {

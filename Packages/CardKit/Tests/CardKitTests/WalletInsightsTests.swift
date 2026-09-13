@@ -69,8 +69,33 @@ final class WalletInsightsTests: XCTestCase {
         let gold = CardCatalog.amexGold
         XCTAssertEqual(WalletInsights.bestCategory(for: gold, in: [gold], asOf: today), .travelPortal)
 
+        // Built here rather than taken from the catalog: this is asserting
+        // how `bestCategory` behaves, and a catalog rate that changes at the
+        // next re-audit would break it for a reason that has nothing to do
+        // with the behaviour.
+        let diner = Card(
+            issuer: "Test",
+            name: "Diner",
+            rules: [
+                CategoryRule(category: .dining, rate: 4),
+                CategoryRule(category: .groceries, rate: 2),
+                CategoryRule(category: .base, rate: 1)
+            ]
+        )
+        XCTAssertEqual(WalletInsights.bestCategory(for: diner, in: [diner], asOf: today), .dining)
+    }
+
+    /// Two cards can both top out in the same place. Only one of them wins it,
+    /// and the other falls through to the best thing it *does* win rather than
+    /// claiming a category it loses.
+    func testTwoCardsCannotBothBeBestAtTheSameThing() throws {
+        let gold = CardCatalog.amexGold
         let savor = CardCatalog.capitalOneSavor
-        XCTAssertEqual(WalletInsights.bestCategory(for: savor, in: [savor], asOf: today), .dining)
+        let wallet = [gold, savor]
+
+        let goldBest = WalletInsights.bestCategory(for: gold, in: wallet, asOf: today)
+        let savorBest = WalletInsights.bestCategory(for: savor, in: wallet, asOf: today)
+        XCTAssertNotEqual(goldBest, savorBest)
     }
 
     // MARK: - The Benefits shelves

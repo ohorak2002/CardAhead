@@ -368,6 +368,13 @@ Also not built, flagged repeatedly, not yet done:
   `http.server` needs `guess_type` overridden to force `text/html;
   charset=utf-8`, or `""` renders as mojibake — this was a test-harness bug,
   not a real one, but cost real debugging time before that was clear.
+- **`NumberFormatter` currency formatting differs between Darwin and Linux.**
+  `maximumFractionDigits = 0` is honoured on macOS and ignored on Linux, so
+  `RecommendationEngine.dollars(325)` is "$325" on the macOS job and "$325.00"
+  on the Linux one. CardKit is tested on both, so **never assert an exact
+  currency string** — assert that it contains the digits. iOS is the only
+  platform the app ships on, so the formatting itself is not a bug; a test
+  that cares which CI job ran it is.
 - **`Color` and `HierarchicalShapeStyle` don't unify in a ternary** passed to
   `.foregroundStyle(...)` — write `condition ? Color.x : Color.y` explicitly.
   **This one was hit a second time, by Claude, in the same file, after this

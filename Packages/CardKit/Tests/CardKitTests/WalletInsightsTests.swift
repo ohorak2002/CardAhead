@@ -249,7 +249,12 @@ final class WalletInsightsTests: XCTestCase {
         let stats = CardCatalog.amexGold.headlineStats(asOf: today)
         XCTAssertEqual(stats.count, 3)
         XCTAssertEqual(stats.last?.label, "Annual fee")
-        XCTAssertEqual(stats.last?.value, "$325")
+        // Contains, not equals: Foundation's `NumberFormatter` honours
+        // `maximumFractionDigits = 0` for currency on Darwin and ignores it on
+        // Linux, so the same call gives "$325" on one CI job and "$325.00" on
+        // the other. iOS is the only platform this ships on; the test just has
+        // to stop caring which one ran it.
+        XCTAssertEqual(stats.last?.value.contains("325"), true, stats.last?.value ?? "nil")
         // Best first.
         XCTAssertEqual(stats.first?.value, "5x")
     }

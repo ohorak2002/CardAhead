@@ -326,16 +326,16 @@ not go back there.
   `#if DEBUG` *and* a launch argument, and writes to its own directory so it
   can never touch a real `wallet.json`. The job is `continue-on-error` — a
   flaky simulator boot must never block a correct change.
-- **macOS CI minutes are the scarcest thing in this project.** GitHub bills a
-  macOS runner at **ten times** a Linux one against a 2,000-minute monthly
-  allowance, so the real budget is about 200 macOS minutes a month. A single
-  day of pushing exhausted it on 2026-09-13, and the failure is deeply
-  misleading: **every job fails instantly with zero steps run**, which reads
-  as a broken build and is nothing of the kind. If you see that, check
-  github.com/settings/billing before you debug any code. The workflow is now
-  shaped around this — CardKit tests run on Linux only, screenshots are
-  `workflow_dispatch` only, and only the iOS build runs on macOS per push.
-  Think before adding a macOS job.
+- **The repository is public, and CI depends on it.** Public repositories get
+  GitHub Actions free; private ones get 2,000 minutes a month with macOS
+  billed at **ten times** Linux, which is about 200 real macOS minutes. A
+  single day of pushing exhausted that on 2026-09-13 and the repo went public
+  the same day to fix it. If it is ever made private again, expect CI to die
+  within a day — and expect the failure to lie to you: **every job fails
+  instantly with zero steps run**, which reads as a broken build and is
+  nothing of the kind. Check github.com/settings/billing before debugging any
+  code. CardKit's tests deliberately run on Linux only; a second macOS copy of
+  a Foundation-only suite is slower and tells you nothing new.
 - **`python scripts/brace-scan.py <files>` before pushing.** CI is the
   compiler, and a missing brace otherwise costs a full round trip to find. It
   understands comments, multiline strings, escapes and interpolation. OK does

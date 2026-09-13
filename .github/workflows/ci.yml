@@ -8,16 +8,18 @@ on:
   workflow_dispatch:
 
 jobs:
-  # **Read this before adding a macOS job.** GitHub bills macOS runners at
-  # **ten times** the rate of Linux, against a 2,000-minute monthly free
-  # allowance — so 200 real macOS minutes is the whole month. A day of pushing
-  # exhausted it once, and the symptom is ugly: every job fails instantly with
-  # zero steps run, which looks exactly like a broken build and is not one.
+  # **This repository is public, and that is load-bearing.** GitHub bills
+  # macOS runners at ten times a Linux one, against 2,000 minutes a month —
+  # about 200 real macOS minutes — and a single day of pushing exhausted it on
+  # 2026-09-13 while the repo was private. Public repositories get Actions for
+  # free, which is what makes the screenshot job below affordable at all.
   #
-  # So: Linux does everything it can, macOS does only what it alone can do
-  # (SwiftUI needs Apple's frameworks), and the expensive jobs are opt-in.
-  # CardKit's tests used to run here on macOS as well as on Linux; that was
-  # ten times the price to learn the same thing, so they run on Linux only.
+  # If this ever goes private again, the failure is deeply misleading: every
+  # job fails instantly with **zero steps run**, which reads as a broken build
+  # and is nothing of the kind. Check the billing page before debugging code.
+  #
+  # CardKit's tests still run on Linux only. They are Foundation-only, so a
+  # second macOS copy of the same suite tells you the same thing more slowly.
 
   # **Read this before adding a macOS job.** GitHub bills macOS runners at
   # **ten times** the rate of Linux, against a 2,000-minute monthly free
@@ -58,10 +60,10 @@ jobs:
   # flaky simulator boot must never be the reason a correct change is blocked.
   screenshots:
     name: Screenshots
-    # On demand only. Seven macOS minutes is seventy billable ones, and most
-    # pushes do not change a pixel. Run it from Actions -> CI -> Run workflow
-    # when the UI has actually moved:  gh workflow run ci.yml --ref <branch>
-    if: github.event_name == 'workflow_dispatch'
+    # Back on every run, now that the repository is public and minutes are
+    # free. This is the only way anybody sees this app before it is on a
+    # phone, and it has caught two real layout bugs that reading the diff did
+    # not — it earns its seven minutes.
     runs-on: macos-latest
     continue-on-error: true
     steps:

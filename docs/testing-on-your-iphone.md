@@ -35,7 +35,11 @@ Store one). Sideloadly needs the USB drivers that come with it.
 
 ## Every time you want a new build on the phone
 
-1. Push to `main`. Wait about two minutes.
+1. Build it. Either push to `main`, **or** — and this is usually what you
+   want — build the branch you are actually working on without merging it:
+   GitHub → Actions → CI → **Run workflow** → pick the branch. From a
+   terminal that is `gh workflow run ci.yml --ref <branch>`. Wait about five
+   minutes.
 2. On GitHub: Actions → the latest run → scroll to **Artifacts** →
    download `CardWise-unsigned-ipa`. It arrives as a zip; unzip it to get
    `CardWise-unsigned.ipa`.

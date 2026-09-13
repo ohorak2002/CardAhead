@@ -63,6 +63,13 @@ public enum WalletInsights {
     ///
     /// Nil when the card wins nothing, which is a real answer: it means
     /// another card in the wallet covers everything this one does.
+    ///
+    /// **`card` must be an element of `wallet`.** Winning is decided by `id`,
+    /// and `CardCatalog`'s properties are computed — every access mints a new
+    /// one — so passing `CardCatalog.amexGold` alongside a wallet built from
+    /// another `CardCatalog.amexGold` compares two different cards and always
+    /// answers nil. CI found this before a human did; there is a test named
+    /// after it.
     public static func bestCategory(
         for card: Card,
         in wallet: [Card],

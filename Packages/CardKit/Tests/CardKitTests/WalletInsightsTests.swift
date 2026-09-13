@@ -13,18 +13,20 @@ final class WalletInsightsTests: XCTestCase {
     /// sitting next to a 4x dining card is not what you should reach for at a
     /// restaurant, and saying so on every scroll is a small lie told often.
     func testACardIsOnlyBestAtWhatItActuallyWins() {
-        let wallet = [CardCatalog.amexGold, CardCatalog.citiDoubleCash]
-        XCTAssertEqual(WalletInsights.bestCategory(for: CardCatalog.amexGold, in: wallet, asOf: today), .dining)
+        // Bound once, deliberately: `CardCatalog.amexGold` is a computed
+        // property and mints a fresh `id` on every access, so the card asked
+        // about has to be the same value that is in the wallet.
+        let gold = CardCatalog.amexGold
+        let wallet = [gold, CardCatalog.citiDoubleCash]
+        XCTAssertEqual(WalletInsights.bestCategory(for: gold, in: wallet, asOf: today), .dining)
     }
 
     /// A flat card beaten everywhere on bonuses is still the one you reach for
     /// by default, and that is a real thing to say about it.
     func testAFlatCardIsBestForEverythingElse() {
-        let wallet = [CardCatalog.amexGold, CardCatalog.citiDoubleCash]
-        XCTAssertEqual(
-            WalletInsights.bestCategory(for: CardCatalog.citiDoubleCash, in: wallet, asOf: today),
-            .base
-        )
+        let citi = CardCatalog.citiDoubleCash
+        let wallet = [CardCatalog.amexGold, citi]
+        XCTAssertEqual(WalletInsights.bestCategory(for: citi, in: wallet, asOf: today), .base)
     }
 
     /// A card another card covers completely gets no label rather than a
@@ -39,9 +41,19 @@ final class WalletInsightsTests: XCTestCase {
         XCTAssertNil(WalletInsights.bestCategory(for: strictlyWorse, in: wallet, asOf: today))
     }
 
+    /// The identity rule, written down as a test because CI found it the hard
+    /// way: a card that is not *the same value* as the one in the wallet wins
+    /// nothing, because winning is decided by `id`. Two accesses of a computed
+    /// `CardCatalog` property are two different cards.
+    func testACardFromOutsideTheWalletWinsNothing() {
+        let wallet = [CardCatalog.amexGold, CardCatalog.citiDoubleCash]
+        // Same product, different instance, therefore a different id.
+        XCTAssertNil(WalletInsights.bestCategory(for: CardCatalog.amexGold, in: wallet, asOf: today))
+    }
+
     func testTheOnlyCardInAWalletIsBestAtItsOwnBestThing() {
-        let wallet = [CardCatalog.amexGold]
-        XCTAssertEqual(WalletInsights.bestCategory(for: CardCatalog.amexGold, in: wallet, asOf: today), .dining)
+        let gold = CardCatalog.amexGold
+        XCTAssertEqual(WalletInsights.bestCategory(for: gold, in: [gold], asOf: today), .dining)
     }
 
     // MARK: - The Benefits shelves

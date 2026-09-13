@@ -1,0 +1,241 @@
+import Foundation
+
+/// How far out the map looks.
+///
+/// Miles rather than metres because every label in this app is written for a
+/// person in the United States, and the five steps are the mockup's. Stored as
+/// a case rather than a number so a slider cannot land on 2.7 miles and a
+/// persisted filter written by an older build still decodes.
+public enum MapDistance: String, Codable, CaseIterable, Sendable, Hashable {
+    case halfMile
+    case oneMile
+    case threeMiles
+    case fiveMiles
+    case tenMiles
+
+    public var miles: Double {
+        switch self {
+        case .halfMile: return 0.5
+        case .oneMile: return 1
+        case .threeMiles: return 3
+        case .fiveMiles: return 5
+        case .tenMiles: return 10
+        }
+    }
+
+    public var meters: Double { miles * 1_609.344 }
+
+    public var displayName: String {
+        switch self {
+        case .halfMile: return "0.5 miles"
+        case .oneMile: return "1 mile"
+        case .threeMiles: return "3 miles"
+        case .fiveMiles: return "5 miles"
+        case .tenMiles: return "10 miles"
+        }
+    }
+
+    /// What fits on the chip next to the category chips.
+    public var shortName: String {
+        switch self {
+        case .halfMile: return "0.5 mi"
+        case .oneMile: return "1 mi"
+        case .threeMiles: return "3 mi"
+        case .fiveMiles: return "5 mi"
+        case .tenMiles: return "10 mi"
+        }
+    }
+
+    /// Three miles: far enough to cover the errands somebody would actually
+    /// drive to, close enough that twenty results are all reachable.
+    public static let standard: MapDistance = .threeMiles
+}
+
+/// The order the results list is in.
+public enum MapSort: String, Codable, CaseIterable, Sendable, Hashable {
+    case nearest
+    case bestReward
+    case topRated
+
+    public var displayName: String {
+        switch self {
+        case .nearest: return "Nearest"
+        case .bestReward: return "Best reward"
+        case .topRated: return "Highest rated"
+        }
+    }
+}
+
+/// What the map is currently showing.
+///
+/// Persisted, so somebody who only ever wants to see petrol stations does not
+/// re-pick that every time the app opens.
+public struct MapFilter: Codable, Hashable, Sendable {
+
+    /// **Empty means every category**, not none. The distinction matters
+    /// because "All" is a real, default state a person picks deliberately, and
+    /// modelling it as "all eight ticked" means a filter written today breaks
+    /// the first time a ninth category is added — everybody's saved "All"
+    /// would silently become "all except the new one".
+    public var categories: Set<MapCategory>
+    public var distance: MapDistance
+    public var sort: MapSort
+
+    public init(
+        categories: Set<MapCategory> = [],
+        distance: MapDistance = .standard,
+        sort: MapSort = .nearest
+    ) {
+        self.categories = categories
+        self.distance = distance
+        self.sort = sort
+    }
+
+    public static let standard = MapFilter()
+
+    public var isShowingEverything: Bool {
+        categories.isEmpty || categories.count == MapCategory.allCases.count
+    }
+
+    /// The categories actually in play, with "All" expanded.
+    public var effectiveCategories: Set<MapCategory> {
+        isShowingEverything ? Set(MapCategory.allCases) : categories
+    }
+
+    public func includes(_ category: MapCategory) -> Bool {
+        isShowingEverything || categories.contains(category)
+    }
+
+    /// Ticking the last category off is "show me everything", not "show me
+    /// nothing" — an empty map with no way back to a full one is a dead end.
+    public mutating func toggle(_ category: MapCategory) {
+        var updated = effectiveCategories
+        if updated.contains(category) {
+            updated.remove(category)
+        } else {
+            updated.insert(category)
+        }
+        categories = updated.isEmpty ? [] : updated
+    }
+
+    public mutating func showEverything() {
+        categories = []
+    }
+
+    /// Narrow to exactly one category — what tapping a chip on the map does,
+    /// as opposed to ticking a box in the filter sheet.
+    public mutating func showOnly(_ category: MapCategory) {
+        categories = [category]
+    }
+
+    /// What to ask the place provider for.
+    public var requestedPlaceTypes: [String] {
+        MapCategory.placeTypes(for: effectiveCategories)
+    }
+
+    /// A line under the map saying what is being shown, for the times when
+    /// the chips have scrolled out of view.
+    public var summary: String {
+        if isShowingEverything { return "Everything within \(distance.displayName)" }
+        let names = MapCategory.allCases
+            .filter { categories.contains($0) }
+            .map(\.displayName)
+        let subject: String
+        switch names.count {
+        case 1: subject = names[0]
+        case 2: subject = "\(names[0]) and \(names[1])"
+        default: subject = "\(names.count) kinds of place"
+        }
+        return "\(subject) within \(distance.displayName)"
+    }
+}
+
+// MARK: - Turning places into a list
+
+/// Filtering, measuring and ranking the map's results.
+///
+/// Pure and synchronous, and here rather than in the view for the reason the
+/// rest of `CardKit` exists: everything that could be *wrong* — which places
+/// are in range, which card wins at each, what order they come in — is
+/// testable on Linux in seconds, and what is left in the app is a map view
+/// drawing pins.
+public enum NearbyPlaces {
+
+    public static func results(
+        from places: [MapPlace],
+        near center: GeoCoordinate,
+        cards: [Card],
+        filter: MapFilter = .standard,
+        engine: RecommendationEngine = RecommendationEngine(),
+        asOf date: Date = Date()
+    ) -> [MapPlaceResult] {
+
+        let radius = filter.distance.meters
+        var seen: Set<String> = []
+
+        let measured: [MapPlaceResult] = places.compactMap { place in
+            guard place.coordinate.isValid else { return nil }
+            guard filter.includes(place.mapCategory) else { return nil }
+            let distance = center.distance(to: place.coordinate)
+            guard distance <= radius else { return nil }
+            guard seen.insert(place.id).inserted else { return nil }
+
+            var recommendation: Recommendation?
+            if !cards.isEmpty, let context = place.purchaseContext(asOf: date) {
+                recommendation = engine.recommend(from: cards, in: context)
+            }
+            return MapPlaceResult(
+                place: place,
+                distanceMeters: distance,
+                recommendation: recommendation
+            )
+        }
+
+        return measured.sorted { isBefore($0, $1, by: filter.sort) }
+    }
+
+    /// Every comparison falls through to distance and then to id, so the same
+    /// input always produces the same order. A list that reshuffles under the
+    /// user's thumb between two identical refreshes is the kind of bug nobody
+    /// can reproduce on purpose.
+    private static func isBefore(_ lhs: MapPlaceResult, _ rhs: MapPlaceResult, by sort: MapSort) -> Bool {
+        switch sort {
+        case .nearest:
+            break
+
+        case .bestReward:
+            let left = lhs.recommendation?.best.total ?? -.greatestFiniteMagnitude
+            let right = rhs.recommendation?.best.total ?? -.greatestFiniteMagnitude
+            if left != right { return left > right }
+
+        case .topRated:
+            // Unrated places go last rather than being treated as zero-star,
+            // which would rank a shop nobody has reviewed below a bad one.
+            let left = lhs.place.rating
+            let right = rhs.place.rating
+            if left != right {
+                guard let left else { return false }
+                guard let right else { return true }
+                return left > right
+            }
+        }
+
+        if lhs.distanceMeters != rhs.distanceMeters { return lhs.distanceMeters < rhs.distanceMeters }
+        return lhs.place.id < rhs.place.id
+    }
+
+    /// How many nearby places pay more than the everyday rate. The number the
+    /// Home banner says out loud, so it is counted here once rather than
+    /// recomputed by whoever needs it.
+    public static func opportunityCount(in results: [MapPlaceResult]) -> Int {
+        results.filter(\.isOpportunity).count
+    }
+
+    /// Results grouped under their filter chip, for the "Restaurants (24)"
+    /// header the list carries when one category is selected.
+    public static func counts(in results: [MapPlaceResult]) -> [MapCategory: Int] {
+        results.reduce(into: [:]) { counts, result in
+            counts[result.place.mapCategory, default: 0] += 1
+        }
+    }
+}

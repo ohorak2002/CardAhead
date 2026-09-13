@@ -13,6 +13,7 @@ struct SettingsView: View {
     @Environment(RegionMonitor.self) private var monitor
     @Environment(ReminderCenter.self) private var reminders
     @Environment(ImpactStore.self) private var impact
+    @Environment(NearbyPlacesStore.self) private var nearby
     let auth: LocationAuthorization
 
     @AppStorage("preferredName") private var preferredName = ""
@@ -24,6 +25,7 @@ struct SettingsView: View {
             nameSection
             valuationSection
             remindersSection
+            mapSection
             artworkSection
             dataSection
         }
@@ -162,6 +164,30 @@ struct SettingsView: View {
 
     // MARK: - Artwork
 
+    /// The map's standing preferences, one screen deep.
+    ///
+    /// A section of its own rather than a row under Reminders: the map is the
+    /// one part of this app that does not send anything, and filing it under
+    /// notifications would imply it did.
+    private var mapSection: some View {
+        Section {
+            NavigationLink {
+                MapSettingsView(auth: auth)
+            } label: {
+                HStack {
+                    Text("Map settings")
+                    Spacer(minLength: 8)
+                    Text(nearby.filter.distance.displayName)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text("Map").textCase(nil)
+        } footer: {
+            Text("How far the Nearby Map looks, and which kinds of place it draws. The same settings the filter button on the map itself changes.")
+        }
+    }
+
     private var artworkSection: some View {
         Section {
             Button {
@@ -278,4 +304,5 @@ private struct CardArtworkExplainerView: View {
     .environment(ReminderCenter())
     .environment(RegionMonitor())
     .environment(ImpactStore.previewStore())
+    .environment(NearbyPlacesStore())
 }

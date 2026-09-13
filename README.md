@@ -20,6 +20,7 @@ suggestion injected at the till.
 | 6. Significant-location-change travel mode | Not started |
 | 7. Safari extension for online purchases | Not started |
 | 8. Impact tracking — was any of this worth it | Done, on-device only |
+| 9. Nearby Map — what is around you, and which card wins there | Built, needs an API key and a phone |
 
 **Step 4** is written end to end. `RegionPlanner` picks the twenty nearest shops
 your cards actually pay extra at, `RegionMonitor` registers them as
@@ -37,6 +38,21 @@ still in its four-minute wait actually changes what arrives: `walletDidChange()`
 re-renders it against the wallet as it now stands, using the fact that iOS
 replaces a pending notification under the same id rather than stacking a
 second one.
+
+**Step 9** is the one thing in the app you go and look at rather than being
+told. Everything else answers "which card, here, now"; the Map tab answers
+*where* — a search box, a radius, chips for restaurants, petrol, groceries,
+shopping, malls, entertainment, hotels and everything else, a pin per place,
+and under it a list saying which of your cards wins at each. Opening a place
+gives you its hours, its phone number, directions, and the same ranking the
+lock-screen reminder would have used, arrived at the same way.
+
+It is careful about two things. It never invents a pin — with no Places key it
+shows where you are and says plainly that it has nowhere to get shops from —
+and it never invents a reward: a place whose type maps onto no earning
+category says "no card in your wallet earns extra here" rather than guessing.
+A ring around a pin means a card there beats its own everyday rate, which is
+also the number Home counts when it says "3 opportunities nearby".
 
 **Step 8** answers the question an app like this usually ducks: did being told
 which card to use actually earn you anything? After a reminder, the wallet
@@ -94,12 +110,14 @@ Packages/CardKit/       Pure Swift. No UIKit, no Core Location, no SwiftUI.
                         ArrivalReminder (the words on the lock screen)
     Data/               CardCatalog, MerchantCategoryMap, CardArtLibrary
     Geo/                RegionPlanner, ArrivalTracker, ReminderThrottle,
-                        Merchant, MerchantSource
+                        Merchant, MerchantSource, and the map's MapCategory,
+                        MapPlace, MapFilter, NearbyPlaces
     Impact/             RecommendationSnapshot, BenefitEstimate, ImpactEvent,
                         ImpactLedger, AnalyticsService (a no-op, on purpose)
-    Places/             GooglePlacesSource, MerchantCache
+    Places/             GooglePlacesSource, MerchantCache, and the map's own
+                        PlaceSearchSource / GooglePlaceSearchSource
   Tests/CardKitTests/   run on macOS and Linux
-App/                    SwiftUI: the wallet stack, the add flow, settings,
+App/                    SwiftUI: the five tabs, the add flow, the map,
                         Core Location, and the notification centre
 project.yml             XcodeGen spec. The .xcodeproj is generated, not committed.
 ```

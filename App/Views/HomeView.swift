@@ -26,6 +26,7 @@ struct HomeView: View {
     @Environment(WalletStore.self) private var store
     @Environment(RegionMonitor.self) private var monitor
     @Environment(ReminderCenter.self) private var reminders
+    @Environment(NearbyPlacesStore.self) private var nearby
 
     let auth: LocationAuthorization
     /// Lets a row here move the tab bar, so "See all" goes to the real screen
@@ -50,6 +51,7 @@ struct HomeView: View {
                 if store.cards.isEmpty {
                     firstCardPrompt
                 } else {
+                    nearbyBanner
                     watchingBanner
                     opportunitySection
                     walletPeek
@@ -109,6 +111,50 @@ struct HomeView: View {
         let time = hour < 12 ? "Good morning" : (hour < 18 ? "Good afternoon" : "Good evening")
         let name = preferredName.trimmingCharacters(in: .whitespaces)
         return name.isEmpty ? time : "\(time), \(name)"
+    }
+
+    // MARK: - What is around you
+
+    /// The one line the mockup opens on: "You have 3 opportunities nearby."
+    ///
+    /// **It says a number only when it has counted one.** The map is the only
+    /// thing in the app that knows what is nearby, and it knows nothing until
+    /// somebody has opened it and it has had a fix and a lookup — so most of
+    /// the time on a fresh launch this is an invitation to look rather than a
+    /// count, and it says so. An opening screen that greets everybody with
+    /// "3 opportunities nearby" before it has looked anywhere is the exact lie
+    /// this screen's doc comment exists to prevent.
+    ///
+    /// "Opportunity" means something precise here and is counted in one place,
+    /// `MapPlaceResult.isOpportunity`: a nearby place where a card in this
+    /// wallet pays **more than its everyday rate**. A wallet of flat-rate
+    /// cards produces zero of them however busy the high street is, which is
+    /// the correct answer rather than a bug.
+    @ViewBuilder
+    private var nearbyBanner: some View {
+        let count = nearby.opportunityCount
+        if count > 0 {
+            HomeBanner(
+                symbolName: "mappin.and.ellipse",
+                tint: .cardWiseBlue,
+                title: count == 1 ? "1 opportunity nearby" : "\(count) opportunities nearby",
+                detail: "Places within \(nearby.filter.distance.displayName) where one of your cards pays more than usual."
+            ) { goTo(.map) }
+        } else if !nearby.results.isEmpty {
+            HomeBanner(
+                symbolName: "map",
+                tint: .secondary,
+                title: "\(nearby.results.count) places nearby",
+                detail: "None of them pays more than the card you would have reached for anyway."
+            ) { goTo(.map) }
+        } else {
+            HomeBanner(
+                symbolName: "map",
+                tint: .cardWiseBlue,
+                title: "See what is around you",
+                detail: "The map shows nearby shops and which of your cards wins at each."
+            ) { goTo(.map) }
+        }
     }
 
     // MARK: - What it is doing right now
@@ -352,4 +398,5 @@ private struct OpportunityRow: View {
     .environment(RegionMonitor())
     .environment(ReminderCenter())
     .environment(ImpactStore.previewStore())
+    .environment(NearbyPlacesStore())
 }

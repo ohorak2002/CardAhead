@@ -97,6 +97,11 @@ jobs:
       # One relaunch per screen rather than tapping through: simctl cannot tap,
       # and a launch argument naming the tab is deterministic in a way that
       # scripted taps against a moving UI are not. See DemoSeed.
+      # The map tab is seeded with its own centre and its own fixed list of
+      # places (DemoSeed.center / DemoSeed.places) rather than being given a
+      # simulated location: `simctl` can set one, but the app would then try
+      # to reach Google Places from a runner with no key, and a screenshot of
+      # a failed lookup is not a screenshot of the map.
       - name: Photograph every tab
         run: |
           mkdir -p screenshots
@@ -107,17 +112,18 @@ jobs:
             xcrun simctl io "$DEVICE" screenshot "screenshots/$2-$1.png"
           }
           shoot home 1
-          shoot wallet 2
-          shoot benefits 3
-          shoot more 4
-          shoot impact 5
+          shoot map 2
+          shoot wallet 3
+          shoot benefits 4
+          shoot more 5
+          shoot impact 6
 
       # A palette that works on white paper is not automatically the one that
       # works at night, and nobody has ever seen this app at night.
       - name: Photograph it in the dark
         run: |
           xcrun simctl ui "$DEVICE" appearance dark
-          for TAB in home wallet benefits impact; do
+          for TAB in home map wallet benefits impact; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
             sleep 6

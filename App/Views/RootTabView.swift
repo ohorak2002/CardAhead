@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 import CardKit
 
-/// The app, as four places rather than one screen with everything pushed onto
+/// The app, as five places rather than one screen with everything pushed onto
 /// it.
 ///
 /// **This reverses an earlier decision on purpose, and keeps the reason it was
@@ -14,8 +14,13 @@ import CardKit
 /// answer to that: each subject gets its own room, and the wallet gets to stay
 /// pure.
 ///
-/// Four is the number. Five is where a tab bar starts to read as a menu, and
-/// three would have left Benefits buried somewhere nobody found it.
+/// **It was four, and the note here said four was the number** — that five
+/// is where a tab bar starts to read as a menu. Map is the fifth, and it is
+/// worth the cost: it is the only screen that answers *where*, rather than
+/// *which card, here, now*, it needs a map's whole vocabulary of radius and
+/// category and search, and there was nowhere to hang it that did not make it
+/// a tail on another screen all over again. Five is the ceiling, though, not
+/// the new number. The sixth thing goes inside More, like Impact did.
 struct RootTabView: View {
 
     @Environment(ReminderCenter.self) private var reminders
@@ -24,7 +29,7 @@ struct RootTabView: View {
     @State private var locationAuth = LocationAuthorization()
 
     enum Tab: String, Hashable {
-        case home, wallet, benefits, more
+        case home, map, wallet, benefits, more
 
         /// Home, unless CI asked for something else. See `DemoSeed`.
         ///
@@ -45,6 +50,12 @@ struct RootTabView: View {
             }
             .tabItem { Label("Home", systemImage: "house.fill") }
             .tag(Tab.home)
+
+            NavigationStack {
+                NearbyMapView()
+            }
+            .tabItem { Label("Map", systemImage: "map.fill") }
+            .tag(Tab.map)
 
             NavigationStack {
                 WalletStackView()
@@ -152,4 +163,5 @@ struct MoreView: View {
         .environment(ReminderCenter())
         .environment(RegionMonitor())
         .environment(ImpactStore.previewStore())
+        .environment(NearbyPlacesStore())
 }

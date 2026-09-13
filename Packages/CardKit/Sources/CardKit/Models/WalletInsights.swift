@@ -307,3 +307,62 @@ extension WalletInsights {
         }
     }
 }
+
+/// One number and the word under it, for the row of tiles a card detail opens
+/// with.
+public struct CardStat: Identifiable, Hashable, Sendable {
+    public var id: String { label }
+    public var value: String
+    public var label: String
+
+    public init(value: String, label: String) {
+        self.value = value
+        self.label = label
+    }
+}
+
+extension Card {
+
+    /// The two things this card is best at, and what it costs to hold.
+    ///
+    /// Three tiles, because three is what fits across a phone and because the
+    /// third one is the question the first two provoke. Rates are grouped
+    /// before they are picked, so a card paying 5x on issuer-booked travel and
+    /// 3x on flights offers one travel tile rather than two — the shelf is
+    /// what a person recognises, and two tiles saying nearly the same thing is
+    /// how a summary stops summarising.
+    ///
+    /// The base rate is never a headline. Every card has one, so it
+    /// distinguishes nothing; a card with no bonus anywhere gets the fee tile
+    /// alone, which is the honest summary of such a card.
+    public func headlineStats(asOf date: Date = Date()) -> [CardStat] {
+        var bestByGroup: [BenefitGroup: (rate: Double, category: SpendingCategory)] = [:]
+
+        for rule in rules where rule.category != .base && rule.rate > baseRate {
+            let group = BenefitGroup.containing(rule.category)
+            if bestByGroup[group]?.rate ?? 0 < rule.rate {
+                bestByGroup[group] = (rule.rate, rule.category)
+            }
+        }
+
+        if let program = rotatingProgram,
+           case .bonus(let quarter) = program.status(for: Quarter.containing(date)),
+           let first = quarter.categories.first {
+            let group = BenefitGroup.containing(first)
+            if bestByGroup[group]?.rate ?? 0 < program.rate {
+                bestByGroup[group] = (program.rate, first)
+            }
+        }
+
+        var stats = bestByGroup
+            .sorted { $0.value.rate > $1.value.rate }
+            .prefix(2)
+            .map { CardStat(value: currency.formatted(rate: $0.value.rate), label: $0.key.displayName) }
+
+        stats.append(CardStat(
+            value: RecommendationEngine.dollars(annualFeeDollars),
+            label: "Annual fee"
+        ))
+        return stats
+    }
+}

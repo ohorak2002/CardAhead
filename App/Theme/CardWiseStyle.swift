@@ -219,3 +219,56 @@ extension SectionHeader where Trailing == EmptyView {
         self.init(title: title) { EmptyView() }
     }
 }
+
+/// A bank, as a coloured square with its initials in it.
+///
+/// **Deliberately not the bank's logo, and deliberately not the bank's
+/// colours.** An issuer's mark and its trade dress are its own; a blue square
+/// reading "AE" next to the words "American Express" is the app's styling of a
+/// name it is entitled to say, which is a different thing from a reproduction
+/// of a brand. The colour comes off CardWise's own palette, picked
+/// deterministically from the name so a bank looks the same on every launch
+/// and in every list — recognisable at a glance, which is the whole job — and
+/// never matches what the issuer actually uses.
+struct IssuerMonogram: View {
+    let name: String
+    var size: CGFloat = 38
+
+    /// Two letters: the initials of the first two words, or the first two
+    /// letters of a one-word name. "Chase" is CH, "American Express" is AE.
+    private var initials: String {
+        let words = name.split(separator: " ").filter { !$0.isEmpty }
+        if words.count >= 2 {
+            return words.prefix(2).compactMap { $0.first }.map(String.init).joined().uppercased()
+        }
+        return String(name.prefix(2)).uppercased()
+    }
+
+    /// Stable across launches: Swift's `hashValue` is seeded per-process and
+    /// would give the same bank a different colour every time the app opened.
+    private var tint: Color {
+        let palette: [Color] = [
+            .cardWiseNavy,
+            .cardWiseBlue,
+            .cardWiseAccent,
+            Color(red: 0.063, green: 0.725, blue: 0.506),
+            Color(red: 0.545, green: 0.361, blue: 0.965),
+            Color(red: 0.078, green: 0.722, blue: 0.651),
+            Color(red: 0.976, green: 0.451, blue: 0.086)
+        ]
+        let sum = name.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
+        return palette[sum % palette.count]
+    }
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+            .fill(tint.opacity(0.14))
+            .frame(width: size, height: size)
+            .overlay {
+                Text(initials)
+                    .font(.system(size: size * 0.36, weight: .bold, design: .rounded))
+                    .foregroundStyle(tint)
+            }
+            .accessibilityHidden(true)
+    }
+}

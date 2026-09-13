@@ -243,6 +243,40 @@ final class WalletInsightsTests: XCTestCase {
         XCTAssertTrue(found.isEmpty, "\(found.map(\.title))")
     }
 
+    // MARK: - The three facts a card detail opens with
+
+    func testACardLeadsWithItsTwoBestRatesAndItsFee() {
+        let stats = CardCatalog.amexGold.headlineStats(asOf: today)
+        XCTAssertEqual(stats.count, 3)
+        XCTAssertEqual(stats.last?.label, "Annual fee")
+        XCTAssertEqual(stats.last?.value, "$325")
+        // Best first.
+        XCTAssertEqual(stats.first?.value, "5x")
+    }
+
+    /// Amex Gold pays 5x on hotels booked through Amex Travel and 3x on
+    /// flights. Both are travel. Two tiles saying nearly the same thing is how
+    /// a summary stops summarising.
+    func testTwoRatesOnOneShelfBecomeOneTile() {
+        let labels = CardCatalog.amexGold.headlineStats(asOf: today).map(\.label)
+        XCTAssertEqual(labels.filter { $0 == "Travel" }.count, 1)
+        XCTAssertEqual(Set(labels).count, labels.count, "no shelf appears twice")
+    }
+
+    /// Every card has a base rate, so it distinguishes nothing.
+    func testTheBaseRateIsNeverAHeadline() {
+        let flat = CardCatalog.citiDoubleCash.headlineStats(asOf: today)
+        XCTAssertEqual(flat.count, 1)
+        XCTAssertEqual(flat.first?.label, "Annual fee")
+        XCTAssertFalse(flat.contains { $0.label == "Everything else" })
+    }
+
+    func testAPointsCardSaysTimesAndACashCardSaysPercent() {
+        XCTAssertEqual(CardCatalog.amexGold.headlineStats(asOf: today).first?.value, "5x")
+        let cash = CardCatalog.amexBlueCashPreferred.headlineStats(asOf: today)
+        XCTAssertEqual(cash.first?.value.hasSuffix("%"), true, "\(cash.first?.value ?? "nil")")
+    }
+
     // MARK: - The clock on a quarter
 
     func testAQuarterKnowsWhenItEnds() {

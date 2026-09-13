@@ -18,7 +18,21 @@ final class WalletInsightsTests: XCTestCase {
         // about has to be the same value that is in the wallet.
         let gold = CardCatalog.amexGold
         let wallet = [gold, CardCatalog.citiDoubleCash]
-        XCTAssertEqual(WalletInsights.bestCategory(for: gold, in: wallet, asOf: today), .dining)
+        // Its best rate is the 5x on hotels prepaid through Amex Travel, not
+        // the 4x on dining — which is exactly why the wallet row shows the
+        // *group* and says "Best for travel". See `HomeView.bestFor`.
+        XCTAssertEqual(WalletInsights.bestCategory(for: gold, in: wallet, asOf: today), .travelPortal)
+    }
+
+    /// The label a person reads has to be a phrase a person uses. "Best for
+    /// travel booked through the issuer" is accurate and unreadable; the shelf
+    /// that category sits on is both.
+    func testTheLabelAWalletRowShowsIsTheShelfNotTheRawCategory() throws {
+        let gold = CardCatalog.amexGold
+        let wallet = [gold, CardCatalog.citiDoubleCash]
+        let category = try XCTUnwrap(WalletInsights.bestCategory(for: gold, in: wallet, asOf: today))
+        XCTAssertEqual(BenefitGroup.containing(category), .travel)
+        XCTAssertEqual(BenefitGroup.containing(category).displayName, "Travel")
     }
 
     /// A flat card beaten everywhere on bonuses is still the one you reach for
@@ -53,7 +67,10 @@ final class WalletInsightsTests: XCTestCase {
 
     func testTheOnlyCardInAWalletIsBestAtItsOwnBestThing() {
         let gold = CardCatalog.amexGold
-        XCTAssertEqual(WalletInsights.bestCategory(for: gold, in: [gold], asOf: today), .dining)
+        XCTAssertEqual(WalletInsights.bestCategory(for: gold, in: [gold], asOf: today), .travelPortal)
+
+        let savor = CardCatalog.capitalOneSavor
+        XCTAssertEqual(WalletInsights.bestCategory(for: savor, in: [savor], asOf: today), .dining)
     }
 
     // MARK: - The Benefits shelves

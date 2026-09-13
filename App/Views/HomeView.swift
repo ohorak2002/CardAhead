@@ -219,11 +219,17 @@ struct HomeView: View {
         }
     }
 
-    /// "Best for Dining" — and true of *this* wallet, not of the card in
+    /// "Best for dining" — and true of *this* wallet, not of the card in
     /// general. See `WalletInsights.bestCategory`.
+    ///
+    /// Shown as the benefit *shelf* rather than the raw category, because the
+    /// raw category is sometimes unreadable: Amex Gold's best rate is its 5x
+    /// on hotels prepaid through Amex Travel, and "Best for travel booked
+    /// through the issuer" is a label nobody would ever say out loud. "Best
+    /// for travel" is the same fact in words a person uses.
     private func bestFor(_ card: Card) -> String? {
         guard let category = WalletInsights.bestCategory(for: card, in: store.cards) else { return nil }
-        return "Best for \(category.displayName.lowercased())"
+        return "Best for \(BenefitGroup.containing(category).displayName.lowercased())"
     }
 
     // MARK: - Nothing yet

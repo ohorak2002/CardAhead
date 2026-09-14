@@ -650,11 +650,22 @@ struct NearbyMapView: View {
 extension Color {
     /// The slate `MapCategory.other` wears, since it has no benefit shelf to
     /// borrow a colour from. Declared once so three views cannot drift.
-    static let mapOther = Color(red: 0.392, green: 0.455, blue: 0.545)
+    ///
+    /// Borrowed from "Everything else", which is the same idea one layer up —
+    /// and taken from the palette rather than retyped as a literal, so it is
+    /// covered by `BrandTintTests` like every other tint.
+    static let mapOther = BenefitGroup.everydaySpending.tint
+    /// The same slate for a solid pin. See `BrandTint.solid`.
+    static let mapOtherPin = BenefitGroup.everydaySpending.pinTint
 }
 
 extension MapCategory {
-    var mapTint: Color { benefitGroup?.tint ?? .mapOther }
+    /// A **solid pin** with a white symbol on it, so it takes `pinTint` and
+    /// not `tint` — see `BrandTint.solid` for why those differ.
+    var mapTint: Color { benefitGroup?.pinTint ?? .mapOtherPin }
+    /// A glyph on the page, in a list or a filter row, which does follow the
+    /// interface style.
+    var listTint: Color { benefitGroup?.tint ?? .mapOther }
 }
 
 /// One of the map's own pins, standing for one shop or for several.
@@ -770,7 +781,7 @@ private struct SelectedPlaceCard: View {
         HStack(spacing: Metric.snug) {
             CategoryIcon(
                 symbolName: result.place.mapCategory.symbolName,
-                tint: result.place.mapCategory.mapTint,
+                tint: result.place.mapCategory.listTint,
                 size: 44
             )
             VStack(alignment: .leading, spacing: 3) {
@@ -843,7 +854,7 @@ struct PlaceRow: View {
         HStack(spacing: Metric.snug) {
             CategoryIcon(
                 symbolName: result.place.mapCategory.symbolName,
-                tint: result.place.mapCategory.mapTint,
+                tint: result.place.mapCategory.listTint,
                 size: 48
             )
             VStack(alignment: .leading, spacing: 3) {

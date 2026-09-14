@@ -252,9 +252,24 @@ enum DemoSeed {
         return planner.plan(around: center, merchants: merchants, cards: cards, asOf: date)
     }
 
+    /// The name the greeting uses in a photographed run.
+    ///
+    /// Home says "Good morning, Oren" when a name is set and plain "Good
+    /// morning" when it is not, and every screenshot so far has been of the
+    /// second one — which made the greeting look unfinished next to the
+    /// mockup when it is nothing of the kind. The Settings field that sets it
+    /// has existed since the screen was written; CI simply never filled it in.
+    static let greetingName = "Oren"
+
     /// Writes the seed files. Called once, before any store reads them.
     static func install() {
         guard isActive else { return }
+
+        // `register` rather than `set`: this supplies a fallback for a key
+        // nobody has answered, and is gone when the process ends. Writing the
+        // value would persist it into the simulator's real defaults and would
+        // overwrite a name somebody had actually typed.
+        UserDefaults.standard.register(defaults: ["preferredName": greetingName])
 
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601

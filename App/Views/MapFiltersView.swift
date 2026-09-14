@@ -103,8 +103,10 @@ struct MapFiltersView: View {
         }
     }
 
+    /// A glyph on a list row, not a pin, so it follows the interface style.
+    /// See `BrandTint.solid` for the pin's different answer.
     private func tint(for category: MapCategory) -> Color {
-        category.benefitGroup?.tint ?? Color(red: 0.392, green: 0.455, blue: 0.545)
+        category.listTint
     }
 
     /// One tickable kind of place.

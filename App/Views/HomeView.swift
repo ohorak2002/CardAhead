@@ -234,7 +234,7 @@ struct HomeView: View {
     @ViewBuilder
     private func destination(for opportunity: Opportunity) -> some View {
         if let card = store.card(withID: opportunity.cardID) {
-            CardBenefitsView(mode: .reviewing(card))
+            CardBenefitsView(mode: .reviewing(card), presentation: .pushed)
         } else {
             WalletStackView()
         }

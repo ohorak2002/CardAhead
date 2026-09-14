@@ -21,18 +21,43 @@ struct CardBenefitsView: View {
         case reviewing(Card)
     }
 
+    /// How this screen got here, which decides whether it has to draw its own
+    /// way out.
+    ///
+    /// SwiftUI will not say. `@Environment(\.isPresented)` is true for
+    /// anything *inside* a sheet, and that includes a view pushed onto a stack
+    /// the sheet itself owns — which is exactly the case that has to be told
+    /// apart. So the presenter says.
+    enum Presentation {
+        /// Presented in its own `NavigationStack`, with nothing behind it.
+        /// There is no back button, so Cancel is the only way out and this
+        /// screen draws it.
+        case sheet
+        /// Pushed onto a stack that already shows a back chevron. Cancel
+        /// beside it is the same button twice.
+        case pushed
+    }
+
     let mode: Mode
     /// Set when confirming a card that replaces one already in the wallet.
     var replacing: Card? = nil
 
-    /// Called instead of `dismiss()` when this screen was *pushed* rather than
-    /// presented as a sheet.
+    /// Defaults to `.sheet`, which is the safe half to be wrong about: a spare
+    /// Cancel next to a back chevron is untidy, whereas a sheet without one
+    /// leaves Done — which *saves* — as the only button on the screen.
+    var presentation: Presentation = .sheet
+
+    /// Called instead of `dismiss()` when popping is not enough to be finished
+    /// — a push onto a stack that a sheet owns.
     ///
     /// A pushed view's `dismiss()` pops it. On this screen that meant tapping
     /// "Add" saved the card and then dropped you back on the list of products
     /// with the sheet still open — which looks exactly like nothing happened,
     /// and invites tapping Add a second time. The presenter passes its own
     /// dismiss instead.
+    ///
+    /// Not every push wants one. A `.pushed` screen opened straight off a tab
+    /// is finished by popping, which is what `dismiss()` already does there.
     var onFinish: (() -> Void)? = nil
 
     @Environment(WalletStore.self) private var store
@@ -120,7 +145,12 @@ struct CardBenefitsView: View {
                 }
             } else {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    // Only where nothing else gets you out. Pushed, this
+                    // screen already has the system back chevron, and Cancel
+                    // next to it is two controls for one job.
+                    if presentation == .sheet {
+                        Button("Cancel") { dismiss() }
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { save() }

@@ -18,6 +18,11 @@ struct SettingsView: View {
 
     @AppStorage("preferredName") private var preferredName = ""
     @State private var isConfirmingErase = false
+    /// A heavy impact, not `.success`. Wiping everything is the thing the user
+    /// asked for, twice, so it is not a warning either — but a bright little
+    /// success chime for deleting your own data reads as the app being pleased
+    /// about it. A weighty, neutral thud is what that moment sounds like.
+    @State private var erased = Pulse()
     @State private var isShowingArtworkDetail = false
 
     var body: some View {
@@ -31,12 +36,14 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .sensoryFeedback(.impact(weight: .heavy), trigger: erased)
         .sheet(isPresented: $isShowingArtworkDetail) {
             CardArtworkExplainerView()
         }
         .alert("Erase everything?", isPresented: $isConfirmingErase) {
             Button("Cancel", role: .cancel) {}
             Button("Erase", role: .destructive) {
+                erased.fire()
                 store.eraseEverything()
                 impact.erase()
             }

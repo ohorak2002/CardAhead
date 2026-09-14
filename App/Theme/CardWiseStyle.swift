@@ -62,6 +62,39 @@ extension ShapeStyle where Self == LinearGradient {
     }
 }
 
+// MARK: - Haptics
+
+/// Something that happened, counted, so a haptic can fire on it.
+///
+/// `sensoryFeedback(_:trigger:)` watches a value for a *change*, which makes
+/// the obvious thing wrong: triggering on the card that was removed means
+/// removing the same card twice in a row fires once, and triggering on
+/// `cards.count` means an add and a remove feel identical. A counter says
+/// "this happened again" and nothing else, which is exactly what a haptic
+/// needs to know.
+///
+/// **Not gated on Reduce Motion.** A haptic is not motion, and iOS already has
+/// its own switch for this — Settings › Sounds & Haptics › System Haptics —
+/// which `sensoryFeedback` honours on its own. Second-guessing it in the app
+/// would take the choice away from somebody who has already made it.
+///
+/// Usage:
+/// ```swift
+/// @State private var removed = Pulse()
+/// // ...
+/// Button("Remove") { removed.fire(); store.remove(card) }
+///     .sensoryFeedback(.impact(weight: .medium), trigger: removed)
+/// ```
+struct Pulse: Equatable {
+    private var count = 0
+
+    /// Wrapping addition, because a counter that traps on overflow after two
+    /// billion taps is a crash nobody would ever diagnose.
+    mutating func fire() {
+        count &+= 1
+    }
+}
+
 // MARK: - Category colour
 
 /// A colour and a symbol per benefit shelf.

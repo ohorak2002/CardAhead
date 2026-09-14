@@ -124,6 +124,13 @@ struct CardEditorView: View {
         return card
     }
 
+    /// A card landing in the wallet. `.success` because this is the one thing
+    /// in the app that completes something somebody set out to do — and it is
+    /// fired here, at the button, rather than in the wallet watching its own
+    /// count, because an undo also makes that count go up and the two must not
+    /// feel the same.
+    @State private var saved = Pulse()
+
     var body: some View {
         NavigationStack {
             Form {
@@ -148,6 +155,7 @@ struct CardEditorView: View {
             }
             .task(id: pickedPhoto) { await loadPickedPhoto(pickedPhoto) }
             .onAppear(perform: loadExistingOnce)
+            .sensoryFeedback(.success, trigger: saved)
             .navigationTitle(isEditing ? "Edit card" : "Add it by hand")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -352,6 +360,7 @@ struct CardEditorView: View {
     }
 
     private func save() {
+        saved.fire()
         if let existing = mode.existingCard {
             var card = apply(to: existing)
             switch photoChange {

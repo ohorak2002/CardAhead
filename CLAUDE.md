@@ -481,6 +481,40 @@ not go back there.
   a lie about what iOS has been asked to monitor. The seed builds its plan by
   running the real planner over its own places, so it can only ever contain
   states the app can really reach.
+- **Haptics fire on a `Pulse`, and only at commit points.** `Pulse` (in
+  `CardWiseStyle.swift`) is a counter, because `sensoryFeedback(_:trigger:)`
+  watches a value for a *change* — triggering on the card that was removed
+  means removing the same card twice fires once, and triggering on
+  `cards.count` means an add and an undo feel identical. The full set, and why
+  each is the pattern it is:
+
+  | Moment | Feedback | Why |
+  |---|---|---|
+  | Pin picked up (wallet) | `.impact(.light)` | A thing leaving the stack |
+  | Pin put down (wallet) | `.impact(.medium)` | It landed; heavier than the lift |
+  | Undo a removal | `.success` | A recovery, which is what success means |
+  | Select a map pin | `.selection` | A pick from several |
+  | Open a map cluster | `.impact(.light)` | The map shifts under your thumb |
+  | Prefer / unprefer a card | `.selection` | Small, reversible toggle |
+  | Remove a card | `.impact(.medium)` | Significant, but undoable for six seconds |
+  | Switch a quarter's bonus on | `.success` | The one action here that earns money |
+  | Save a card | `.success` | Completes what somebody set out to do |
+  | Erase everything | `.impact(.heavy)` | Asked for twice; a success chime for deleting your own data reads as the app being pleased about it |
+
+  **What deliberately has none:** dismissing anything, switching a quarter's
+  bonus *off* (that is somebody correcting a mistake, not earning), answering
+  the follow-up, and every ordinary navigation tap. A haptic on every action is
+  how an app starts feeling noisy, and the ones above only read as meaningful
+  because most taps are silent.
+
+  **Not gated on Reduce Motion**, because a haptic is not motion and iOS has
+  its own switch for it (Sounds & Haptics › System Haptics) which
+  `sensoryFeedback` already honours. Second-guessing that takes the choice away
+  from somebody who has made it.
+
+  **"Card saved" fires at the button, not in the wallet watching its count**,
+  because `undoRemove()` also makes that count go up and the two must not feel
+  the same.
 - **`python scripts/brace-scan.py <files>` before pushing.** CI is the
   compiler, and a missing brace otherwise costs a full round trip to find. It
   understands comments, multiline strings, escapes and interpolation. OK does
@@ -502,11 +536,20 @@ not go back there.
 
 Also not built, flagged repeatedly, not yet done:
 
-- **Velocity/momentum on the drag-to-reorder gesture** —
-  `value.translation` should become `value.predictedEndTranslation`, a
-  near-one-line fix. This was the #1 finding in the audit.
-- Haptics (`sensoryFeedback`) at commit points — audit finding, not started.
 - Editing a cap's *limit* (only its spend is currently editable).
+
+Two long-standing audit findings are now **done**, and the reasoning is worth
+keeping:
+
+- **Velocity on drag-to-reorder.** `WalletStackView.dragGesture` ends on
+  `value.predictedEndTranslation`, not `value.translation`. Where the finger
+  stopped is not where the card should go — a flick has momentum, and a stack
+  that ignored it made a quick throw and a slow shove of the same length do the
+  same thing, which is the single clearest way an iOS gesture can feel dead.
+  Overshoot is free because `WalletStore.move(id:to:)` clamps, so the worst a
+  hard flick can do is send a card to the top or the bottom, which is what a
+  hard flick should do.
+- **Haptics at commit points.** Nine of them, and the restraint is the design.
 
 ## Bugs already found and fixed (don't reintroduce)
 

@@ -19,6 +19,14 @@ struct WalletStackView: View {
     @State private var expandedCardID: UUID?
     @State private var draggingCardID: UUID?
     @State private var dragTranslation: CGFloat = 0
+    /// A card leaving the stack under your thumb, and landing again. These are
+    /// the two moments in the app where something physical happens and your
+    /// own hand is covering it — which is the whole argument for a haptic.
+    @State private var lifted = Pulse()
+    @State private var dropped = Pulse()
+    /// Getting a card back. `.success` rather than an impact, because an undo
+    /// is a recovery and that is what the success pattern means.
+    @State private var undone = Pulse()
     @State private var isAddingCard = false
     /// Measured, because a card cannot be sized any other way here. See
     /// `row(for:at:)`.
@@ -110,6 +118,12 @@ struct WalletStackView: View {
                 else { return }
                 shouldOfferPrimer = true
             }
+            // Light on the way up, firmer on the way down — the weight of a
+            // thing being picked up and then set down. Same pairing the system
+            // uses for its own drag-to-reorder.
+            .sensoryFeedback(.impact(weight: .light), trigger: lifted)
+            .sensoryFeedback(.impact(weight: .medium), trigger: dropped)
+            .sensoryFeedback(.success, trigger: undone)
     }
 
     /// Yes opens the optional second question; everything else is the end of
@@ -306,6 +320,7 @@ struct WalletStackView: View {
                 .lineLimit(1)
             Spacer(minLength: 8)
             Button("Undo") {
+                undone.fire()
                 withAnimation(motion) { store.undoRemove() }
             }
             .font(.subheadline.weight(.semibold))
@@ -336,12 +351,31 @@ struct WalletStackView: View {
         DragGesture(minimumDistance: 14)
             .onChanged { value in
                 guard expandedCardID == nil else { return }
+                // The first frame of a drag is the card coming off the stack.
+                // Firing here rather than in `updating` keeps it to once per
+                // drag: `onChanged` runs on every frame, and this is the only
+                // frame where nothing was being dragged a moment ago.
+                if draggingCardID != card.id { lifted.fire() }
                 draggingCardID = card.id
                 dragTranslation = value.translation.height
             }
             .onEnded { value in
                 guard draggingCardID == card.id else { return }
-                let slots = Int((value.translation.height / peekHeight).rounded())
+                // **`predictedEndTranslation`, not `translation`.** Where the
+                // finger stopped is not where the card should go: a flick has
+                // momentum, and a stack that ignored it made a quick throw and
+                // a slow shove of the same length do the same thing, which is
+                // the single clearest way an iOS gesture can feel dead.
+                // `predictedEndTranslation` is where the drag would have come
+                // to rest given the speed it ended at, which is the same
+                // number the system's own scroll views settle on.
+                //
+                // Overshoot costs nothing here: `WalletStore.move(id:to:)`
+                // clamps to the ends of the wallet, so the worst a hard flick
+                // can do is send the card to the top or the bottom — which is
+                // exactly what a hard flick should do.
+                let slots = Int((value.predictedEndTranslation.height / peekHeight).rounded())
+                dropped.fire()
                 withAnimation(motion) {
                     store.move(id: card.id, to: index + slots)
                     draggingCardID = nil

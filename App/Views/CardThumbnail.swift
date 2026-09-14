@@ -30,11 +30,16 @@ struct CardThumbnail: View {
                 photo.resizable().scaledToFill()
             } else {
                 art.gradient
+                // The material, but deliberately **not** the palette's surface
+                // pattern. Those are spaced for a card 350pt wide; at 62pt the
+                // same spacing is four lines across the whole thumbnail, which
+                // reads as stripes rather than as texture. Same reasoning as
+                // the type sizes above.
                 LinearGradient(
                     stops: [
-                        .init(color: .white.opacity(0), location: 0.30),
+                        .init(color: .white.opacity(0), location: max(0, 0.47 - card.appearance.sheenSpread)),
                         .init(color: .white.opacity(card.appearance.sheenOpacity), location: 0.47),
-                        .init(color: .white.opacity(0), location: 0.64)
+                        .init(color: .white.opacity(0), location: min(1, 0.47 + card.appearance.sheenSpread))
                     ],
                     startPoint: .topLeading, endPoint: .bottomTrailing
                 )
@@ -48,8 +53,17 @@ struct CardThumbnail: View {
         .frame(width: width, height: (width / 1.586).rounded())
         .clipShape(RoundedRectangle(cornerRadius: width * 0.1, style: .continuous))
         .overlay {
+            // Top-lit, like the full-size face: bright along the top edge,
+            // dark along the bottom. A flat border all the way round is the
+            // thing that makes a small card look like a swatch.
             RoundedRectangle(cornerRadius: width * 0.1, style: .continuous)
-                .strokeBorder(.white.opacity(0.14), lineWidth: 0.5)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(0.34), .white.opacity(0.06), .black.opacity(0.18)],
+                        startPoint: .top, endPoint: .bottom
+                    ),
+                    lineWidth: 0.5
+                )
         }
         .shadow(color: .black.opacity(0.18), radius: 2, x: 0, y: 1)
         .accessibilityHidden(true)

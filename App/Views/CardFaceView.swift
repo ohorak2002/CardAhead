@@ -56,9 +56,37 @@ struct CardFaceView: View {
         .aspectRatio(1.586, contentMode: .fit)
         .background(plate)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 6)
+        .overlay {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(bevel, lineWidth: 0.8)
+        }
+        // Two shadows rather than one. A single soft shadow reads as a sticker;
+        // a tight contact shadow *plus* a wide ambient one reads as an object
+        // resting on something. This is most of the difference between a card
+        // that looks placed on the screen and one that looks drawn onto it.
+        .shadow(color: .black.opacity(0.20), radius: 2, x: 0, y: 1)
+        .shadow(color: .black.opacity(0.26), radius: 14, x: 0, y: 9)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
+    }
+
+    /// The lit edge.
+    ///
+    /// A real card has thickness, and the single cue that says so is a hairline
+    /// that is bright along the top edge and dark along the bottom — light
+    /// comes from above, so that is where it catches. Without this a card reads
+    /// as a rectangle of colour printed on the page rather than a thing lying
+    /// on it, and no amount of gradient inside the face fixes that.
+    private var bevel: LinearGradient {
+        LinearGradient(
+            colors: [
+                .white.opacity(0.42),
+                .white.opacity(0.10),
+                .white.opacity(0.03),
+                .black.opacity(0.22)
+            ],
+            startPoint: .top, endPoint: .bottom
+        )
     }
 
     // MARK: - The plate
@@ -76,6 +104,9 @@ struct CardFaceView: View {
                     .scaledToFill()
             } else {
                 art.gradient
+                // Under the finish treatment, never over a photograph: a
+                // texture drawn on top of somebody's own card is vandalism.
+                CardPatternLayer(pattern: art.pattern)
                 if finish.isBrushed { brushedLines }
             }
 
@@ -95,41 +126,63 @@ struct CardFaceView: View {
     }
 
     /// Where the light catches the card.
+    ///
+    /// The band's *width* is the material, not just its brightness — see
+    /// `CardFinish.sheenSpread`. A gloss throws a narrow hard highlight; a
+    /// matte surface scatters the same light into something wide and faint.
     private var sheen: some View {
-        LinearGradient(
+        let centre = 0.47
+        let spread = finish.sheenSpread
+        return LinearGradient(
             stops: [
-                .init(color: .white.opacity(0), location: 0.30),
-                .init(color: .white.opacity(finish.sheenOpacity), location: 0.47),
-                .init(color: .white.opacity(0), location: 0.64)
+                .init(color: .white.opacity(0), location: max(0, centre - spread)),
+                .init(color: .white.opacity(finish.sheenOpacity), location: centre),
+                .init(color: .white.opacity(0), location: min(1, centre + spread))
             ],
             startPoint: .topLeading, endPoint: .bottomTrailing
         )
     }
 
     /// Fine parallel lines — the reason a metal card reads as metal.
+    ///
+    /// Not a uniform comb. Real brushing leaves grooves of uneven depth, and a
+    /// perfectly even one-pixel grid reads as corduroy rather than metal — so
+    /// every third line is darker and wider than its neighbours.
     private var brushedLines: some View {
-        GeometryReader { proxy in
-            Canvas { context, size in
-                for x in stride(from: 0.0, to: size.width, by: 3) {
-                    let rect = CGRect(x: x, y: 0, width: 1, height: size.height)
-                    context.fill(Path(rect), with: .color(.white.opacity(0.07)))
-                }
+        Canvas { context, size in
+            var x: CGFloat = 0
+            var index = 0
+            while x < size.width {
+                let deep = index % 3 == 0
+                context.fill(
+                    Path(CGRect(x: x, y: 0, width: deep ? 1 : 0.6, height: size.height)),
+                    with: .color(.white.opacity(deep ? 0.075 : 0.032))
+                )
+                x += 2.5
+                index += 1
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(false)
     }
 
     // MARK: - Content
 
     private var brandingStrip: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
+            // Tracking, in both directions. A bold name set slightly tight
+            // reads as confident; the card's own name set slightly loose reads
+            // as engraved rather than printed. It is a small thing that does a
+            // lot of the work of looking deliberate rather than defaulted.
             Text(card.issuer)
                 .font(.system(size: 17, weight: .bold))
+                .tracking(-0.2)
                 .lineLimit(1)
             Spacer(minLength: 4)
             Text(card.name)
-                .font(.system(size: 12.5, weight: .semibold))
-                .opacity(0.92)
+                .font(.system(size: 12.5, weight: .medium))
+                .tracking(0.3)
+                .opacity(0.9)
                 .multilineTextAlignment(.trailing)
                 .lineLimit(2)
         }

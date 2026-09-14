@@ -112,8 +112,10 @@ struct MapSettingsView: View {
         MapDistance.allCases.firstIndex(of: distance) ?? 0
     }
 
+    /// A glyph on a list row, not a pin, so it follows the interface style.
+    /// See `BrandTint.solid` for the pin's different answer.
     private func tint(for category: MapCategory) -> Color {
-        category.benefitGroup?.tint ?? Color(red: 0.392, green: 0.455, blue: 0.545)
+        category.listTint
     }
 
     /// The map only needs While Using, so "Always" and "While Using" are both

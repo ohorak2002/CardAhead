@@ -133,6 +133,34 @@ jobs:
             xcrun simctl io "$DEVICE" screenshot "screenshots/dark-$TAB.png"
           done
 
+      # A third axis nobody has ever looked at: the text size somebody with
+      # poor eyesight actually uses.
+      #
+      # Dynamic Type is not a rare setting — it is one slider in Settings, and
+      # `accessibility-extra-extra-extra-large` is the far end of it, roughly
+      # three times the default. Every screen here is built out of fixed-height
+      # tiles and `lineLimit(1)`, which is exactly the combination that stops
+      # being a layout and starts being a row of ellipses. The Benefits grid is
+      # the one to look at first.
+      #
+      # Light mode only, and four screens rather than seven: this is looking
+      # for text that clips or overflows, which is not a thing that changes
+      # between appearances, and three more minutes of runner time to confirm
+      # that twice is not worth it.
+      - name: Photograph it at the largest text size
+        run: |
+          xcrun simctl ui "$DEVICE" appearance light
+          xcrun simctl ui "$DEVICE" content-size accessibility-extra-extra-extra-large
+          for TAB in home wallet benefits more; do
+            xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
+            xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
+            sleep 6
+            xcrun simctl io "$DEVICE" screenshot "screenshots/huge-$TAB.png"
+          done
+          # Put it back, so anything added after this step photographs the
+          # app at the size everybody else sees.
+          xcrun simctl ui "$DEVICE" content-size medium
+
       - uses: actions/upload-artifact@v4
         with:
           name: CardWise-screenshots

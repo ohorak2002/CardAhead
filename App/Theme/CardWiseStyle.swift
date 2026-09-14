@@ -104,22 +104,60 @@ struct Pulse: Equatable {
 /// the shelf becomes recognisable before the label is read. They come off the
 /// brand palette sheet rather than from SwiftUI's system colours, which shift
 /// between iOS releases.
+extension TintRGB {
+    /// The one place a CardKit palette number becomes something SwiftUI can
+    /// draw. Everything else asks `BrandTint` for a value and comes here.
+    var color: Color {
+        Color(red: red / 255, green: green / 255, blue: blue / 255)
+    }
+
+    var uiColor: UIColor {
+        UIColor(red: red / 255, green: green / 255, blue: blue / 255, alpha: 1)
+    }
+}
+
+extension BrandTint {
+    /// A colour that resolves itself against whatever mode the phone is in.
+    ///
+    /// `UIColor`'s trait-provider rather than two `Color`s picked in a view,
+    /// because the mode can change while a view is on screen — Control Centre,
+    /// sunset, Settings — and a value read once at body-evaluation time does
+    /// not notice. A dynamic `UIColor` is re-resolved by the render server.
+    var adaptive: Color {
+        // Hoisted out of the closure, and deliberately not named `light` and
+        // `dark`: `let light = light.uiColor` inside a member is a variable
+        // used within its own initial value, which is a compile error and a
+        // confusing one to read.
+        let byDay = light.uiColor
+        let byNight = dark.uiColor
+        return Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark ? byNight : byDay
+        })
+    }
+}
+
 extension BenefitGroup {
 
-    var tint: Color {
-        switch self {
-        case .dining: return Color(red: 0.118, green: 0.337, blue: 0.839)      // Secondary Blue
-        case .travel: return Color(red: 0.231, green: 0.510, blue: 0.965)      // Accent Blue
-        case .groceries: return Color(red: 0.063, green: 0.725, blue: 0.506)   // Success Green
-        case .gas: return Color(red: 0.545, green: 0.361, blue: 0.965)         // Purple
-        case .entertainment: return Color(red: 0.078, green: 0.722, blue: 0.651) // Teal
-        case .drugstores: return Color(red: 0.937, green: 0.267, blue: 0.267)  // Error Red
-        case .shopping: return Color(red: 0.976, green: 0.451, blue: 0.086)    // Orange
-        case .everydaySpending: return Color(red: 0.392, green: 0.455, blue: 0.545) // Slate
-        case .cardPerks: return Color(red: 0.043, green: 0.122, blue: 0.267)   // Navy
-        case .creditsAndBonuses: return Color(red: 0.961, green: 0.620, blue: 0.043) // Warning
-        }
-    }
+    /// The colour of this shelf's icon and its rate, against a background that
+    /// follows the interface style.
+    ///
+    /// **The values moved to CardKit and this is now a lookup.** They used to
+    /// be ten hex literals right here, one per shelf, each used unchanged in
+    /// both modes — which is how the Card perks shield came to be drawn in
+    /// Primary Navy on a near-black tile at a contrast ratio of 1.05:1, i.e.
+    /// invisible. Four shelves failed in one mode or the other. In CardKit
+    /// they are plain numbers, and `BrandTintTests` fails the build if any of
+    /// them stops clearing 3:1 against what it is actually drawn on.
+    var tint: Color { tintPalette.adaptive }
+
+    /// The colour of a **solid** fill with a white glyph on it — a map pin.
+    ///
+    /// Deliberately not `tint`. See `BrandTint.solid`: a wash needs the value
+    /// that contrasts with the page, a pin needs the value that a white symbol
+    /// survives on, and in dark mode those are opposite ends of the palette.
+    /// Feeding `tint` to a pin is what put white symbols on Success Green at
+    /// 2.54:1.
+    var pinTint: Color { tintPalette.solid.color }
 
     var symbolName: String {
         switch self {
@@ -141,6 +179,7 @@ extension SpendingCategory {
     /// Borrowed from the shelf it belongs to, so a category and its group are
     /// never two different colours for the same thing.
     var tint: Color { BenefitGroup.containing(self).tint }
+    var pinTint: Color { BenefitGroup.containing(self).pinTint }
     var symbolName: String { BenefitGroup.containing(self).symbolName }
 }
 

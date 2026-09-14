@@ -335,6 +335,30 @@ not go back there.
   The navy→blue gradient appears on exactly two surfaces (the Home header and
   the Impact hero); a gradient that turns up everywhere stops meaning
   anything.
+- **A shelf colour has two values, lives in CardKit, and is tested.**
+  `BenefitGroup.tintPalette` (`Packages/CardKit/Sources/CardKit/Theme/BrandTint.swift`)
+  is a `BrandTint` — a light value and a dark one, as plain numbers.
+  `BrandTintTests` fails the build if any of them stops clearing **3:1**
+  against what it is actually drawn on, in either mode. It is in CardKit and
+  not next to the SwiftUI precisely so it can be: a `Color` is opaque until a
+  view renders it, three doubles are not.
+  **Two roles, two accessors, and picking the wrong one is invisible until
+  somebody photographs it.** `.tint` is for a glyph on a 14% wash of itself —
+  it follows the interface style, because the background does. `.pinTint` is
+  for a **solid** fill with a white symbol on it (a map pin, an `isOn` filter
+  chip) — it is the darker value in *both* modes, because a pin is its own
+  background and what has to survive is the white glyph. `MapCategory` has one
+  of each: `.mapTint` for pins, `.listTint` for row icons.
+  This exists because the Card perks icon shipped as Primary Navy on a
+  near-black tile at **1.05:1** — present in the source, absent on the screen —
+  and three map pins were under 3:1 in both modes at the same time. The line of
+  code looked completely reasonable in every case.
+- **Nothing in the shelf palette may be Error Red or Primary Navy**, and two
+  tests enforce it. Error Red means errors and destructive actions; a shelf
+  saying "your best rate here is 3%" in it is good news in the app's one colour
+  for bad news. Primary Navy is the header gradient — the app's own frame,
+  and lightening it enough to survive dark mode lands it ΔE 4.7 from Dining's
+  blue, which is indistinguishable at icon size.
 - **Home must not invent an opportunity.** `WalletInsights.opportunities`
   surfaces only things with a real action and a real deadline: a rotating
   quarter nobody switched on, and an open signup bonus. "Your $200 travel
@@ -361,6 +385,17 @@ not go back there.
   `#if DEBUG` *and* a launch argument, and writes to its own directory so it
   can never touch a real `wallet.json`. The job is `continue-on-error` — a
   flaky simulator boot must never block a correct change.
+  **There is a third pass at the largest Dynamic Type size** (`huge-*.png`,
+  four screens, light only), because every screen here is fixed-height tiles
+  and `lineLimit(1)` — the exact combination that stops being a layout and
+  becomes a row of ellipses. Text clipping does not change between
+  appearances, so photographing it twice is not worth the runner time. The
+  step puts `content-size` back to `medium` when it finishes, so anything
+  added after it photographs the app at the size everybody else sees.
+  `DemoSeed` also **registers** (never sets) a `preferredName`, so Home's
+  greeting photographs as "Good morning, Oren" rather than the nameless
+  fallback — the Settings field that sets it has existed since that screen was
+  written; CI just never filled it in.
 - **The repository is public, and CI depends on it.** Public repositories get
   GitHub Actions free; private ones get 2,000 minutes a month with macOS
   billed at **ten times** Linux, which is about 200 real macOS minutes. A

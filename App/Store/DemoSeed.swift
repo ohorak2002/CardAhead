@@ -238,6 +238,20 @@ enum DemoSeed {
         ]
     }
 
+    /// A geofence plan over the seeded places, so the map's "Watching" view
+    /// and the bells on its pins can be photographed at all.
+    ///
+    /// **Only the places that could really be geofenced are in it**, which
+    /// means only the ones `MapPlace.asMerchant` will build a merchant for —
+    /// a place with no earning category never takes one of the twenty, and a
+    /// seed that pretended otherwise would photograph a state the app cannot
+    /// reach. Capped at `RegionPlanner.systemRegionLimit` for the same reason.
+    static func regionPlan(asOf date: Date = Date()) -> RegionPlan {
+        let planner = RegionPlanner()
+        let merchants = places.compactMap(\.asMerchant)
+        return planner.plan(around: center, merchants: merchants, cards: cards, asOf: date)
+    }
+
     /// Writes the seed files. Called once, before any store reads them.
     static func install() {
         guard isActive else { return }
@@ -262,6 +276,24 @@ enum DemoSeed {
         )
         if let data = try? encoder.encode(impact) {
             try? data.write(to: impactURL(), options: [.atomic])
+        }
+
+        // The geofence plan. Written through `RegionMonitor.StoredState` so
+        // this cannot drift from the shape the monitor actually reads — a
+        // hand-written JSON mirror of it would decode to nothing the first
+        // time somebody added a field, and would do so silently.
+        let regions = RegionMonitor.StoredState(
+            plan: regionPlan(),
+            tracker: ArrivalTracker(),
+            events: [],
+            // The planner's own answer, not a hand-rolled one: it strips
+            // `.base`, and a set that disagreed would make the monitor think
+            // the wallet had changed and redraw on the next fix.
+            categories: RegionPlanner().relevantCategories(in: cards),
+            throttle: nil
+        )
+        if let data = try? encoder.encode(regions) {
+            try? data.write(to: regionsURL(), options: [.atomic])
         }
     }
 }

@@ -161,16 +161,22 @@ public struct MapFilter: Codable, Hashable, Sendable {
 /// drawing pins.
 public enum NearbyPlaces {
 
+    /// `ignoringDistance` is for one caller: the list of shops that already
+    /// have a geofence. A geofence four miles out is still one of the twenty
+    /// iOS is watching, and dropping it because the map's radius happens to be
+    /// set to three would make the count on screen disagree with the thing it
+    /// is counting. Every other caller wants the radius applied.
     public static func results(
         from places: [MapPlace],
         near center: GeoCoordinate,
         cards: [Card],
         filter: MapFilter = .standard,
+        ignoringDistance: Bool = false,
         engine: RecommendationEngine = RecommendationEngine(),
         asOf date: Date = Date()
     ) -> [MapPlaceResult] {
 
-        let radius = filter.distance.meters
+        let radius = ignoringDistance ? Double.greatestFiniteMagnitude : filter.distance.meters
         var seen: Set<String> = []
 
         let measured: [MapPlaceResult] = places.compactMap { place in

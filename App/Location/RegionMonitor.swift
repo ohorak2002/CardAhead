@@ -443,7 +443,12 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
 
     /// The app is killed between an entry and its confirmation as a matter of
     /// routine, so none of this can live only in memory.
-    private struct StoredState: Codable {
+    /// Internal rather than private for exactly one reason: `DemoSeed` writes
+    /// one of these so CI can photograph a map that is actually watching
+    /// something. Nothing else outside this file may build one — a region
+    /// plan that did not come from `RegionPlanner` is a lie about what iOS has
+    /// been asked to monitor.
+    struct StoredState: Codable {
         var plan: RegionPlan?
         var tracker: ArrivalTracker
         var events: [RegionEvent]

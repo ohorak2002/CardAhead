@@ -242,4 +242,100 @@ final class MapClusterTests: XCTestCase {
         let place = MapPlace(merchant)
         XCTAssertTrue(plan.watchedPlaceIDs.contains(place.id))
     }
+
+    // MARK: - The watched view
+
+    func testThePlanDrawsItsOwnPinsRatherThanFilteringTheMapsResults() {
+        let plan = RegionPlan(
+            anchor: Fixture.anchor,
+            regions: [
+                Fixture.region(Fixture.merchant("p1", category: .dining, metersNorth: 100, name: "Corner Bistro")),
+                Fixture.region(Fixture.merchant("p2", category: .gas, metersNorth: 300, name: "Fuel Stop"))
+            ],
+            madeAt: Date()
+        )
+        let pins = plan.watchedPlaces
+        XCTAssertEqual(pins.map(\.id), ["p1", "p2"])
+        XCTAssertEqual(pins.map(\.name), ["Corner Bistro", "Fuel Stop"])
+        XCTAssertEqual(pins.first?.spendingCategory, .dining, "the plan already knows what it earns")
+    }
+
+    /// **The whole reason this view reads the plan instead of the map's own
+    /// results.** The two are different queries and a shop can be in one and
+    /// not the other, so filtering would quietly report fewer geofences than
+    /// iOS is actually holding — the exact wrong answer for somebody trying to
+    /// find out why no reminder has arrived.
+    func testAWatchedShopTheMapNeverFoundIsStillReported() {
+        let watched = Fixture.merchant("only-in-the-plan", category: .dining, metersNorth: 200)
+        let plan = RegionPlan(anchor: Fixture.anchor, regions: [Fixture.region(watched)], madeAt: Date())
+
+        // What the map itself last fetched: a different shop entirely.
+        let mapsOwnResults = [
+            MapPlace(
+                id: "only-on-the-map",
+                name: "Somewhere Else",
+                coordinate: Fixture.offset(Fixture.anchor, metersNorth: 150),
+                placeTypes: ["restaurant"]
+            )
+        ]
+        let filtered = mapsOwnResults.filter { plan.watchedPlaceIDs.contains($0.id) }
+        XCTAssertTrue(filtered.isEmpty, "filtering the map's results finds nothing")
+
+        let fromThePlan = NearbyPlaces.results(
+            from: plan.watchedPlaces,
+            near: Fixture.anchor,
+            cards: [CardCatalog.amexGold],
+            ignoringDistance: true
+        )
+        XCTAssertEqual(fromThePlan.count, 1, "reading the plan finds the geofence that is really there")
+    }
+
+    /// A geofence outside the map's current radius is still one of the twenty.
+    /// Dropping it would make the count on screen disagree with the thing it
+    /// is counting.
+    func testTheWatchedViewIgnoresTheMapsRadius() {
+        let faraway = Fixture.merchant("far", category: .dining, metersNorth: 20_000)
+        let plan = RegionPlan(anchor: Fixture.anchor, regions: [Fixture.region(faraway)], madeAt: Date())
+        let filter = MapFilter(distance: .oneMile)
+
+        XCTAssertTrue(
+            NearbyPlaces.results(
+                from: plan.watchedPlaces,
+                near: Fixture.anchor,
+                cards: [CardCatalog.amexGold],
+                filter: filter
+            ).isEmpty,
+            "with the radius applied it vanishes"
+        )
+        XCTAssertEqual(
+            NearbyPlaces.results(
+                from: plan.watchedPlaces,
+                near: Fixture.anchor,
+                cards: [CardCatalog.amexGold],
+                filter: filter,
+                ignoringDistance: true
+            ).count,
+            1
+        )
+    }
+
+    func testTheRadiusStillAppliesToEverybodyElse() {
+        let places = [
+            MapPlace(
+                id: "far",
+                name: "Far",
+                coordinate: Fixture.offset(Fixture.anchor, metersNorth: 20_000),
+                placeTypes: ["restaurant"]
+            )
+        ]
+        XCTAssertTrue(
+            NearbyPlaces.results(
+                from: places,
+                near: Fixture.anchor,
+                cards: [CardCatalog.amexGold],
+                filter: MapFilter(distance: .oneMile)
+            ).isEmpty,
+            "ignoringDistance must default to off"
+        )
+    }
 }

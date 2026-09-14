@@ -47,6 +47,12 @@ struct NearbyMapView: View {
     /// shops that overlap when you can see a mile do not overlap when you can
     /// see a street, so the clustering has to loosen as you zoom out.
     @State private var cameraSpan: MKCoordinateSpan?
+    /// Bumped every time a cluster is opened, purely to give the haptic
+    /// something to fire on. `sensoryFeedback` watches a value for a change;
+    /// zooming twice into the same cluster has to feel the same as zooming
+    /// into two different ones, which a counter gives and the cluster's own id
+    /// would not.
+    @State private var clusterOpenings = 0
 
     var body: some View {
         @Bindable var places = places
@@ -66,6 +72,12 @@ struct NearbyMapView: View {
             PlaceDetailView(place: place)
         }
         .onAppear {
+            // CI photographs one screen per launch because `simctl` cannot
+            // tap, so the watched view has to be reachable from a launch
+            // argument. Same arrangement as `MoreView.startOnImpact`.
+            if DemoSeed.requestedTab == "watching", !places.isShowingWatchedOnly {
+                places.showWatchedOnly()
+            }
             places.start()
             // A seeded run, and any return to this tab, already has a centre.
             // `onChange` only fires on a *change*, so the first look at an
@@ -82,6 +94,17 @@ struct NearbyMapView: View {
             guard pannedAway == nil else { return }
             focusCamera()
         }
+        // **The two moments on this screen that are a gesture rather than a
+        // tap on a button.** Selecting a pin is a selection, so it gets the
+        // selection tick; opening a cluster moves the whole map under your
+        // thumb, so it gets a light impact — the thing you feel when
+        // something physical shifts. Deselecting gets nothing: closing a card
+        // is not an event, and a haptic on every dismissal is how an app
+        // starts feeling noisy.
+        .sensoryFeedback(trigger: selectedID) { _, new in
+            new == nil ? nil : .selection
+        }
+        .sensoryFeedback(.impact(weight: .light), trigger: clusterOpenings)
     }
 
     // MARK: - The navy top
@@ -132,45 +155,80 @@ struct NearbyMapView: View {
                 HStack(spacing: Metric.tight) {
                     FilterChip(
                         title: "All",
-                        isOn: places.filter.isShowingEverything,
+                        isOn: !places.isShowingWatchedOnly && places.filter.isShowingEverything,
                         tint: .cardWiseBlue
                     ) {
+                        places.showEverywhere()
                         places.filter.showEverything()
+                    }
+                    // **Always shown, even when nothing is watched**, and that
+                    // is the point rather than an oversight. "CardWise is not
+                    // watching anything yet, and here is why" is precisely the
+                    // answer somebody comes to this chip for when no reminder
+                    // has arrived. Hiding the chip would hide the diagnosis
+                    // along with the diagnostic.
+                    FilterChip(
+                        title: places.watchedCount > 0 ? "Watching \(places.watchedCount)" : "Watching",
+                        symbolName: "bell.fill",
+                        isOn: places.isShowingWatchedOnly,
+                        tint: .cardWiseBlue
+                    ) {
+                        if places.isShowingWatchedOnly {
+                            places.showEverywhere()
+                        } else {
+                            places.showWatchedOnly()
+                        }
                     }
                     ForEach(MapCategory.quickFilters, id: \.self) { category in
                         FilterChip(
                             title: category.shortName,
-                            isOn: !places.filter.isShowingEverything && places.filter.categories == [category],
+                            isOn: !places.isShowingWatchedOnly
+                                && !places.filter.isShowingEverything
+                                && places.filter.categories == [category],
                             tint: category.mapTint
                         ) {
                             // A chip is a "show me only this" switch, and
                             // tapping the one already on goes back to
                             // everything. Ticking several at once is what the
                             // filter sheet is for.
-                            if places.filter.categories == [category] {
+                            //
+                            // It also leaves the watched view, because the
+                            // chips read as one row of alternatives and a
+                            // category chip that narrowed the *watched* set
+                            // while staying dim would be lying about which of
+                            // them is on.
+                            let wasWatching = places.isShowingWatchedOnly
+                            places.showEverywhere()
+                            if !wasWatching, places.filter.categories == [category] {
                                 places.filter.showEverything()
                             } else {
                                 places.filter.showOnly(category)
                             }
                         }
                     }
-                    Menu {
-                        Picker("Distance", selection: $places.filter.distance) {
-                            ForEach(MapDistance.allCases, id: \.self) { distance in
-                                Text(distance.displayName).tag(distance)
+                    // Hidden in the watched view rather than shown having no
+                    // effect: the geofence plan has whatever reach it has, and
+                    // a control that silently does nothing is worse than one
+                    // that is not there.
+                    if !places.isShowingWatchedOnly {
+                        Menu {
+                            Picker("Distance", selection: $places.filter.distance) {
+                                ForEach(MapDistance.allCases, id: \.self) { distance in
+                                    Text(distance.displayName).tag(distance)
+                                }
                             }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(places.filter.distance.shortName)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption2.weight(.semibold))
+                            }
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Color.primary)
+                            .padding(.horizontal, Metric.snug)
+                            .padding(.vertical, 7)
+                            .background(Color(.secondarySystemGroupedBackground), in: Capsule())
                         }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(places.filter.distance.shortName)
-                            Image(systemName: "chevron.down")
-                                .font(.caption2.weight(.semibold))
-                        }
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(Color.primary)
-                        .padding(.horizontal, Metric.snug)
-                        .padding(.vertical, 7)
-                        .background(Color(.secondarySystemGroupedBackground), in: Capsule())
                     }
                 }
                 .padding(.horizontal, Metric.margin)
@@ -334,6 +392,7 @@ struct NearbyMapView: View {
             return
         }
         selectedID = nil
+        clusterOpenings += 1
         // Enough to pull the members apart, floored so a pair of shops in the
         // same building does not zoom to the doorstep.
         let minimum = 250 / 111_194.93
@@ -503,6 +562,19 @@ struct NearbyMapView: View {
                 title: "CardWise cannot see where you are",
                 detail: "The map needs location access to know what is around you. You can turn it on under More › Settings."
             )
+        } else if places.isShowingWatchedOnly {
+            // The most useful empty state in the app: somebody who has had no
+            // reminders and wants to know whether that is restraint or a
+            // broken permission. Every reason listed is one this app can
+            // actually be in, and each names the screen that fixes it.
+            message(
+                symbolName: "bell.slash",
+                title: "Not watching anything yet",
+                detail: "Geofences are registered once there is a card with a bonus category in your wallet, Always location is granted, and CardWise has had a location fix. More › Settings › Reminder activity says which of those is missing."
+            ) {
+                Button("Show everywhere") { places.showEverywhere() }
+                    .buttonStyle(.borderedProminent)
+            }
         } else if places.activeQuery != nil {
             message(
                 symbolName: "magnifyingglass",
@@ -652,21 +724,31 @@ private struct MapPin: View {
 /// A filter chip: on is filled, off is a plain capsule.
 private struct FilterChip: View {
     let title: String
+    /// Only the Watching chip has one. A row of chips that all carry a symbol
+    /// reads as a toolbar; one that carries a symbol among plain ones reads as
+    /// the odd one out, which is exactly what it is.
+    var symbolName: String?
     let isOn: Bool
     var tint: Color = .cardWiseBlue
     var action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text(title)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(isOn ? Color.white : Color.primary)
-                .padding(.horizontal, Metric.snug)
-                .padding(.vertical, 7)
-                .background(
-                    isOn ? AnyShapeStyle(tint) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
-                    in: Capsule()
-                )
+            HStack(spacing: 5) {
+                if let symbolName {
+                    Image(systemName: symbolName)
+                        .font(.caption2.weight(.semibold))
+                }
+                Text(title)
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(isOn ? Color.white : Color.primary)
+            .padding(.horizontal, Metric.snug)
+            .padding(.vertical, 7)
+            .background(
+                isOn ? AnyShapeStyle(tint) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
+                in: Capsule()
+            )
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isOn ? [.isSelected] : [])

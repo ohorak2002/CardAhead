@@ -174,4 +174,24 @@ public extension RegionPlan {
     var watchedPlaceIDs: Set<String> {
         Set(regions.map(\.merchant.id))
     }
+
+    /// The watched shops as map pins, straight out of the plan.
+    ///
+    /// **Not "the map's results, filtered to the watched ones".** Those two
+    /// are different sets and the difference is the whole point: the geofence
+    /// plan is drawn from `MerchantSource`, filtered to the wallet's earning
+    /// categories, from wherever the phone was when it was last redrawn. The
+    /// map's results come from a different query with a different radius from
+    /// wherever the map is looking now. A shop can easily be in one and not
+    /// the other.
+    ///
+    /// So a "show me what you are watching" view that filtered the map's own
+    /// results would quietly show *fewer* than the twenty iOS is actually
+    /// watching — which is exactly the wrong answer for somebody using it to
+    /// find out why no reminder has arrived. Reading the plan gives the real
+    /// twenty, costs no lookup at all, and cannot disagree with the thing it
+    /// is reporting on.
+    var watchedPlaces: [MapPlace] {
+        regions.map { MapPlace($0.merchant) }
+    }
 }

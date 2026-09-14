@@ -35,10 +35,13 @@ struct RootTabView: View {
         ///
         /// "impact" is accepted and lands on More, because Impact is a row
         /// inside More rather than a tab of its own — and pushing it from
-        /// there is exactly the route a person takes to it.
+        /// there is exactly the route a person takes to it. "watching" lands
+        /// on Map for the same reason: it is a chip on that screen, and
+        /// `simctl` cannot tap a chip.
         static var launched: Tab {
             guard let raw = DemoSeed.requestedTab else { return .home }
             if raw == "impact" { return .more }
+            if raw == "watching" { return .map }
             return Tab(rawValue: raw) ?? .home
         }
     }

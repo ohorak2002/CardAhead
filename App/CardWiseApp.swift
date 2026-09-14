@@ -49,6 +49,10 @@ struct CardWiseApp: App {
         reminders.onOpened = { [weak impact] id in impact?.recordOpened(id) }
         monitor.walletCards = { store.cards }
         nearby.walletCards = { store.cards }
+        // The map's "Watching" view reads the geofence plan directly rather
+        // than filtering its own results — those are two different sets, and
+        // filtering would under-report. See `RegionPlan.watchedPlaces`.
+        nearby.watchedPlaces = { [weak monitor] in monitor?.plan?.watchedPlaces ?? [] }
         monitor.impact = impact
         store.onChange = { [weak impact] change in
             switch change {

@@ -65,6 +65,16 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
     /// make the list claim to be something it is not.
     private(set) var activeQuery: String?
 
+    /// Showing only the shops that already have a geofence.
+    ///
+    /// **Deliberately not part of `MapFilter`, and deliberately not
+    /// persisted.** This is a "show me what you are up to" view, not a taste:
+    /// somebody who leaves it on and opens the app three days later, after the
+    /// plan has been redrawn somewhere else, would be greeted by an empty map
+    /// and no clue why. It resets with the process, which is the right
+    /// lifetime for a diagnostic.
+    var isShowingWatchedOnly = false
+
     // MARK: - Collaborators
 
     @ObservationIgnored private let source: PlaceSearchSource
@@ -76,6 +86,15 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
     /// uses, so a card added elsewhere is picked up at the moment the list is
     /// next built rather than needing to be pushed in.
     @ObservationIgnored var walletCards: () -> [Card] = { [] }
+
+    /// The shops that already have a geofence, read the same way.
+    ///
+    /// Wired in `CardWiseApp` to `RegionMonitor.plan?.watchedPlaces`. Reading
+    /// it rather than holding it keeps the two objects uncoupled — and
+    /// because the read happens inside `results`, which is evaluated while a
+    /// view body is running, `@Observable` still tracks the monitor's plan
+    /// through it and the map redraws when the geofences change.
+    @ObservationIgnored var watchedPlaces: () -> [MapPlace] = { [] }
 
     var sourceDescription: String { source.sourceDescription }
     /// True when the app has nowhere at all to get places from, which is a
@@ -238,23 +257,53 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
     /// Filtered, measured against the wallet and put in order — all of it in
     /// `CardKit`, so the part that could be wrong is tested on Linux and what
     /// is left here is a view drawing pins.
+    ///
+    /// The watched view reads a **different source**, not a filter over this
+    /// one: see `RegionPlan.watchedPlaces` for why those two sets differ and
+    /// why filtering would under-report. It also ignores the radius, because a
+    /// geofence four miles out is still one of the twenty being watched.
     var results: [MapPlaceResult] {
         guard let center else { return [] }
         return NearbyPlaces.results(
-            from: places,
+            from: isShowingWatchedOnly ? watchedPlaces() : places,
             near: center,
             cards: walletCards(),
-            filter: filter
+            filter: filter,
+            ignoringDistance: isShowingWatchedOnly
         )
     }
 
+    /// How many shops have a geofence right now, whatever the map is showing.
+    /// The chip says this out loud so tapping it is never a surprise.
+    var watchedCount: Int { watchedPlaces().count }
+
     var opportunityCount: Int { NearbyPlaces.opportunityCount(in: results) }
+
+    func showEverywhere() {
+        isShowingWatchedOnly = false
+    }
+
+    func showWatchedOnly() {
+        isShowingWatchedOnly = true
+        // Every watched shop, not "the watched restaurants". Somebody opening
+        // this is asking what the app is up to, and an answer narrowed by a
+        // chip they set ten minutes ago for another reason would under-report
+        // — which is the exact failure this view exists to avoid.
+        filter.showEverything()
+        // Nothing to fetch: the plan is already on disk. This is the one view
+        // in the whole feature that costs no lookup at all.
+        activeQuery = nil
+        searchText = ""
+    }
 
     /// What the header over the list says. Named after the single chip when
     /// exactly one is on, because "Restaurants (24)" tells you more than
     /// "24 places" does.
     var resultsTitle: String {
         let count = results.count
+        if isShowingWatchedOnly {
+            return count == 1 ? "Watching 1 place" : "Watching \(count) places"
+        }
         if filter.categories.count == 1, let only = filter.categories.first {
             return "\(only.displayName) (\(count))"
         }

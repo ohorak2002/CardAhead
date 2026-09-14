@@ -133,7 +133,9 @@ thing goes inside More, the way Impact did.
    distance, a MapKit map with a pin per place, and a list underneath saying
    which card wins at each. Pins that would overlap are drawn as one carrying
    a count (`NearbyPlaces.pinGroups`), and tapping it zooms until they come
-   apart. A bell on a pin or a row means that shop already has a geofence.
+   apart. A bell on a pin or a row means that shop already has a geofence, and
+   the **Watching** chip shows only those — read out of the region plan
+   itself, not filtered from the map's results.
    `NearbyPlacesStore` owns the state; everything that could be *wrong* about
    it is in CardKit (`NearbyPlaces.results`, `pinGroups`) and tested on Linux.
    `MapFiltersView` is the sheet, `MapSettingsView` the standing preferences
@@ -350,7 +352,10 @@ not go back there.
 - **CI photographs the app; that is the only way anybody sees it.** The
   `screenshots` job boots a simulator, installs a debug build, and relaunches
   it once per tab with `-CardWiseDemoSeed -CardWiseDemoTab <tab>`, light and
-  dark, uploading PNGs as an artifact. One relaunch per screen rather than
+  dark, uploading PNGs as an artifact. Two of the names are not tabs:
+  `impact` lands on More and pushes the impact screen, and `watching` lands on
+  Map with the Watching chip already on — both because `simctl` cannot tap,
+  and a screen two taps deep is otherwise unphotographable. One relaunch per screen rather than
   scripted taps: `simctl` cannot tap, and taps against a UI being redesigned
   are the flakiest part of any screenshot pipeline. `DemoSeed` is behind
   `#if DEBUG` *and* a launch argument, and writes to its own directory so it
@@ -439,6 +444,43 @@ not go back there.
   kind of place". Telling somebody what to do and leaving them to go and find
   it is the kind of empty state that reads as an apology. The widen button is
   absent at ten miles, because a button that does nothing is worse than none.
+- **The map's "Watching" chip reads `RegionPlan.watchedPlaces`, it does not
+  filter the map's own results.** Those are two different sets: the geofence
+  plan comes from `MerchantSource`, narrowed to the wallet's earning
+  categories, from wherever the phone was when it was last redrawn; the map's
+  results come from a different query with a different radius from wherever
+  the map is looking now. A shop can be in one and not the other. Filtering
+  would quietly show **fewer** than the twenty iOS is really watching — the
+  exact wrong answer for somebody using this to work out why no reminder has
+  arrived. Reading the plan gives the real twenty, costs no lookup at all, and
+  cannot disagree with the thing it is reporting on. It also passes
+  `ignoringDistance: true`, because a geofence four miles out is still one of
+  the twenty. There is a test for each half of this.
+- **`isShowingWatchedOnly` lives on the store, not in `MapFilter`, and is not
+  persisted.** It is a diagnostic, not a taste. Somebody who left it on and
+  opened the app three days later — after the plan was redrawn in another town
+  — would meet an empty map and no clue why. It resets with the process.
+  Turning it on also clears the category filter, so "watching" always means
+  all of them rather than a set narrowed by a chip set ten minutes ago.
+- **The Watching chip is shown even when nothing is watched, on purpose.**
+  "CardWise is not watching anything yet, and here is what is missing" is
+  precisely what somebody taps it for. Hiding the chip would hide the
+  diagnosis along with the diagnostic.
+- **Haptics: `.selection` on selecting a pin, `.impact(.light)` on opening a
+  cluster, and nothing on dismissal.** Those are the two moments on the map
+  that are a gesture rather than a tap on a button; closing a card is not an
+  event, and a haptic on every dismissal is how an app starts feeling noisy.
+  The cluster one fires on a counter (`clusterOpenings`) rather than the
+  cluster's id, so zooming twice into the same cluster feels the same as
+  zooming into two different ones. **This is the first haptic in the app** —
+  the audit finding is still open everywhere else.
+- **`RegionMonitor.StoredState` is internal rather than private so `DemoSeed`
+  can write one.** That is its only other caller, and it exists so CI can
+  photograph a map that is actually watching something. Do not build a
+  `RegionPlan` anywhere else: a plan that did not come from `RegionPlanner` is
+  a lie about what iOS has been asked to monitor. The seed builds its plan by
+  running the real planner over its own places, so it can only ever contain
+  states the app can really reach.
 - **`python scripts/brace-scan.py <files>` before pushing.** CI is the
   compiler, and a missing brace otherwise costs a full round trip to find. It
   understands comments, multiline strings, escapes and interpolation. OK does

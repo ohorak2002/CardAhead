@@ -117,13 +117,16 @@ jobs:
           shoot benefits 4
           shoot more 5
           shoot impact 6
+          # The map's "Watching" chip, which is the only view of the geofence
+          # pipeline anybody can see without walking into a shop.
+          shoot watching 7
 
       # A palette that works on white paper is not automatically the one that
       # works at night, and nobody has ever seen this app at night.
       - name: Photograph it in the dark
         run: |
           xcrun simctl ui "$DEVICE" appearance dark
-          for TAB in home map wallet benefits impact; do
+          for TAB in home map wallet benefits impact watching; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
             sleep 6

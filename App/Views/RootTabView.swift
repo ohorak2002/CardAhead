@@ -114,32 +114,46 @@ struct MoreView: View {
                 NavigationLink {
                     ImpactView()
                 } label: {
-                    Label {
-                        // **A title and a value on one line stop being one
-                        // line at the accessibility text sizes.** An `HStack`
-                        // with a `Spacer` between two `Text`s has no answer
-                        // when neither fits: both wrap, the `Spacer` collapses
-                        // to nothing, and at the largest size "Your impact"
-                        // and "$8.47 extra" were drawn on top of each other —
-                        // not truncated, genuinely overlapping and unreadable.
-                        // Stacking them is what there is room for.
-                        if typeSize.isAccessibilitySize {
-                            VStack(alignment: .leading, spacing: 2) {
+                    // **A title and a value on one line stop being one line at
+                    // the accessibility text sizes.** An `HStack` with a
+                    // `Spacer` between two `Text`s has no answer when neither
+                    // half fits: both wrap, the `Spacer` collapses to nothing,
+                    // and at the largest size "Your impact" and "$8.47 extra"
+                    // were drawn on top of each other — not truncated,
+                    // genuinely overlapping and unreadable.
+                    //
+                    // **The value goes under the whole `Label`, not inside
+                    // it.** Stacking the two `Text`s in the label's *title*
+                    // slot was the first attempt and it stopped the overlap
+                    // without fixing the layout: `Label` lays its title out
+                    // beside the icon, so every line after the first wrapped
+                    // back to the margin and the value arrived indented under
+                    // nothing. A `Label` is allowed to be one thing on one
+                    // line; the detail belongs beneath it.
+                    if typeSize.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label {
                                 Text("Your impact")
-                                Text(impactSummary)
-                                    .foregroundStyle(.secondary)
+                            } icon: {
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                                    .foregroundStyle(Color.cardWiseBlue)
                             }
-                        } else {
+                            Text(impactSummary)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    } else {
+                        Label {
                             HStack {
                                 Text("Your impact")
                                 Spacer(minLength: Metric.tight)
                                 Text(impactSummary)
                                     .foregroundStyle(.secondary)
                             }
+                        } icon: {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                                .foregroundStyle(Color.cardWiseBlue)
                         }
-                    } icon: {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .foregroundStyle(Color.cardWiseBlue)
                     }
                 }
                 NavigationLink {

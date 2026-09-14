@@ -95,6 +95,9 @@ struct RootTabView: View {
 struct MoreView: View {
 
     @Environment(ImpactStore.self) private var impact
+    /// Read so the impact row can stack its title and its value instead of
+    /// drawing them over each other. See the row itself.
+    @Environment(\.dynamicTypeSize) private var typeSize
     let auth: LocationAuthorization
     /// Pushes the impact screen straight away rather than waiting for a tap.
     /// Only ever true in a seeded CI run, so a screen two taps deep can still
@@ -111,16 +114,46 @@ struct MoreView: View {
                 NavigationLink {
                     ImpactView()
                 } label: {
-                    Label {
-                        HStack {
-                            Text("Your impact")
-                            Spacer(minLength: Metric.tight)
+                    // **A title and a value on one line stop being one line at
+                    // the accessibility text sizes.** An `HStack` with a
+                    // `Spacer` between two `Text`s has no answer when neither
+                    // half fits: both wrap, the `Spacer` collapses to nothing,
+                    // and at the largest size "Your impact" and "$8.47 extra"
+                    // were drawn on top of each other — not truncated,
+                    // genuinely overlapping and unreadable.
+                    //
+                    // **The value goes under the whole `Label`, not inside
+                    // it.** Stacking the two `Text`s in the label's *title*
+                    // slot was the first attempt and it stopped the overlap
+                    // without fixing the layout: `Label` lays its title out
+                    // beside the icon, so every line after the first wrapped
+                    // back to the margin and the value arrived indented under
+                    // nothing. A `Label` is allowed to be one thing on one
+                    // line; the detail belongs beneath it.
+                    if typeSize.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label {
+                                Text("Your impact")
+                            } icon: {
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                                    .foregroundStyle(Color.cardWiseBlue)
+                            }
                             Text(impactSummary)
                                 .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                    } icon: {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .foregroundStyle(Color.cardWiseBlue)
+                    } else {
+                        Label {
+                            HStack {
+                                Text("Your impact")
+                                Spacer(minLength: Metric.tight)
+                                Text(impactSummary)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                                .foregroundStyle(Color.cardWiseBlue)
+                        }
                     }
                 }
                 NavigationLink {

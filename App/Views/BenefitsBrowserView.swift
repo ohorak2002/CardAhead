@@ -15,6 +15,9 @@ import CardKit
 struct BenefitsBrowserView: View {
 
     @Environment(WalletStore.self) private var store
+    /// Read so the grid can drop to one column when the text stops fitting in
+    /// two. See `columns`.
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @State private var filter: Filter = .all
     @State private var openGroup: BenefitGroup?
@@ -50,10 +53,22 @@ struct BenefitsBrowserView: View {
         }
     }
 
-    private let columns = [
-        GridItem(.flexible(), spacing: Metric.snug),
-        GridItem(.flexible(), spacing: Metric.snug)
-    ]
+    /// Two tiles across, and **one** once the text stops fitting in two.
+    ///
+    /// At the accessibility text sizes a half-width tile is about 175 points
+    /// wide, which is not enough for the word "Groceries" — the first
+    /// screenshot at the largest size rendered it as "Groce…". A two-column
+    /// grid is a layout choice that assumes a text size; when the assumption
+    /// stops holding, the grid has to give, not the words.
+    private var columns: [GridItem] {
+        guard typeSize.isAccessibilitySize else {
+            return [
+                GridItem(.flexible(), spacing: Metric.snug),
+                GridItem(.flexible(), spacing: Metric.snug)
+            ]
+        }
+        return [GridItem(.flexible())]
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -195,36 +210,68 @@ private struct BenefitGroupTile: View {
     /// See `BenefitGroupSummary.bestRateText`.
     let wallet: [Card]
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
         VStack(alignment: .leading, spacing: Metric.tight) {
-            HStack(alignment: .top) {
+            // **The rate moves under the icon rather than beside it once the
+            // text is large.** Sharing a row with a 38-point square leaves
+            // "up to 4x" about 100 points, which at the accessibility sizes it
+            // spends breaking itself into "up / to / 4x" — three lines of the
+            // loudest thing on the tile, taller than the shelf it is
+            // describing. Given the full width it stays on one line.
+            if typeSize.isAccessibilitySize {
                 CategoryIcon(
                     symbolName: summary.group.symbolName,
                     tint: summary.group.tint,
                     size: 38
                 )
-                Spacer(minLength: 0)
-                if let rate = summary.bestRateText(in: wallet) {
-                    Text("up to \(rate)")
-                        .font(.system(.subheadline, design: .rounded).weight(.bold))
-                        .foregroundStyle(summary.group.tint)
-                        .monospacedDigit()
+                rateText
+            } else {
+                HStack(alignment: .top) {
+                    CategoryIcon(
+                        symbolName: summary.group.symbolName,
+                        tint: summary.group.tint,
+                        size: 38
+                    )
+                    Spacer(minLength: 0)
+                    rateText
                 }
             }
+            // **No `lineLimit`.** This was `lineLimit(1)` with a 0.8 scale
+            // floor, which is a quiet instruction to throw the word away when
+            // it stops fitting: at the largest text size "Groceries" rendered
+            // as "Groce…". A category name is the one string on this tile that
+            // cannot be guessed from the rest of it.
             Text(summary.group.displayName)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .fixedSize(horizontal: false, vertical: true)
             Text(countText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // **`maxHeight` as well as `maxWidth`.** A `LazyVGrid` gives each item
+        // its own height and centres the short one, so the moment two tiles in
+        // a row disagree — which happens as soon as one of them carries a rate
+        // and the other does not — they float at different heights against
+        // each other. Filling the row's height makes a row read as a row.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .padding(Metric.regular)
         .cardWisePanel(radius: Metric.tileRadius)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(summary.group.displayName), \(countText)")
+    }
+
+    @ViewBuilder
+    private var rateText: some View {
+        if let rate = summary.bestRateText(in: wallet) {
+            Text("up to \(rate)")
+                .font(.system(.subheadline, design: .rounded).weight(.bold))
+                .foregroundStyle(summary.group.tint)
+                .monospacedDigit()
+        }
     }
 
     private var countText: String {

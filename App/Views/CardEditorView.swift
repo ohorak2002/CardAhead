@@ -350,12 +350,16 @@ struct CardEditorView: View {
             .map { DraftBenefit(category: $0.category, rate: $0.rate) }
     }
 
+    /// Through the same processor as `CardPhotoView`, so a photo added from
+    /// the hand-typed form is straightened and cropped exactly like one added
+    /// from the card itself. Two entry points with two different results is
+    /// the kind of inconsistency nobody reports and everybody notices.
     private func loadPickedPhoto(_ item: PhotosPickerItem?) async {
         guard let item,
               let data = try? await item.loadTransferable(type: Data.self),
               let image = UIImage(data: data)
         else { return }
-        photo = image
+        photo = CardPhotoProcessor.process(image).image
         photoChange = .replaced
     }
 

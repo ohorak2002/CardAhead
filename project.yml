@@ -60,3 +60,11 @@ targets:
           Used to notice when you arrive somewhere and remind you which card to
           pay with, before you take out your phone. Your location stays on this
           device apart from an anonymous lookup of the shop you are at.
+        # Asked for only when somebody taps "Take a photo" on the card photo
+        # screen — never at launch. The string says what the photo is *not*
+        # used for as well, because a credit-card app asking for the camera is
+        # exactly the prompt a careful person declines.
+        NSCameraUsageDescription: >-
+          Used only to photograph your own card, so your wallet shows the card
+          you actually carry. The photo stays on this iPhone and is never
+          uploaded. CardWise does not read your card number.

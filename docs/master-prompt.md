@@ -98,6 +98,22 @@ Handle these edge cases explicitly:
 
 ## UI
 
+> **Two amendments, made after this prompt was written.** The rest of this
+> section still describes what was built; these two do not.
+>
+> - **"No tab bar clutter" no longer holds.** The app is five tabs — Home, Map,
+>   Wallet, Benefits, More — and the Wallet tab is still nothing but the stack.
+>   The reasoning, including why five and not four, is in `CLAUDE.md`.
+> - **"Accurate visual replicas of the real card art" cannot ship and was not
+>   built.** Issuer card faces and logos are trademarked; Apple Wallet shows the
+>   real Amex front because Amex sends Apple that image during provisioning,
+>   which is a business relationship and not something a third-party app can
+>   copy. The app instead resolves a face three ways — a licensed asset where a
+>   grant is recorded, the user's own photo of their card, or one CardWise draws
+>   at the real ISO/IEC 7810 proportion with a chip and a contactless mark and
+>   no logo. `CardArtLibrary` ships empty and a test keeps it that way. See
+>   `docs/card-art.md`.
+
 Reference screenshot attached: Apple Wallet's stacked card layout. Match that interaction model.
 
 - **Home screen:** vertically stacked cards, overlapping so only the top strip of each is visible, tap to expand a card to full height and reveal its category rules, caps, and current quarter status. Drag to reorder. This is the primary navigation — no tab bar clutter.

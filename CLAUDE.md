@@ -90,6 +90,11 @@ App/
                          photograph screens with something on them
   Theme/CardArt.swift                    the colours a *user* picks for a
                          card face; deliberately unrelated to the brand
+  CardPhoto/CardPhotoProcessor.swift     find the card's corners, flatten the
+                         perspective, crop to 1.586:1. Rectangles only — no
+                         OCR, ever
+  CardPhoto/CameraPicker.swift           UIImagePickerController, presented on
+                         a tap and nowhere near launch
   Assets.xcassets/                       AppIcon (single 1024px), AccentColor,
                          CardWiseSuccess/Warning/Error color sets
   Views/                         see below. AddCardView + CardBenefitsView
@@ -181,12 +186,56 @@ not go back there.
 - **New `Card` fields are optional with a sensible default accessor**
   (`finish: CardFinish?` + `var appearance: CardFinish { finish ?? .matte }`).
   A wallet JSON file written before a field existed must still decode.
+- **Never add issuer card artwork from an internet search, an issuer website
+  screenshot, a comparison site, a press kit, a social media post, or any other
+  source, unless this repository contains documented permission appropriate for
+  the intended use.** And **never use AI-generated artwork to reproduce an
+  unlicensed issuer's card design** — not a copy, not a recolour, not the same
+  composition with the logo taken off. Generative models are not a licensing
+  workaround. If the permission is not in writing and cannot be produced on
+  request, the app draws its own card, and that is a perfectly good outcome.
 - **Issuer card art is never shipped without a recorded licence.**
   `CardArtLibrary.assets` ships empty on purpose, with a test
   (`testLibraryShipsEmpty`) asserting it stays empty until someone deliberately
   adds an entry per `docs/card-art.md`. `CardArtSource.resolve(for:)` is the
   only way to pick a face: licensed asset → user's own photo → drawn card.
   Never bypass this to hardcode an issuer's logo/art.
+- **Four questions about a licence, kept apart on purpose.** Where the file came
+  from (`ArtLicence`), what state the grant is in (`ArtLicenceStatus`), what it
+  covers (`ArtUse`), and when (`effectiveDate`/`expiresOn`). Collapsing any two
+  is how an app ends up showing artwork it is not entitled to, and the two that
+  most want collapsing are the middle pair: **provenance is not permission**
+  (an asset the issuer definitely emailed us is still refused while its status
+  says pending), and **in-app rights are not marketing rights** (a grant to draw
+  a card in the wallet is not a grant to put it in an App Store screenshot).
+  `CardArtAsset.isUsable(for:asOf:)` is the single gate; nothing forms its own
+  opinion. There is deliberately no `.expired` status — that is arithmetic on
+  `expiresOn`, not a state somebody has to remember to update.
+- **Everything in the art path fails towards the drawn card**, and the tests
+  assert each row of that table (`docs/card-art.md`). A manifest missing its
+  status reads as `pendingReview`, missing its uses as none, malformed as
+  refused. If you change this system and have to choose, choose the direction
+  where a bug loses a licensed image rather than one where a bug shows an
+  unlicensed one.
+- **Artwork is keyed on `catalogProductID`, never on issuer + name.** Matching
+  on display strings meant a card typed in by hand as "Amex"/"Gold" picked up a
+  grant written for the catalog product, and an issuer renaming a card silently
+  lost its artwork — the exact thing product ids exist to prevent. A card with
+  no product id therefore never matches a grant, which is the safe answer.
+  `CardArtLibrary.match(productID:in:)` and `CardArtSource.resolve(for:in:)`
+  take an explicit list so these rules can be tested against a registry that is
+  not the (empty) shipping one. **They are internal, and must stay internal** —
+  a public overload would be a way around the registry.
+- **Nothing in the card-photo path reads the card.** The only Vision request in
+  the app is `VNDetectRectanglesRequest`, which finds quadrilaterals.
+  No OCR, no text recognition, and no code that extracts a card number,
+  security code or expiry date — the app has never needed them, and a card
+  photo is the most sensitive thing a user hands this app. Photos are never
+  uploaded, never logged, never sent to analytics or a crash reporter.
+  `CardPhotoProcessor` downscales *before* detecting, which is why none of it
+  needs a background thread: the stored photo is 640pt wide, so working at
+  twelve megapixels would be discarded effort. The camera is asked for on the
+  tap, never at launch.
 - **Card faces are drawn at the real ISO/IEC 7810 ID-1 ratio (1.586:1)**, with
   a material finish (matte/glossy/metal/frosted), a CSS/Shape-drawn EMV chip,
   and a contactless mark — all industry-standard components, not anyone's

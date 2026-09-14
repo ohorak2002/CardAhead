@@ -95,6 +95,9 @@ struct RootTabView: View {
 struct MoreView: View {
 
     @Environment(ImpactStore.self) private var impact
+    /// Read so the impact row can stack its title and its value instead of
+    /// drawing them over each other. See the row itself.
+    @Environment(\.dynamicTypeSize) private var typeSize
     let auth: LocationAuthorization
     /// Pushes the impact screen straight away rather than waiting for a tap.
     /// Only ever true in a seeded CI run, so a screen two taps deep can still
@@ -112,11 +115,27 @@ struct MoreView: View {
                     ImpactView()
                 } label: {
                     Label {
-                        HStack {
-                            Text("Your impact")
-                            Spacer(minLength: Metric.tight)
-                            Text(impactSummary)
-                                .foregroundStyle(.secondary)
+                        // **A title and a value on one line stop being one
+                        // line at the accessibility text sizes.** An `HStack`
+                        // with a `Spacer` between two `Text`s has no answer
+                        // when neither fits: both wrap, the `Spacer` collapses
+                        // to nothing, and at the largest size "Your impact"
+                        // and "$8.47 extra" were drawn on top of each other —
+                        // not truncated, genuinely overlapping and unreadable.
+                        // Stacking them is what there is room for.
+                        if typeSize.isAccessibilitySize {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Your impact")
+                                Text(impactSummary)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } else {
+                            HStack {
+                                Text("Your impact")
+                                Spacer(minLength: Metric.tight)
+                                Text(impactSummary)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     } icon: {
                         Image(systemName: "chart.line.uptrend.xyaxis")

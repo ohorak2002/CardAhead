@@ -48,7 +48,12 @@ Packages/CardKit/       Pure Swift. No UIKit, no Core Location, no SwiftUI.
     Geo/                GeoCoordinate, Merchant, RegionPlanner (which 20
                          places to watch), ArrivalTracker (the dwell rule),
                          ReminderThrottle (daily/per-merchant limits),
-                         MerchantSource
+                         MerchantSource. And the map's own four:
+                         MapCategory (what kind of shop), MapPlace (a pin,
+                         with an optional earning category), MapFilter +
+                         NearbyPlaces (filter, measure, rank, order),
+                         MapCluster (pins that would overlap, and the
+                         RegionPlan.watchedPlaceIDs join)
     Engine/ArrivalReminder.swift   the words on the lock screen, and the
                          ArrivalDecision that carries either those words or
                          the reason there were none
@@ -57,17 +62,24 @@ Packages/CardKit/       Pure Swift. No UIKit, no Core Location, no SwiftUI.
                          ImpactEvent, ImpactLedger, AnalyticsService (a
                          no-op — there is no backend and no network call)
     Places/             GooglePlacesSource, MerchantCache, and an HTTPRequest
-                         value type so no URLSession enters this package
+                         value type so no URLSession enters this package.
+                         PlaceSearchSource + GooglePlaceSearchSource +
+                         MapPlaceCache are the map's half: a different
+                         question, a different field mask, a different cache
   Tests/CardKitTests/    run on both macOS and Linux CI
 App/
   Models/ (none — CardKit owns them)
   Store/WalletStore.swift        wallet CRUD, photo storage, JSON persistence
   Store/ImpactStore.swift        the on-device ledger of what reminders led to
+  Store/NearbyPlacesStore.swift  the Map tab's state: centre, filter, results,
+                         and the one thing that went wrong. Foreground only
   Location/LocationAuthorization.swift   the permission ladder
   Location/RegionMonitor.swift           CLCircularRegion plumbing only
   Location/ArrivalNotifier.swift         seam between arriving and being told
   Notifications/ReminderCenter.swift     UNUserNotificationCenter, both ends
-  Places/PlacesProvider.swift            URLSession, and the API key or not
+  Places/PlacesProvider.swift            URLSession, and the API key or not.
+                         Vends two sources off one key: makeSource() for
+                         geofences, makePlaceSearchSource() for the map
   Theme/CardWiseColor.swift              the brand palette, chrome only —
                          never a card face; see CardArt below
   Theme/CardWiseStyle.swift              the design system: Metric (8pt grid),
@@ -94,7 +106,7 @@ platform dependencies, so the ranking logic is testable on Linux CI in
 seconds. Keep it that way — no SwiftUI, no UIKit, no Core Location imports in
 `Packages/CardKit`.
 
-## The app's four tabs
+## The app's five tabs
 
 `RootTabView` is the shell. **This replaced a single-screen app on purpose,
 and kept the reason that app was single-screen.** The wallet used to be
@@ -102,22 +114,42 @@ everything, deliberately holding only cards, because a screen with two
 subjects on it is a screen nobody reads. That principle is intact — the Wallet
 tab is *still* nothing but cards. What changed is that everything else had
 grown a tail of bars and sheets hanging off the bottom of it, and a tab bar is
-the Apple answer to that. Four tabs, not five: five reads as a menu.
+the Apple answer to that.
+
+**This said "four tabs, not five: five reads as a menu" until the Map tab was
+added.** That rule was right and the exception was taken deliberately, not
+forgotten: Map is the only screen that answers *where* rather than *which
+card, here, now*, it needs a map's whole vocabulary (a radius, a kind of
+shop, a search box), and every place it could have been hung off would have
+made it a tail on another screen — which is the exact thing the tab bar
+existed to stop. **Five is now the ceiling, not the new number.** The next
+thing goes inside More, the way Impact did.
 
 1. **Home** (`HomeView`) — a navy gradient header, what the app is doing right
    now, up to two things worth doing, and a horizontal peek at the wallet.
    Every line on it is derived from something real; see its doc comment for
    the list. It must never claim to have found opportunities it has not.
-2. **Wallet** (`WalletStackView`) — the stack, and a plus. Nothing else. It no
+2. **Map** (`NearbyMapView`) — the Nearby Map: search box, category chips, a
+   distance, a MapKit map with a pin per place, and a list underneath saying
+   which card wins at each. Pins that would overlap are drawn as one carrying
+   a count (`NearbyPlaces.pinGroups`), and tapping it zooms until they come
+   apart. A bell on a pin or a row means that shop already has a geofence, and
+   the **Watching** chip shows only those — read out of the region plan
+   itself, not filtered from the map's results.
+   `NearbyPlacesStore` owns the state; everything that could be *wrong* about
+   it is in CardKit (`NearbyPlaces.results`, `pinGroups`) and tested on Linux.
+   `MapFiltersView` is the sheet, `MapSettingsView` the standing preferences
+   under Settings, `PlaceDetailView` one place opened.
+3. **Wallet** (`WalletStackView`) — the stack, and a plus. Nothing else. It no
    longer owns a `NavigationStack` (the tab does) and no longer carries the
    settings gear or the "Why this card" bar.
-3. **Benefits** (`BenefitsBrowserView`) — the wallet's benefits by shelf, not
+4. **Benefits** (`BenefitsBrowserView`) — the wallet's benefits by shelf, not
    by card, over `WalletInsights.benefitGroups`. A two-column grid of category
    tiles, a filter, and a "Running out" list.
-4. **More** (`MoreView`) — Your impact (`ImpactView`), Why this card
+5. **More** (`MoreView`) — Your impact (`ImpactView`), Why this card
    (`WhyThisCardView`), Settings (`SettingsView`).
 
-Adding a card is a sheet, not a fifth tab, and it is three steps:
+Adding a card is a sheet, not a tab of its own, and it is three steps:
 `AddCardView` (bank, or search) -> the bank's products -> `CardBenefitsView`
 (confirm what it is good for), where "this is the wrong card" and "correct the
 details myself" also live. `CardEditorView` is reached only from "my card is
@@ -303,6 +335,30 @@ not go back there.
   The navy→blue gradient appears on exactly two surfaces (the Home header and
   the Impact hero); a gradient that turns up everywhere stops meaning
   anything.
+- **A shelf colour has two values, lives in CardKit, and is tested.**
+  `BenefitGroup.tintPalette` (`Packages/CardKit/Sources/CardKit/Theme/BrandTint.swift`)
+  is a `BrandTint` — a light value and a dark one, as plain numbers.
+  `BrandTintTests` fails the build if any of them stops clearing **3:1**
+  against what it is actually drawn on, in either mode. It is in CardKit and
+  not next to the SwiftUI precisely so it can be: a `Color` is opaque until a
+  view renders it, three doubles are not.
+  **Two roles, two accessors, and picking the wrong one is invisible until
+  somebody photographs it.** `.tint` is for a glyph on a 14% wash of itself —
+  it follows the interface style, because the background does. `.pinTint` is
+  for a **solid** fill with a white symbol on it (a map pin, an `isOn` filter
+  chip) — it is the darker value in *both* modes, because a pin is its own
+  background and what has to survive is the white glyph. `MapCategory` has one
+  of each: `.mapTint` for pins, `.listTint` for row icons.
+  This exists because the Card perks icon shipped as Primary Navy on a
+  near-black tile at **1.05:1** — present in the source, absent on the screen —
+  and three map pins were under 3:1 in both modes at the same time. The line of
+  code looked completely reasonable in every case.
+- **Nothing in the shelf palette may be Error Red or Primary Navy**, and two
+  tests enforce it. Error Red means errors and destructive actions; a shelf
+  saying "your best rate here is 3%" in it is good news in the app's one colour
+  for bad news. Primary Navy is the header gradient — the app's own frame,
+  and lightening it enough to survive dark mode lands it ΔE 4.7 from Dining's
+  blue, which is indistinguishable at icon size.
 - **Home must not invent an opportunity.** `WalletInsights.opportunities`
   surfaces only things with a real action and a real deadline: a rotating
   quarter nobody switched on, and an open signup bonus. "Your $200 travel
@@ -320,12 +376,26 @@ not go back there.
 - **CI photographs the app; that is the only way anybody sees it.** The
   `screenshots` job boots a simulator, installs a debug build, and relaunches
   it once per tab with `-CardWiseDemoSeed -CardWiseDemoTab <tab>`, light and
-  dark, uploading PNGs as an artifact. One relaunch per screen rather than
+  dark, uploading PNGs as an artifact. Two of the names are not tabs:
+  `impact` lands on More and pushes the impact screen, and `watching` lands on
+  Map with the Watching chip already on — both because `simctl` cannot tap,
+  and a screen two taps deep is otherwise unphotographable. One relaunch per screen rather than
   scripted taps: `simctl` cannot tap, and taps against a UI being redesigned
   are the flakiest part of any screenshot pipeline. `DemoSeed` is behind
   `#if DEBUG` *and* a launch argument, and writes to its own directory so it
   can never touch a real `wallet.json`. The job is `continue-on-error` — a
   flaky simulator boot must never block a correct change.
+  **There is a third pass at the largest Dynamic Type size** (`huge-*.png`,
+  four screens, light only), because every screen here is fixed-height tiles
+  and `lineLimit(1)` — the exact combination that stops being a layout and
+  becomes a row of ellipses. Text clipping does not change between
+  appearances, so photographing it twice is not worth the runner time. The
+  step puts `content-size` back to `medium` when it finishes, so anything
+  added after it photographs the app at the size everybody else sees.
+  `DemoSeed` also **registers** (never sets) a `preferredName`, so Home's
+  greeting photographs as "Good morning, Oren" rather than the nameless
+  fallback — the Settings field that sets it has existed since that screen was
+  written; CI just never filled it in.
 - **The repository is public, and CI depends on it.** Public repositories get
   GitHub Actions free; private ones get 2,000 minutes a month with macOS
   billed at **ten times** Linux, which is about 200 real macOS minutes. A
@@ -336,6 +406,150 @@ not go back there.
   nothing of the kind. Check github.com/settings/billing before debugging any
   code. CardKit's tests deliberately run on Linux only; a second macOS copy of
   a Foundation-only suite is slower and tells you nothing new.
+- **The map and the geofences ask two different questions, and must keep two
+  different requests.** `MerchantSource`/`GooglePlacesSource` answers "which
+  shops near here could earn something, so I can geofence one" — twenty at
+  most, filtered to the wallet's earning categories, four fields, cached to
+  disk for a week because it runs every few hundred metres whether anybody is
+  looking or not. `PlaceSearchSource`/`GooglePlaceSearchSource` answers "what
+  is around me" — including places nothing earns at, with a search box, a
+  rating and, on tap, hours and a phone number; cached in memory for an hour
+  because it only runs while somebody is holding the phone. **Do not fold
+  them into one protocol.** One of those two sets of trade-offs would then be
+  wrong, and the cost lands on the geofence path, which pays it unattended.
+- **`MapCategory` and `SpendingCategory` are two axes, not two names for one
+  thing.** `MapCategory` is what kind of shop it is (what a filter chip
+  says); `SpendingCategory` is what a card pays there (what the engine
+  ranks). A pharmacy is `MapCategory.other` and `SpendingCategory.drugstores`
+  at the same time, and both are correct. `MapPlace.spendingCategory` is
+  **optional** and nil is a real answer said out loud on screen — unlike
+  `Merchant`, which refuses to exist without one, because a geofence that can
+  never produce a recommendation wastes one of the twenty.
+- **"Opportunity" on the map means a bonus rate, and is counted in one
+  place.** `MapPlaceResult.isOpportunity` is true only when the winning
+  card's rate is not its base rate. Home's "3 opportunities nearby" reads that
+  count and no other, and shows an invitation rather than a number before the
+  map has looked anywhere — the same rule as the rest of that screen.
+- **The map does not re-query on a pan.** Each lookup is billed. Moving more
+  than half the current radius from where the results were measured raises a
+  "Search this area" button and waits. That half-the-reach rule is the same
+  one `RegionPlanner.needsRefresh` uses, on purpose.
+- **The list rows and the place detail draw a category tile, not a
+  photograph.** The mockup has a picture of each shop. Google sells place
+  photos, but each is a separately billed request with its own attribution
+  requirement, it would be twenty per screen, and a shop front tells somebody
+  deciding which card to pull out nothing. The tile is free, legible, and the
+  same colour the pin was.
+- **Adding a rating to the nearby-search field mask moved it from the
+  Essentials SKU to Pro.** That is a real, deliberate bill — see
+  `GooglePlaceSearchSource.searchFieldMask`. If it ever matters more than the
+  stars do, drop `places.rating`/`places.userRatingCount` and the "Highest
+  rated" sort with them. Hours, phone and website are *not* in that mask;
+  they cost a details call, made for one place, only when somebody opens it.
+- **An unrecognised `includedTypes` entry fails the whole Places request**
+  with `INVALID_ARGUMENT` and returns nothing — not just its own results. So
+  `MapCategory.placeTypes` is conservative, and `NearbyMapView` puts a lookup
+  failure on the screen in words rather than showing an empty map, so a bad
+  type is diagnosable on a device instead of reading as "nothing nearby".
+- **Every pin on the map is a `MapPinGroup`, even a group of one.** A high
+  street puts twenty shops inside a hundred metres; drawn one pin each they
+  heap up, the ones underneath cannot be tapped, and the heap does not even
+  say how many are in it. `NearbyPlaces.pinGroups` is greedy, single-pass and
+  deterministic — not the tightest clustering available, and deliberately so:
+  a k-means that reshuffled between two identical refreshes would make the map
+  twitch for no visible reason. Two details that are load-bearing: the group's
+  **id is its lowest member's, not its first**, because an identity that
+  changes under a re-sort makes SwiftUI rebuild every annotation; and the
+  catchment is widened by `1/cos(latitude)` in longitude so it is a circle on
+  the ground rather than an ellipse. The separation comes from the camera, not
+  a constant — zoom in and shops come apart on their own.
+- **The map's annotations are `Button`s, not `Map(selection:)`.** A tap on a
+  cluster must zoom and a tap on a single shop must select it. One selection
+  binding cannot say which happened, and working it back out of the tag was
+  two code paths that had to agree with each other.
+- **`RegionPlan.watchedPlaceIDs` is the join between the two halves of the
+  app**, and it works only because both keep the place provider's own id
+  (`Merchant.id` and `MapPlace.id`). It is what lets the map put a bell on the
+  shops that already have a geofence — reminders arriving out of nowhere are
+  the part of this app that feels like magic, and magic is what people
+  distrust. **If a second place provider is ever added this join breaks
+  silently, by matching nothing.** There is a test pinning it.
+- **An empty state that names a filter carries the way out as a button.**
+  The map's "nothing within 3 miles" offers "Widen to 5 miles" and "Show every
+  kind of place". Telling somebody what to do and leaving them to go and find
+  it is the kind of empty state that reads as an apology. The widen button is
+  absent at ten miles, because a button that does nothing is worse than none.
+- **The map's "Watching" chip reads `RegionPlan.watchedPlaces`, it does not
+  filter the map's own results.** Those are two different sets: the geofence
+  plan comes from `MerchantSource`, narrowed to the wallet's earning
+  categories, from wherever the phone was when it was last redrawn; the map's
+  results come from a different query with a different radius from wherever
+  the map is looking now. A shop can be in one and not the other. Filtering
+  would quietly show **fewer** than the twenty iOS is really watching — the
+  exact wrong answer for somebody using this to work out why no reminder has
+  arrived. Reading the plan gives the real twenty, costs no lookup at all, and
+  cannot disagree with the thing it is reporting on. It also passes
+  `ignoringDistance: true`, because a geofence four miles out is still one of
+  the twenty. There is a test for each half of this.
+- **`isShowingWatchedOnly` lives on the store, not in `MapFilter`, and is not
+  persisted.** It is a diagnostic, not a taste. Somebody who left it on and
+  opened the app three days later — after the plan was redrawn in another town
+  — would meet an empty map and no clue why. It resets with the process.
+  Turning it on also clears the category filter, so "watching" always means
+  all of them rather than a set narrowed by a chip set ten minutes ago.
+- **The Watching chip is shown even when nothing is watched, on purpose.**
+  "CardWise is not watching anything yet, and here is what is missing" is
+  precisely what somebody taps it for. Hiding the chip would hide the
+  diagnosis along with the diagnostic.
+- **Haptics: `.selection` on selecting a pin, `.impact(.light)` on opening a
+  cluster, and nothing on dismissal.** Those are the two moments on the map
+  that are a gesture rather than a tap on a button; closing a card is not an
+  event, and a haptic on every dismissal is how an app starts feeling noisy.
+  The cluster one fires on a counter (`clusterOpenings`) rather than the
+  cluster's id, so zooming twice into the same cluster feels the same as
+  zooming into two different ones. **This is the first haptic in the app** —
+  the audit finding is still open everywhere else.
+- **`RegionMonitor.StoredState` is internal rather than private so `DemoSeed`
+  can write one.** That is its only other caller, and it exists so CI can
+  photograph a map that is actually watching something. Do not build a
+  `RegionPlan` anywhere else: a plan that did not come from `RegionPlanner` is
+  a lie about what iOS has been asked to monitor. The seed builds its plan by
+  running the real planner over its own places, so it can only ever contain
+  states the app can really reach.
+- **Haptics fire on a `Pulse`, and only at commit points.** `Pulse` (in
+  `CardWiseStyle.swift`) is a counter, because `sensoryFeedback(_:trigger:)`
+  watches a value for a *change* — triggering on the card that was removed
+  means removing the same card twice fires once, and triggering on
+  `cards.count` means an add and an undo feel identical. The full set, and why
+  each is the pattern it is:
+
+  | Moment | Feedback | Why |
+  |---|---|---|
+  | Pin picked up (wallet) | `.impact(.light)` | A thing leaving the stack |
+  | Pin put down (wallet) | `.impact(.medium)` | It landed; heavier than the lift |
+  | Undo a removal | `.success` | A recovery, which is what success means |
+  | Select a map pin | `.selection` | A pick from several |
+  | Open a map cluster | `.impact(.light)` | The map shifts under your thumb |
+  | Prefer / unprefer a card | `.selection` | Small, reversible toggle |
+  | Remove a card | `.impact(.medium)` | Significant, but undoable for six seconds |
+  | Switch a quarter's bonus on | `.success` | The one action here that earns money |
+  | Save a card | `.success` | Completes what somebody set out to do |
+  | Erase everything | `.impact(.heavy)` | Asked for twice; a success chime for deleting your own data reads as the app being pleased about it |
+
+  **What deliberately has none:** dismissing anything, switching a quarter's
+  bonus *off* (that is somebody correcting a mistake, not earning), answering
+  the follow-up, and every ordinary navigation tap. A haptic on every action is
+  how an app starts feeling noisy, and the ones above only read as meaningful
+  because most taps are silent.
+
+  **Not gated on Reduce Motion**, because a haptic is not motion and iOS has
+  its own switch for it (Sounds & Haptics › System Haptics) which
+  `sensoryFeedback` already honours. Second-guessing that takes the choice away
+  from somebody who has made it.
+
+  **"Card saved" fires at the button, not in the wallet watching its count**,
+  because `undoRemove()` also makes that count go up and the two must not feel
+  the same.
 - **`python scripts/brace-scan.py <files>` before pushing.** CI is the
   compiler, and a missing brace otherwise costs a full round trip to find. It
   understands comments, multiline strings, escapes and interpolation. OK does
@@ -351,16 +565,26 @@ not go back there.
 | 4. Region monitoring + notification pipeline | **Built and hardened, unverifiable without a device.** `RegionMonitor` registers the nearest 20 relevant merchants as `CLCircularRegion`s, handles enter/exit, applies a four-minute dwell, and redraws on significant location change. `ReminderCenter` schedules the local notification on entry and cancels it on exit; a tap opens that card. `ReminderThrottle` caps it at one reminder per shop and a daily ceiling, `RecommendationEngine.minimumArrivalEdgeCentsPerDollar` silences a trivial win, and `walletDidChange()` re-renders any notification still in its dwell window against a wallet edit. Nothing is registered in practice until step 5 gives `MerchantSource` somewhere to get shops from. |
 | 5. Places API merchant resolution | **Done, needs a key.** `GooglePlacesSource` calls Places API (New) `searchNearby` behind `MerchantCache` (250m grid, one week, 40 squares, LRU). Resolution happens when the plan is redrawn, *not* when a geofence fires — the shop's name and category are already in the registered region by then. No key is committed; see `docs/places-api.md`. |
 | 6. Significant-location-change travel mode | Not started |
+| 9. Nearby Map (added, not in the original spec) | **Built, needs a key and a device.** A fifth tab: `NearbyMapView` over `NearbyPlacesStore`, drawing MapKit pins for whatever `PlaceSearchSource` returns, with filter chips, a distance, a search box, per-place card ranking and a detail screen. All the filtering/measuring/ranking is `NearbyPlaces.results` in CardKit and tested on Linux. With no Places key it shows location only and says so. Nothing about the map has been seen on a real phone — panning, selection and the "Search this area" threshold are exactly the parts CI screenshots cannot photograph. |
 | 7. Safari extension | Not started |
 | 8. Impact/value tracking | **Done, on-device only.** `RecommendationSnapshot` freezes the numbers at the moment a reminder goes out; `ImpactLedger` records generated/shown/opened/answered/priced and every *suppression* with its reason; `BenefitValueCalculator` turns a volunteered spend into an estimate and an incremental estimate. `ImpactStore` persists it to `impact.json`, `FollowUpPromptView` asks the one optional question on the wallet, `ImpactView` shows the total in Settings. `AnalyticsService` is the seam for a future backend and ships as a no-op. |
 
 Also not built, flagged repeatedly, not yet done:
 
-- **Velocity/momentum on the drag-to-reorder gesture** —
-  `value.translation` should become `value.predictedEndTranslation`, a
-  near-one-line fix. This was the #1 finding in the audit.
-- Haptics (`sensoryFeedback`) at commit points — audit finding, not started.
 - Editing a cap's *limit* (only its spend is currently editable).
+
+Two long-standing audit findings are now **done**, and the reasoning is worth
+keeping:
+
+- **Velocity on drag-to-reorder.** `WalletStackView.dragGesture` ends on
+  `value.predictedEndTranslation`, not `value.translation`. Where the finger
+  stopped is not where the card should go — a flick has momentum, and a stack
+  that ignored it made a quick throw and a slow shove of the same length do the
+  same thing, which is the single clearest way an iOS gesture can feel dead.
+  Overshoot is free because `WalletStore.move(id:to:)` clamps, so the worst a
+  hard flick can do is send a card to the top or the bottom, which is what a
+  hard flick should do.
+- **Haptics at commit points.** Nine of them, and the restraint is the design.
 
 ## Bugs already found and fixed (don't reintroduce)
 
@@ -385,6 +609,18 @@ Also not built, flagged repeatedly, not yet done:
   currency string** — assert that it contains the digits. iOS is the only
   platform the app ships on, so the formatting itself is not a bug; a test
   that cares which CI job ran it is.
+- **`.background` is pure black in dark mode, and so is the page under it.**
+  `.cardWisePanel()` filled with `.background` (= `systemBackground`) while
+  every screen sits on `systemGroupedBackground`. In light mode that is white
+  on grey and looks right; at night both are `#000` and every panel in the app
+  was black on black, separated only by a navy shadow that is itself invisible
+  against black. The map's dense list showed it as a column of floating text
+  with no cards under it. The fix is the role that means what was meant:
+  `secondarySystemGroupedBackground` for a card on a grouped page,
+  `tertiarySystemGroupedBackground` for a tile on a card. **The same trap in
+  miniature caught the map's search field and filter chips**, which used
+  `.background.secondary` — visible at night, invisible on the light grouped
+  background. If a surface disappears in exactly one appearance, this is why.
 - **`Color` and `HierarchicalShapeStyle` don't unify in a ternary** passed to
   `.foregroundStyle(...)` — write `condition ? Color.x : Color.y` explicitly.
   **This one was hit a second time, by Claude, in the same file, after this

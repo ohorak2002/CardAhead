@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import CardKit
 
 /// The shapes and spacings the redesign is built out of, in one place.
@@ -61,6 +62,39 @@ extension ShapeStyle where Self == LinearGradient {
     }
 }
 
+// MARK: - Haptics
+
+/// Something that happened, counted, so a haptic can fire on it.
+///
+/// `sensoryFeedback(_:trigger:)` watches a value for a *change*, which makes
+/// the obvious thing wrong: triggering on the card that was removed means
+/// removing the same card twice in a row fires once, and triggering on
+/// `cards.count` means an add and a remove feel identical. A counter says
+/// "this happened again" and nothing else, which is exactly what a haptic
+/// needs to know.
+///
+/// **Not gated on Reduce Motion.** A haptic is not motion, and iOS already has
+/// its own switch for this — Settings › Sounds & Haptics › System Haptics —
+/// which `sensoryFeedback` honours on its own. Second-guessing it in the app
+/// would take the choice away from somebody who has already made it.
+///
+/// Usage:
+/// ```swift
+/// @State private var removed = Pulse()
+/// // ...
+/// Button("Remove") { removed.fire(); store.remove(card) }
+///     .sensoryFeedback(.impact(weight: .medium), trigger: removed)
+/// ```
+struct Pulse: Equatable {
+    private var count = 0
+
+    /// Wrapping addition, because a counter that traps on overflow after two
+    /// billion taps is a crash nobody would ever diagnose.
+    mutating func fire() {
+        count &+= 1
+    }
+}
+
 // MARK: - Category colour
 
 /// A colour and a symbol per benefit shelf.
@@ -70,22 +104,60 @@ extension ShapeStyle where Self == LinearGradient {
 /// the shelf becomes recognisable before the label is read. They come off the
 /// brand palette sheet rather than from SwiftUI's system colours, which shift
 /// between iOS releases.
+extension TintRGB {
+    /// The one place a CardKit palette number becomes something SwiftUI can
+    /// draw. Everything else asks `BrandTint` for a value and comes here.
+    var color: Color {
+        Color(red: red / 255, green: green / 255, blue: blue / 255)
+    }
+
+    var uiColor: UIColor {
+        UIColor(red: red / 255, green: green / 255, blue: blue / 255, alpha: 1)
+    }
+}
+
+extension BrandTint {
+    /// A colour that resolves itself against whatever mode the phone is in.
+    ///
+    /// `UIColor`'s trait-provider rather than two `Color`s picked in a view,
+    /// because the mode can change while a view is on screen — Control Centre,
+    /// sunset, Settings — and a value read once at body-evaluation time does
+    /// not notice. A dynamic `UIColor` is re-resolved by the render server.
+    var adaptive: Color {
+        // Hoisted out of the closure, and deliberately not named `light` and
+        // `dark`: `let light = light.uiColor` inside a member is a variable
+        // used within its own initial value, which is a compile error and a
+        // confusing one to read.
+        let byDay = light.uiColor
+        let byNight = dark.uiColor
+        return Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark ? byNight : byDay
+        })
+    }
+}
+
 extension BenefitGroup {
 
-    var tint: Color {
-        switch self {
-        case .dining: return Color(red: 0.118, green: 0.337, blue: 0.839)      // Secondary Blue
-        case .travel: return Color(red: 0.231, green: 0.510, blue: 0.965)      // Accent Blue
-        case .groceries: return Color(red: 0.063, green: 0.725, blue: 0.506)   // Success Green
-        case .gas: return Color(red: 0.545, green: 0.361, blue: 0.965)         // Purple
-        case .entertainment: return Color(red: 0.078, green: 0.722, blue: 0.651) // Teal
-        case .drugstores: return Color(red: 0.937, green: 0.267, blue: 0.267)  // Error Red
-        case .shopping: return Color(red: 0.976, green: 0.451, blue: 0.086)    // Orange
-        case .everydaySpending: return Color(red: 0.392, green: 0.455, blue: 0.545) // Slate
-        case .cardPerks: return Color(red: 0.043, green: 0.122, blue: 0.267)   // Navy
-        case .creditsAndBonuses: return Color(red: 0.961, green: 0.620, blue: 0.043) // Warning
-        }
-    }
+    /// The colour of this shelf's icon and its rate, against a background that
+    /// follows the interface style.
+    ///
+    /// **The values moved to CardKit and this is now a lookup.** They used to
+    /// be ten hex literals right here, one per shelf, each used unchanged in
+    /// both modes — which is how the Card perks shield came to be drawn in
+    /// Primary Navy on a near-black tile at a contrast ratio of 1.05:1, i.e.
+    /// invisible. Four shelves failed in one mode or the other. In CardKit
+    /// they are plain numbers, and `BrandTintTests` fails the build if any of
+    /// them stops clearing 3:1 against what it is actually drawn on.
+    var tint: Color { tintPalette.adaptive }
+
+    /// The colour of a **solid** fill with a white glyph on it — a map pin.
+    ///
+    /// Deliberately not `tint`. See `BrandTint.solid`: a wash needs the value
+    /// that contrasts with the page, a pin needs the value that a white symbol
+    /// survives on, and in dark mode those are opposite ends of the palette.
+    /// Feeding `tint` to a pin is what put white symbols on Success Green at
+    /// 2.54:1.
+    var pinTint: Color { tintPalette.solid.color }
 
     var symbolName: String {
         switch self {
@@ -107,6 +179,7 @@ extension SpendingCategory {
     /// Borrowed from the shelf it belongs to, so a category and its group are
     /// never two different colours for the same thing.
     var tint: Color { BenefitGroup.containing(self).tint }
+    var pinTint: Color { BenefitGroup.containing(self).pinTint }
     var symbolName: String { BenefitGroup.containing(self).symbolName }
 }
 
@@ -155,7 +228,13 @@ struct StatTile: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Metric.snug)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous))
+        // A tile sits *on* a panel, so it takes the role one step further in
+        // than the panel's own — same reasoning as `PanelBackground`, one
+        // level down.
+        .background(
+            Color(.tertiarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
+        )
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(value) \(label)")
     }
@@ -164,12 +243,28 @@ struct StatTile: View {
 /// The surface most content sits on: a rounded panel with a soft, *tinted*
 /// shadow rather than a grey one. Grey shadows on a coloured ground are the
 /// single most common tell of an interface nobody looked at twice.
+///
+/// **The fill is `secondarySystemGroupedBackground`, not `.background`, and
+/// the difference only shows at night.** `.background` is `systemBackground`,
+/// which is pure black in dark mode — and every screen in this app sits on
+/// `systemGroupedBackground`, which is *also* pure black. So a panel drawn
+/// with it was black on black, and the only thing separating a row from the
+/// page was a navy shadow that is itself invisible against black. The
+/// screenshots of the map's list showed a column of floating text with no
+/// cards under it at all.
+///
+/// The grouped-secondary role is the one that means exactly this: a card
+/// sitting on a grouped page. White on light, near-black-but-not-black on
+/// dark, and it stays correct if Apple ever moves either.
 struct PanelBackground: ViewModifier {
     var radius: CGFloat = Metric.cardRadius
 
     func body(content: Content) -> some View {
         content
-            .background(.background, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(
+                Color(.secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: radius, style: .continuous)
+            )
             .shadow(color: Color.cardWiseNavy.opacity(0.07), radius: 12, x: 0, y: 4)
     }
 }

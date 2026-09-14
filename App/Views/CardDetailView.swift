@@ -26,6 +26,9 @@ struct CardDetailView: View {
         .padding(.horizontal, 4)
         .padding(.top, Metric.regular)
         .padding(.bottom, 28)
+        .sensoryFeedback(.selection, trigger: pinned)
+        .sensoryFeedback(.impact(weight: .medium), trigger: removed)
+        .sensoryFeedback(.success, trigger: activated)
     }
 
     // MARK: - The three facts
@@ -86,6 +89,11 @@ struct CardDetailView: View {
             }
             Spacer(minLength: 8)
             Button(quarter.isActivated ? "Activated" : "Activate") {
+                // Only the on direction. Switching a bonus off is somebody
+                // correcting a mistake, and a success chime for that would be
+                // the app congratulating them on it — the same distinction
+                // `WalletStore.setActivated` already makes for the ledger.
+                if !quarter.isActivated { activated.fire() }
                 store.setActivated(!quarter.isActivated, cardID: card.id, quarter: quarter.quarter)
             }
             .buttonStyle(.borderedProminent)
@@ -206,6 +214,13 @@ struct CardDetailView: View {
     // MARK: - Actions
 
     @State private var isShowingPreferExplainer = false
+    /// Preferring a card is a small reversible toggle, so it gets the tick a
+    /// picker gives. Removing one is not, so it gets a weight you notice.
+    /// Switching a quarter's bonus on is the one thing on this screen that
+    /// *earns* somebody money, so it gets the success pattern.
+    @State private var pinned = Pulse()
+    @State private var removed = Pulse()
+    @State private var activated = Pulse()
     @State private var isReviewingBenefits = false
 
     private var actionsSection: some View {
@@ -229,6 +244,7 @@ struct CardDetailView: View {
             Button {
                 if card.isPinned {
                     // Turning it off is a plain undo — no need to explain that again.
+                    pinned.fire()
                     store.togglePin(card)
                 } else {
                     isShowingPreferExplainer = true
@@ -245,6 +261,7 @@ struct CardDetailView: View {
             .alert("Prefer this card?", isPresented: $isShowingPreferExplainer) {
                 Button("Cancel", role: .cancel) {}
                 Button("Prefer This Card") {
+                    pinned.fire()
                     store.togglePin(card)
                 }
             } message: {
@@ -254,6 +271,7 @@ struct CardDetailView: View {
             Spacer(minLength: 8)
 
             Button(role: .destructive) {
+                removed.fire()
                 store.remove(card)
             } label: {
                 Label("Remove", systemImage: "trash")

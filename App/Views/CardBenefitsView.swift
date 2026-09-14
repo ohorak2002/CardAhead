@@ -73,6 +73,13 @@ struct CardBenefitsView: View {
         return benefits.map(\.group).filter { seen.insert($0).inserted }
     }
 
+    /// A card landing in the wallet. `.success` because this is the one thing
+    /// in the app that completes something somebody set out to do — and it is
+    /// fired here, at the button, rather than in the wallet watching its own
+    /// count, because an undo also makes that count go up and the two must not
+    /// feel the same.
+    @State private var saved = Pulse()
+
     var body: some View {
         List {
             faceSection
@@ -87,6 +94,7 @@ struct CardBenefitsView: View {
         // part of adding it, and counting both would count the same moment
         // twice under two different names.
         .onAppear { if !isConfirming { impact.recordBenefitsViewed(card) } }
+        .sensoryFeedback(.success, trigger: saved)
         .navigationTitle("Benefits")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -312,6 +320,7 @@ struct CardBenefitsView: View {
     // MARK: - Saving
 
     private func save() {
+        saved.fire()
         let next = card.removingBenefits(ids: dropped)
 
         switch mode {

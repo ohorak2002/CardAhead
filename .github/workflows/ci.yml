@@ -97,6 +97,11 @@ jobs:
       # One relaunch per screen rather than tapping through: simctl cannot tap,
       # and a launch argument naming the tab is deterministic in a way that
       # scripted taps against a moving UI are not. See DemoSeed.
+      # The map tab is seeded with its own centre and its own fixed list of
+      # places (DemoSeed.center / DemoSeed.places) rather than being given a
+      # simulated location: `simctl` can set one, but the app would then try
+      # to reach Google Places from a runner with no key, and a screenshot of
+      # a failed lookup is not a screenshot of the map.
       - name: Photograph every tab
         run: |
           mkdir -p screenshots
@@ -107,24 +112,65 @@ jobs:
             xcrun simctl io "$DEVICE" screenshot "screenshots/$2-$1.png"
           }
           shoot home 1
-          shoot wallet 2
-          shoot benefits 3
-          shoot more 4
-          shoot impact 5
+          shoot map 2
+          shoot wallet 3
+          shoot benefits 4
+          shoot more 5
+          shoot impact 6
+          # The map's "Watching" chip, which is the only view of the geofence
+          # pipeline anybody can see without walking into a shop.
+          shoot watching 7
 
       # A palette that works on white paper is not automatically the one that
       # works at night, and nobody has ever seen this app at night.
       - name: Photograph it in the dark
         run: |
           xcrun simctl ui "$DEVICE" appearance dark
-          for TAB in home wallet benefits impact; do
+          for TAB in home map wallet benefits impact watching; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
             sleep 6
             xcrun simctl io "$DEVICE" screenshot "screenshots/dark-$TAB.png"
           done
 
+      # A third axis nobody has ever looked at: the text size somebody with
+      # poor eyesight actually uses.
+      #
+      # Dynamic Type is not a rare setting — it is one slider in Settings, and
+      # `accessibility-extra-extra-extra-large` is the far end of it, roughly
+      # three times the default. Every screen here is built out of fixed-height
+      # tiles and `lineLimit(1)`, which is exactly the combination that stops
+      # being a layout and starts being a row of ellipses. The Benefits grid is
+      # the one to look at first.
+      #
+      # Light mode only, and four screens rather than seven: this is looking
+      # for text that clips or overflows, which is not a thing that changes
+      # between appearances, and three more minutes of runner time to confirm
+      # that twice is not worth it.
+      - name: Photograph it at the largest text size
+        run: |
+          xcrun simctl ui "$DEVICE" appearance light
+          # `content_size`, with an underscore — unlike `appearance` above.
+          # simctl prints its whole usage page and exits 117 for the hyphen.
+          xcrun simctl ui "$DEVICE" content_size accessibility-extra-extra-extra-large
+          for TAB in home wallet benefits more; do
+            xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
+            xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
+            sleep 6
+            xcrun simctl io "$DEVICE" screenshot "screenshots/huge-$TAB.png"
+          done
+          # Put it back, so anything added after this step photographs the
+          # app at the size everybody else sees.
+          xcrun simctl ui "$DEVICE" content_size medium
+
+      # **`always()`, so a broken photograph step cannot cost every picture.**
+      # The job is already `continue-on-error`, which stops it failing the run
+      # — but a failed *step* still halts the ones after it, and the first
+      # version of the Dynamic Type pass above took the entire artifact down
+      # with it over a hyphen in a simctl option. Whatever got taken before the
+      # failure is exactly what somebody needs in order to diagnose it.
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: CardWise-screenshots
           path: screenshots

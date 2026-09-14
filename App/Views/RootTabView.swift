@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 import CardKit
 
-/// The app, as four places rather than one screen with everything pushed onto
+/// The app, as five places rather than one screen with everything pushed onto
 /// it.
 ///
 /// **This reverses an earlier decision on purpose, and keeps the reason it was
@@ -14,8 +14,13 @@ import CardKit
 /// answer to that: each subject gets its own room, and the wallet gets to stay
 /// pure.
 ///
-/// Four is the number. Five is where a tab bar starts to read as a menu, and
-/// three would have left Benefits buried somewhere nobody found it.
+/// **It was four, and the note here said four was the number** — that five
+/// is where a tab bar starts to read as a menu. Map is the fifth, and it is
+/// worth the cost: it is the only screen that answers *where*, rather than
+/// *which card, here, now*, it needs a map's whole vocabulary of radius and
+/// category and search, and there was nowhere to hang it that did not make it
+/// a tail on another screen all over again. Five is the ceiling, though, not
+/// the new number. The sixth thing goes inside More, like Impact did.
 struct RootTabView: View {
 
     @Environment(ReminderCenter.self) private var reminders
@@ -24,16 +29,19 @@ struct RootTabView: View {
     @State private var locationAuth = LocationAuthorization()
 
     enum Tab: String, Hashable {
-        case home, wallet, benefits, more
+        case home, map, wallet, benefits, more
 
         /// Home, unless CI asked for something else. See `DemoSeed`.
         ///
         /// "impact" is accepted and lands on More, because Impact is a row
         /// inside More rather than a tab of its own — and pushing it from
-        /// there is exactly the route a person takes to it.
+        /// there is exactly the route a person takes to it. "watching" lands
+        /// on Map for the same reason: it is a chip on that screen, and
+        /// `simctl` cannot tap a chip.
         static var launched: Tab {
             guard let raw = DemoSeed.requestedTab else { return .home }
             if raw == "impact" { return .more }
+            if raw == "watching" { return .map }
             return Tab(rawValue: raw) ?? .home
         }
     }
@@ -45,6 +53,12 @@ struct RootTabView: View {
             }
             .tabItem { Label("Home", systemImage: "house.fill") }
             .tag(Tab.home)
+
+            NavigationStack {
+                NearbyMapView()
+            }
+            .tabItem { Label("Map", systemImage: "map.fill") }
+            .tag(Tab.map)
 
             NavigationStack {
                 WalletStackView()
@@ -81,6 +95,9 @@ struct RootTabView: View {
 struct MoreView: View {
 
     @Environment(ImpactStore.self) private var impact
+    /// Read so the impact row can stack its title and its value instead of
+    /// drawing them over each other. See the row itself.
+    @Environment(\.dynamicTypeSize) private var typeSize
     let auth: LocationAuthorization
     /// Pushes the impact screen straight away rather than waiting for a tap.
     /// Only ever true in a seeded CI run, so a screen two taps deep can still
@@ -97,16 +114,46 @@ struct MoreView: View {
                 NavigationLink {
                     ImpactView()
                 } label: {
-                    Label {
-                        HStack {
-                            Text("Your impact")
-                            Spacer(minLength: Metric.tight)
+                    // **A title and a value on one line stop being one line at
+                    // the accessibility text sizes.** An `HStack` with a
+                    // `Spacer` between two `Text`s has no answer when neither
+                    // half fits: both wrap, the `Spacer` collapses to nothing,
+                    // and at the largest size "Your impact" and "$8.47 extra"
+                    // were drawn on top of each other — not truncated,
+                    // genuinely overlapping and unreadable.
+                    //
+                    // **The value goes under the whole `Label`, not inside
+                    // it.** Stacking the two `Text`s in the label's *title*
+                    // slot was the first attempt and it stopped the overlap
+                    // without fixing the layout: `Label` lays its title out
+                    // beside the icon, so every line after the first wrapped
+                    // back to the margin and the value arrived indented under
+                    // nothing. A `Label` is allowed to be one thing on one
+                    // line; the detail belongs beneath it.
+                    if typeSize.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label {
+                                Text("Your impact")
+                            } icon: {
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                                    .foregroundStyle(Color.cardWiseBlue)
+                            }
                             Text(impactSummary)
                                 .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                    } icon: {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .foregroundStyle(Color.cardWiseBlue)
+                    } else {
+                        Label {
+                            HStack {
+                                Text("Your impact")
+                                Spacer(minLength: Metric.tight)
+                                Text(impactSummary)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                                .foregroundStyle(Color.cardWiseBlue)
+                        }
                     }
                 }
                 NavigationLink {
@@ -152,4 +199,5 @@ struct MoreView: View {
         .environment(ReminderCenter())
         .environment(RegionMonitor())
         .environment(ImpactStore.previewStore())
+        .environment(NearbyPlacesStore())
 }

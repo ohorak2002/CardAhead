@@ -62,6 +62,27 @@ enum PlacesProvider {
         )
     }
 
+    /// The map's source, which is a different object asking a different
+    /// question off the same key.
+    ///
+    /// Deliberately **not** the same instance as `makeSource()`. The geofence
+    /// path pays for four fields and caches to disk for a week because it runs
+    /// unattended; the map pays for more fields, caches in memory for an hour,
+    /// and only runs while somebody is looking at it. Sharing one object would
+    /// mean one of those two sets of trade-offs being wrong. See
+    /// `PlaceSearchSource`'s doc comment.
+    static func makePlaceSearchSource() -> PlaceSearchSource {
+        let log = Logger(subsystem: AppLog.subsystem, category: "places")
+        guard let key = apiKey else {
+            log.notice("no Places API key in the bundle; the map will show location only")
+            return EmptyPlaceSearchSource()
+        }
+        return GooglePlaceSearchSource(
+            apiKey: key,
+            transport: URLSessionTransport()
+        )
+    }
+
     /// XcodeGen substitutes the build setting into the plist, so an unset
     /// setting arrives as an empty string rather than a missing key.
     private static var apiKey: String? {

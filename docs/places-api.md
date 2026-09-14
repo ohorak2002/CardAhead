@@ -71,6 +71,45 @@ answer for a week, bounded to 40 squares, least-recently-used first. A commute
 walked twice a day costs a handful of calls in the first week and almost none
 after that.
 
+## The map asks the same key a second, different question
+
+The Nearby Map tab (build step 9) uses the same `GOOGLE_PLACES_API_KEY` and a
+completely separate source object, `GooglePlaceSearchSource`. That is
+deliberate; the two are not interchangeable.
+
+|  | Geofences (`GooglePlacesSource`) | Map (`GooglePlaceSearchSource`) |
+|---|---|---|
+| When | Unattended, every few hundred metres | Only while the Map tab is open |
+| Endpoint | `places:searchNearby` | `searchNearby`, `searchText`, and place details |
+| Fields | id, name, types, location | the same, plus `primaryTypeDisplayName`, `rating`, `userRatingCount` |
+| Keeps | Only places that map to an earning category | Everything, including places nothing earns at |
+| Cache | Disk, 250m grid, one week, 40 squares | Memory, 250m grid, one hour, 40 squares |
+
+Three things about the bill:
+
+1. **The rating fields move the nearby search from the Essentials SKU to
+   Pro.** That was a decision, not an oversight: the list shows stars and can
+   sort on them, and paying once for twenty ratings beats a details call per
+   row. If it stops being worth it, delete `places.rating` and
+   `places.userRatingCount` from `GooglePlaceSearchSource.searchFieldMask`,
+   and delete the "Highest rated" sort with them.
+2. **Hours, phone, website and address are a separate, more expensive place
+   details call**, made for exactly one place, only when somebody opens it,
+   and cached for a day. They are not in the list's field mask at all.
+3. **Panning the map does not re-query.** Moving more than half the current
+   radius raises a "Search this area" button and waits to be asked.
+
+With no key, the map shows the phone's own location, draws no pins, and says
+in plain words that this build has nowhere to get shops from. It invents
+nothing — the same rule the geofence path follows.
+
+One failure mode worth knowing: Places API (New) rejects an `includedTypes`
+value it does not recognise with `INVALID_ARGUMENT`, and the *whole request*
+returns nothing rather than just that type's results. `MapCategory.placeTypes`
+is conservative for that reason, and the map puts the refusal on the screen in
+words so this is diagnosable on a device rather than looking like an empty
+neighbourhood.
+
 ## Why Google and not Foursquare
 
 `MerchantCategoryMap` was written against Google's type vocabulary —

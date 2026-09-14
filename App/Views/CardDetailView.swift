@@ -280,4 +280,5 @@ struct CardDetailView: View {
             .padding()
     }
     .environment(WalletStore.previewStore())
+    .environment(ImpactStore.previewStore())
 }

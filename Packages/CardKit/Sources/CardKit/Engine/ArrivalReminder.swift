@@ -33,26 +33,54 @@ public struct ArrivalReminder: Sendable, Hashable {
     }
 }
 
+/// What to do about somebody having arrived somewhere.
+///
+/// Staying quiet is half the product, so it is half of this type rather than a
+/// `nil` that loses the reason. The reason is what lets the app count its own
+/// restraint — see `ImpactLedger` — and a product that only counts what it
+/// sent cannot tell restraint from silence.
+public enum ArrivalDecision: Sendable, Hashable {
+    /// The words for the lock screen, and the frozen numbers behind them, so
+    /// the suggestion can be priced later if somebody volunteers what they
+    /// spent.
+    case send(ArrivalReminder, RecommendationSnapshot)
+    case stayQuiet(SuppressionReason)
+
+    public var reminder: ArrivalReminder? {
+        if case .send(let reminder, _) = self { return reminder }
+        return nil
+    }
+
+    public var snapshot: RecommendationSnapshot? {
+        if case .send(_, let snapshot) = self { return snapshot }
+        return nil
+    }
+}
+
 extension RecommendationEngine {
 
-    /// What to say about an arrival, or nothing at all.
+    /// What to say about an arrival, or why to say nothing.
     ///
     /// Nothing at all is a real answer and the important one. A geofence was
     /// registered here because some card paid a bonus on this category, but by
     /// the time somebody walks in, the cap may be used up or the card may have
     /// been deleted — and a notification that says "use any card, they all pay
     /// the same" is an interruption with no content. Those get dropped.
-    public func reminder(
+    public func decide(
         for arrival: PendingArrival,
         cards: [Card],
         asOf date: Date
-    ) -> ArrivalReminder? {
+    ) -> ArrivalDecision {
         let context = arrival.merchant.purchaseContext(asOf: date)
-        guard let recommendation = recommend(from: cards, in: context) else { return nil }
+        guard let recommendation = recommend(from: cards, in: context) else {
+            return .stayQuiet(.noCards)
+        }
 
         let earnsABonus = recommendation.best.source != .base
             || recommendation.alternates.contains { $0.source != .base }
-        guard earnsABonus || recommendation.activationNudge != nil else { return nil }
+        guard earnsABonus || recommendation.activationNudge != nil else {
+            return .stayQuiet(.noMeaningfulEdge)
+        }
 
         // A win too small to matter is not worth an interruption. An
         // activation nudge is exempt: it is not claiming this card pulls
@@ -61,10 +89,12 @@ extension RecommendationEngine {
         // gap that this check has no business judging.
         if recommendation.activationNudge == nil, let runnerUp = recommendation.alternates.first {
             let edge = recommendation.best.total - runnerUp.total
-            guard edge >= minimumArrivalEdgeCentsPerDollar else { return nil }
+            guard edge >= minimumArrivalEdgeCentsPerDollar else {
+                return .stayQuiet(.noMeaningfulEdge)
+            }
         }
 
-        return ArrivalReminder(
+        let reminder = ArrivalReminder(
             title: recommendation.headline,
             body: body(for: recommendation),
             cardID: recommendation.best.card.id,
@@ -72,6 +102,16 @@ extension RecommendationEngine {
             merchantName: context.merchantName,
             category: context.category
         )
+        return .send(reminder, RecommendationSnapshot(recommendation, context: context))
+    }
+
+    /// Just the words, for callers that have nothing to do with the reason.
+    public func reminder(
+        for arrival: PendingArrival,
+        cards: [Card],
+        asOf date: Date
+    ) -> ArrivalReminder? {
+        decide(for: arrival, cards: cards, asOf: date).reminder
     }
 
     /// One sentence for what to do, and at most one more for what would

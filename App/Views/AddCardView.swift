@@ -248,4 +248,5 @@ struct CardProductRow: View {
 #Preview {
     AddCardView()
         .environment(WalletStore.previewStore())
+        .environment(ImpactStore.previewStore())
 }

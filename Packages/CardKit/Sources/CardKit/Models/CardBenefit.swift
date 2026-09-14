@@ -277,7 +277,11 @@ extension CardBenefit {
         let payout: String
         switch card.currency.style {
         case .percent:
-            payout = "\(RecommendationEngine.dollars(Decimal(bonus.rewardUnits))) back"
+            // A cash back unit is one cent — see `WelcomeBonus.rewardUnits`,
+            // and `RecommendationEngine.welcomeBonusBoost`, which values it
+            // the same way. Printing the units as dollars read "$20,000 back"
+            // for a $200 bonus.
+            payout = "\(RecommendationEngine.dollars(Decimal(bonus.rewardUnits / 100))) back"
         case .multiplier:
             payout = "\(units(bonus.rewardUnits)) \(card.currency.name)"
         }

@@ -139,6 +139,21 @@ final class CardBenefitTests: XCTestCase {
         XCTAssertNil(benefit(expired, id: "welcomeBonus"))
     }
 
+    /// A cash back unit is one cent, the same unit its "2%" is written in —
+    /// see `WelcomeBonus.rewardUnits`. Printing the units straight out as
+    /// dollars read "$20,000 back" for a $200 bonus.
+    func testACashBackSignupBonusIsShownInDollarsNotInUnits() throws {
+        let card = Fixture.withWelcomeBonus(
+            CardCatalog.wellsFargoActiveCash,
+            rewardUnits: 20_000,
+            required: 1_000,
+            deadline: Fixture.makeDate(2026, 12, 31)
+        )
+        let bonus = try XCTUnwrap(benefit(card, id: "welcomeBonus"))
+        XCTAssertTrue(bonus.title.contains("$200"), bonus.title)
+        XCTAssertFalse(bonus.title.contains("20,000"), bonus.title)
+    }
+
     // MARK: - Perks land somewhere sensible
 
     func testATravelCreditIsMoneyAndSitsWithTheBonuses() throws {

@@ -15,12 +15,18 @@ protocol ArrivalNotifier: AnyObject {
     /// `RegionMonitor.walletDidChange()`. The implementation is responsible
     /// for surfacing the arrival at `arrival.confirmAt` and not before.
     ///
-    /// Returns whether a notification was actually scheduled. `false` means
-    /// there was nothing worth saying — an empty wallet, no bonus here, a cap
-    /// already spent — and the caller must not count that against any
-    /// frequency limit it is tracking, because nothing is going to arrive.
+    /// Returns the frozen numbers behind whatever was scheduled, or the reason
+    /// nothing was. `.stayQuiet` means there was nothing worth saying — an
+    /// empty wallet, no bonus here, a cap already spent — and the caller must
+    /// not count that against any frequency limit it is tracking, because
+    /// nothing is going to arrive.
+    ///
+    /// The snapshot comes back rather than staying inside because the caller
+    /// is what remembers arrivals across a launch: pricing a suggestion later
+    /// needs the numbers as they were at the till, and by then the wallet has
+    /// moved on. See `RecommendationSnapshot`.
     @discardableResult
-    func schedule(_ arrival: PendingArrival) -> Bool
+    func schedule(_ arrival: PendingArrival) -> ArrivalDecision
 
     /// The user left before the clock ran out, or the region was dropped from
     /// the plan. Nothing should reach them.
@@ -31,18 +37,20 @@ protocol ArrivalNotifier: AnyObject {
 ///
 /// `ReminderCenter` is what the app installs. This is the default only so that
 /// a `RegionMonitor` built for a SwiftUI preview cannot put a real notification
-/// on somebody's lock screen.
+/// on somebody's lock screen. It reports `.stayQuiet` because nothing was
+/// scheduled and nothing will arrive — a preview must not spend a real day's
+/// reminder allowance or leave a question in the ledger nobody can answer.
 final class LoggingArrivalNotifier: ArrivalNotifier {
 
     private let log = Logger(subsystem: AppLog.subsystem, category: "arrivals")
 
     @discardableResult
-    func schedule(_ arrival: PendingArrival) -> Bool {
+    func schedule(_ arrival: PendingArrival) -> ArrivalDecision {
         log.notice("""
-            scheduled \(arrival.regionID, privacy: .public) \
+            would schedule \(arrival.regionID, privacy: .public) \
             confirm in \(Int(arrival.confirmAt.timeIntervalSince(arrival.enteredAt)), privacy: .public)s
             """)
-        return true
+        return .stayQuiet(.noCards)
     }
 
     func cancel(regionID: String) {

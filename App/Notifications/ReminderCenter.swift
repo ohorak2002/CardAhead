@@ -24,6 +24,9 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
 
     /// Identifier under which the card is carried through the notification.
     static let cardIDKey = "cardID"
+    /// And the suggestion itself, so a tap can be counted against the one it
+    /// was a tap on. See `ImpactLedger`.
+    static let recommendationIDKey = "recommendationID"
     private static let threadIdentifier = "arrivals"
 
     private(set) var status: UNAuthorizationStatus = .notDetermined
@@ -32,6 +35,12 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
     var cardToOpen: UUID?
 
     @ObservationIgnored var walletCards: () -> [Card] = { [] }
+
+    /// Told when somebody taps a reminder, with the suggestion they tapped.
+    /// A closure rather than a reference to the impact store for the same
+    /// reason `walletCards` is one: this class owns notifications, and what
+    /// anybody else does about them is not its business.
+    @ObservationIgnored var onOpened: (UUID) -> Void = { _ in }
 
     private let center = UNUserNotificationCenter.current()
     private let engine = RecommendationEngine()
@@ -97,15 +106,16 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
     /// later. The cancel below is what makes that work when the *new* answer
     /// is silence: the first call had nothing to cancel, but a refresh does.
     @discardableResult
-    func schedule(_ arrival: PendingArrival) -> Bool {
-        guard let reminder = engine.reminder(
+    func schedule(_ arrival: PendingArrival) -> ArrivalDecision {
+        let decision = engine.decide(
             for: arrival,
             cards: walletCards(),
             asOf: arrival.confirmAt
-        ) else {
+        )
+        guard case .send(let reminder, let snapshot) = decision else {
             log.notice("nothing worth saying about \(arrival.regionID, privacy: .public)")
             cancel(regionID: arrival.regionID)
-            return false
+            return decision
         }
 
         let content = UNMutableNotificationContent()
@@ -113,7 +123,10 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
         content.body = reminder.body
         content.sound = .default
         content.threadIdentifier = Self.threadIdentifier
-        content.userInfo = [Self.cardIDKey: reminder.cardID.uuidString]
+        content.userInfo = [
+            Self.cardIDKey: reminder.cardID.uuidString,
+            Self.recommendationIDKey: snapshot.id.uuidString
+        ]
 
         // A trigger of zero is rejected, and an entry whose clock somehow
         // already ran out should still be shown rather than dropped.
@@ -128,7 +141,7 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
             guard let error else { return }
             self?.log.error("could not schedule \(request.identifier, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
-        return true
+        return decision
     }
 
     func cancel(regionID: String) {
@@ -153,7 +166,17 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         defer { completionHandler() }
-        guard let raw = response.notification.request.content.userInfo[Self.cardIDKey] as? String,
+        let userInfo = response.notification.request.content.userInfo
+
+        // The suggestion first: a tap counts even if the card it named has
+        // been removed in the meantime, and that case is exactly the one
+        // worth being able to count.
+        if let raw = userInfo[Self.recommendationIDKey] as? String,
+           let recommendationID = UUID(uuidString: raw) {
+            onOpened(recommendationID)
+        }
+
+        guard let raw = userInfo[Self.cardIDKey] as? String,
               let id = UUID(uuidString: raw)
         else { return }
         cardToOpen = id

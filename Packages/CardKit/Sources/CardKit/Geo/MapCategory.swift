@@ -67,18 +67,14 @@ public enum MapCategory: String, Codable, CaseIterable, Sendable, Hashable {
 
     // MARK: - The place vocabulary
 
-    /// Google Places types, per category.
+    /// Google Places types, per category — **the vocabulary for _reading_ a
+    /// response**, which is not the same list as the one for asking.
     ///
-    /// **An unrecognised type fails the whole request**, not just its own
-    /// results: Places API (New) rejects `includedTypes` it does not know with
-    /// `INVALID_ARGUMENT` and returns nothing. So this list is deliberately
-    /// conservative — long-established types only, no recent or niche
-    /// additions — and `NearbyMapView` surfaces a lookup failure as text on
-    /// the screen rather than an empty map, so a bad type here is diagnosable
-    /// on a device instead of looking like "nothing nearby".
-    ///
-    /// Covers both generations of the vocabulary for the same reason
-    /// `MerchantCategoryMap` does: a response can still carry either.
+    /// Covers both generations for the same reason `MerchantCategoryMap` does:
+    /// a response can still carry either, and a place that comes back tagged
+    /// `grocery_or_supermarket` is a grocer whatever generation named it. Use
+    /// `requestableTypes` to build a request. See `legacyOnlyTypes` for why
+    /// the two had to come apart.
     public var placeTypes: [String] {
         switch self {
         case .restaurants:
@@ -141,7 +137,16 @@ public enum MapCategory: String, Codable, CaseIterable, Sendable, Hashable {
         return .other
     }
 
-    /// Every type the map knows how to ask for, deduplicated.
+    /// What this category is allowed to put in `includedTypes`.
+    ///
+    /// The reading vocabulary minus anything the new API would refuse — see
+    /// `PlaceTypeVocabulary`, which is where the reason lives and which the
+    /// geofence planner uses for the identical purpose.
+    public var requestableTypes: [String] {
+        PlaceTypeVocabulary.requestable(placeTypes)
+    }
+
+    /// Every type the map may ask for, deduplicated.
     ///
     /// Sent as `includedTypes` even when the filter says "All". The
     /// alternative — omitting the field, which Google reads as "anything" —
@@ -149,12 +154,15 @@ public enum MapCategory: String, Codable, CaseIterable, Sendable, Hashable {
     /// results, so an untargeted query spends most of that budget on office
     /// suites and residential addresses and hands back a map with four shops
     /// on it.
+    ///
+    /// Built from `requestableTypes`, never from `placeTypes`. That is the
+    /// whole fix; see `legacyOnlyTypes`.
     public static func placeTypes(for categories: Set<MapCategory>) -> [String] {
         let wanted = categories.isEmpty ? Set(MapCategory.allCases) : categories
         var seen: Set<String> = []
         var ordered: [String] = []
         for category in allCases where wanted.contains(category) {
-            for type in category.placeTypes where seen.insert(type).inserted {
+            for type in category.requestableTypes where seen.insert(type).inserted {
                 ordered.append(type)
             }
         }

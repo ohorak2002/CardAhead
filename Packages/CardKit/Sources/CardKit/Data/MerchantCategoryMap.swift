@@ -133,14 +133,26 @@ public enum MerchantCategoryMap {
         "night_club": .entertainment
     ]
 
-    /// Every type this map can act on. Handed to the Places API as
-    /// `includedTypes` so the twenty results that come back are twenty we can
-    /// use, rather than twenty banks and hair salons.
+    /// Every type this map can act on **and Google will accept in a request**.
+    /// Handed to the Places API as `includedTypes` so the twenty results that
+    /// come back are twenty we can use, rather than twenty banks and hair
+    /// salons.
+    ///
+    /// **The filter through `PlaceTypeVocabulary` is not cosmetic.** This
+    /// dictionary is the *reading* vocabulary and keeps every legacy alias on
+    /// purpose, because a response can still carry one. Sending those aliases
+    /// back as a question is a different matter: one unrecognised entry fails
+    /// the whole `searchNearby` call, which here means no merchants, so no
+    /// regions, so **no reminders at all** — and unlike the Map, which puts a
+    /// lookup failure on screen, this path fails silently and looks exactly
+    /// like a quiet week. See `PlaceTypeVocabulary` for the 400 that found it.
     public static func placeTypeNames(for categories: Set<SpendingCategory>) -> [String] {
-        placeTypes
-            .filter { categories.contains($0.value) }
-            .keys
-            .sorted()
+        PlaceTypeVocabulary.requestable(
+            placeTypes
+                .filter { categories.contains($0.value) }
+                .keys
+                .sorted()
+        )
     }
 
     /// Names that a place-type lookup gets wrong. Costco is typed as a

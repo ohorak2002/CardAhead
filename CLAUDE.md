@@ -496,10 +496,35 @@ not go back there.
   rated" sort with them. Hours, phone and website are *not* in that mask;
   they cost a details call, made for one place, only when somebody opens it.
 - **An unrecognised `includedTypes` entry fails the whole Places request**
-  with `INVALID_ARGUMENT` and returns nothing — not just its own results. So
-  `MapCategory.placeTypes` is conservative, and `NearbyMapView` puts a lookup
-  failure on the screen in words rather than showing an empty map, so a bad
-  type is diagnosable on a device instead of reading as "nothing nearby".
+  with `INVALID_ARGUMENT` and returns nothing — not just its own results.
+  `NearbyMapView` puts a lookup failure on the screen in words rather than
+  showing an empty map, so a bad type is diagnosable on a device instead of
+  reading as "nothing nearby" — **and that is exactly how this was found, on a
+  phone, after CI had been green for days.** The Map read "The place lookup
+  was refused (400). Unsupported types: grocery_or_supermarket" with zero pins.
+- **Reading a place type and asking for one are two different vocabularies,
+  and `PlaceTypeVocabulary` is the line between them.** A response can still
+  carry `grocery_or_supermarket` or `lodging`, and dropping those would
+  misfile a real shop — so the *reading* lists (`MapCategory.placeTypes`,
+  `MerchantCategoryMap.placeTypes`) keep every legacy alias. A *request* must
+  contain only what Places API (New) admits to knowing, so both request
+  builders (`MapCategory.requestableTypes` /`placeTypes(for:)` and
+  `MerchantCategoryMap.placeTypeNames(for:)`) filter through
+  `PlaceTypeVocabulary.requestable`. The old comment demanded one list be both
+  "deliberately conservative" and "covers both generations", which is not
+  possible, and the second requirement quietly broke the first.
+  **When unsure whether a type is still valid, put it in `legacyOnly`**: an
+  invalid type costs the entire request, a valid one left out costs a few
+  results a sibling type picks up anyway.
+  **Both halves of the app had this bug, and only one of them showed it.** The
+  Map says "could not look up nearby places". The geofence planner says
+  nothing at all — a refused lookup there means no merchants, so no regions,
+  so **no reminders ever**, which is indistinguishable from a quiet week.
+  `PlaceRequestVocabularyTests` covers both.
+- **CI cannot catch a Places bug.** The screenshot job seeds its own places
+  (`DemoSeed.places`) and never calls Google, so the live API is only ever
+  exercised on a real device with a real key. Green CI says nothing about
+  whether a request is well-formed.
 - **Every pin on the map is a `MapPinGroup`, even a group of one.** A high
   street puts twenty shops inside a hundred metres; drawn one pin each they
   heap up, the ones underneath cannot be tapped, and the heap does not even

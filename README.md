@@ -99,7 +99,7 @@ The app itself needs Apple's frameworks:
 ```bash
 brew install xcodegen
 xcodegen generate
-open CardRewards.xcodeproj
+open CardWise.xcodeproj
 ```
 
 If you do not have a Mac, CI has one. Every push to `main` builds an unsigned

@@ -1,4 +1,4 @@
-name: CardRewards
+name: CardWise
 
 options:
   bundleIdPrefix: com.example
@@ -12,7 +12,7 @@ packages:
     path: Packages/CardKit
 
 targets:
-  CardRewards:
+  CardWise:
     type: application
     platform: iOS
     sources:

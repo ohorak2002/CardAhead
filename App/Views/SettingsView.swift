@@ -211,7 +211,7 @@ struct SettingsView: View {
                         .foregroundStyle(.tertiary)
                 }
             }
-            ForEach(CardArtLibrary.attributions, id: \.self) { line in
+            ForEach(CardArtLibrary.attributions(), id: \.self) { line in
                 Text(line)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -274,6 +274,9 @@ private struct ValuationRow: View {
 /// more reassuring than a vague one.
 private struct CardArtworkExplainerView: View {
     @Environment(\.dismiss) private var dismiss
+    #if DEBUG
+    @Environment(WalletStore.self) private var store
+    #endif
 
     var body: some View {
         NavigationStack {
@@ -291,6 +294,10 @@ private struct CardArtworkExplainerView: View {
                 } header: {
                     Text("What you get instead").textCase(nil)
                 }
+
+                #if DEBUG
+                artworkAudit
+                #endif
             }
             .navigationTitle("Card artwork")
             .navigationBarTitleDisplayMode(.inline)
@@ -301,6 +308,80 @@ private struct CardArtworkExplainerView: View {
             }
         }
     }
+
+    #if DEBUG
+    /// Where the artwork position is visible rather than folklore.
+    ///
+    /// Debug-only on purpose. A person adding their Amex Gold does not need to
+    /// know what a licence manifest is (`docs/card-art.md`, "the complexity
+    /// belongs inside the system") — but whoever is *negotiating* one needs to
+    /// see, on a real device, which of the three faces each card is actually
+    /// getting and what is standing in the way. Building a shipping admin
+    /// screen for that would be a rights-management product nobody asked for.
+    @ViewBuilder
+    private var artworkAudit: some View {
+        Section {
+            ForEach(store.cards) { card in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(card.displayName)
+                        .font(.subheadline.weight(.medium))
+                    Text(CardArtSource.resolve(for: card).shortLabel)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(card.catalogProductID ?? "no product id — described by hand")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.vertical, 1)
+            }
+            if store.cards.isEmpty {
+                Text("No cards yet.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Debug — what each card resolves to").textCase(nil)
+        }
+
+        Section {
+            if CardArtLibrary.assets.isEmpty {
+                Text("Registry is empty, which is the shipping state.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(CardArtLibrary.assets) { asset in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(asset.productID) · v\(asset.assetVersion)")
+                            .font(.subheadline.weight(.medium))
+                        Text("\(asset.status.displayName) · \(usesLine(asset))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if let reason = asset.blockingReason() {
+                            Text(reason)
+                                .font(.caption)
+                                .foregroundStyle(Color.cardWiseWarning)
+                        }
+                        if let reference = asset.licence.reference {
+                            Text(reference)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .padding(.vertical, 1)
+                }
+            }
+        } header: {
+            Text("Debug — licence registry").textCase(nil)
+        }
+    }
+
+    /// "Approved for nothing in particular" has to read as nothing, not as a
+    /// blank — that state is the whole reason the field defaults to empty.
+    private func usesLine(_ asset: CardArtAsset) -> String {
+        let names = asset.permittedUses.map(\.displayName).sorted()
+        return names.isEmpty ? "no uses granted" : names.joined(separator: ", ")
+    }
+    #endif
 }
 
 #Preview {

@@ -29,10 +29,15 @@ struct CardFaceView: View {
     private var art: CardArt { CardArt.art(for: card.artKey) }
     private var finish: CardFinish { card.appearance }
 
+    /// Resolved once. Three separate calls would be three chances for the
+    /// face, the caption and the VoiceOver label to disagree about which of
+    /// the three sources is actually on screen.
+    private var source: CardArtSource { CardArtSource.resolve(for: card) }
+
     /// Only ever non-nil for artwork we hold a licence for. `CardArtLibrary`
     /// does the refusing, so nothing here has to remember to check.
     private var licensedArt: Image? {
-        guard case .licensed(let asset) = CardArtSource.resolve(for: card) else { return nil }
+        guard case .licensed(let asset) = source else { return nil }
         return Image(asset.imageName)
     }
 
@@ -172,8 +177,24 @@ struct CardFaceView: View {
         }
     }
 
+    /// VoiceOver is told which of the three faces this is, because the
+    /// difference between a photograph of somebody's own card and a drawing of
+    /// it is the entire subject here and is invisible to a screen reader
+    /// otherwise. A photo that failed to load is described as the drawing it
+    /// actually is, not as the photo it was meant to be.
     private var accessibilityText: String {
-        var parts = [card.displayName]
+        var described = source
+        switch source {
+        // A photo whose file has gone is described as the drawing it actually
+        // is, not the photo it was meant to be.
+        case .userPhoto where photo == nil: described = .drawn
+        // And a photo handed in before it has been saved onto the card — the
+        // preview on the "use a photo" screen — is described as the photo it
+        // visibly already is.
+        case .drawn where photo != nil: described = .userPhoto("")
+        default: break
+        }
+        var parts = [described.accessibilityDescription(for: card)]
         if let highlight { parts.append(highlight) }
         if isRecommended { parts.append("Recommended here") }
         if card.isPinned { parts.append("Preferred for ties") }

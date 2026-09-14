@@ -191,7 +191,22 @@ download. `CardArtLibrary` is the registry of artwork we hold a licence for, it
 `CardArtSource.resolve(for:)` is the only way to pick a face — licensed asset,
 then your own photo, then a card CardWise draws itself at the real ISO/IEC 7810
 proportion with a chip and a contactless mark and no logo. The app says in words
-which of the three you are looking at. See `docs/card-art.md`.
+which of the three you are looking at.
+
+A grant answers four separate questions and the app keeps them apart, because
+collapsing any two is how an app ends up showing artwork it is not entitled to:
+where the file came from, what state the grant is in (pending, approved,
+revoked), what it covers (**permission to draw a card inside the app is not
+permission to put it in an App Store screenshot**), and between which dates.
+Every way that can go wrong — pending, revoked, lapsed, not started, wrong use,
+a manifest missing a field, a manifest that will not parse, a deleted photo —
+ends at the same place: CardWise draws the card. There is a test for each.
+
+Photographing your own card is the exact-match route, and it stays on the
+phone: found, flattened and cropped on device, never uploaded, never logged.
+Nothing in that path reads the card — the only Vision request in the app finds
+rectangles, and there is no OCR anywhere, because the app has never needed a
+card number. See `docs/card-art.md`.
 
 **Every number in the catalog cites the bank's own page and the day somebody
 read it.** Not a review site: those are downstream of the same drift the field

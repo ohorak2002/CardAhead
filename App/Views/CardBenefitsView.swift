@@ -44,6 +44,21 @@ struct CardBenefitsView: View {
     @State private var dropped: Set<String> = []
     @State private var isChangingCard = false
     @State private var isEditingByHand = false
+    @State private var isChoosingPhoto = false
+
+    /// A photo taken here but not saved yet.
+    ///
+    /// Held rather than written straight through, because a card being
+    /// *confirmed* is not in the wallet yet — there is nothing to write it
+    /// onto until Add is tapped, and somebody who backs out of this screen
+    /// must not leave a photo file behind for a card that never existed.
+    @State private var photoChange: PhotoChange = .unchanged
+
+    private enum PhotoChange {
+        case unchanged
+        case removed
+        case replaced(UIImage)
+    }
 
     private var isConfirming: Bool {
         if case .confirming = mode { return true }
@@ -125,6 +140,11 @@ struct CardBenefitsView: View {
         .sheet(isPresented: $isEditingByHand) {
             CardEditorView(mode: .editing(card))
         }
+        .sheet(isPresented: $isChoosingPhoto) {
+            CardPhotoView(card: card) { image in
+                photoChange = image.map { PhotoChange.replaced($0) } ?? .removed
+            }
+        }
     }
 
     // MARK: - The card itself
@@ -132,7 +152,7 @@ struct CardBenefitsView: View {
     private var faceSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 12) {
-                CardFaceView(card: card, photo: store.photo(for: card))
+                CardFaceView(card: card, photo: faceImage)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(card.displayName)
@@ -148,20 +168,47 @@ struct CardBenefitsView: View {
             .padding(.vertical, 4)
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             .listRowBackground(Color.clear)
+
+            // Right here, under the card, rather than buried in the form the
+            // catalog flow exists to avoid. Somebody who has just picked their
+            // card off a list is exactly the person who wants it to look like
+            // the one in their pocket.
+            Button {
+                isChoosingPhoto = true
+            } label: {
+                Label(hasPhoto ? "Change your card photo" : "Use a photo of your card", systemImage: "camera")
+            }
         }
     }
 
+    /// What the face is drawing right now: a photo taken on this screen and
+    /// not saved yet, then the saved one, then nothing.
+    private var faceImage: Image? {
+        switch photoChange {
+        case .replaced(let image): return Image(uiImage: image)
+        case .removed: return nil
+        case .unchanged: return store.photo(for: card)
+        }
+    }
+
+    private var hasPhoto: Bool { faceImage != nil }
+
     /// The app must never let a drawn card pass for the bank's own artwork.
     /// `CardArtSource` decides which face is on screen, so it also decides
-    /// which of these sentences is true.
-    private var artProvenance: String {
-        switch CardArtSource.resolve(for: card) {
-        case .licensed(let asset):
-            return asset.licence.attribution ?? "Artwork used with the issuer's permission."
-        case .userPhoto:
-            return "Your own photo of this card."
-        case .drawn:
-            return "Drawn by CardWise. Not the bank's artwork — we show that only where we have permission to."
+    /// which of these sentences is true — and it owns the sentences, in
+    /// CardKit, where a test can check that the drawn one never claims to be
+    /// the issuer's.
+    private var artProvenance: String { artSource.provenanceLine }
+
+    /// Which of the three faces is on screen *right now*, counting a photo
+    /// taken on this screen and not saved yet. Reading it off `card` alone
+    /// would caption a photograph of somebody's own card "Drawn by CardWise",
+    /// which is the exact thing this line exists to get right.
+    private var artSource: CardArtSource {
+        switch photoChange {
+        case .replaced: return .userPhoto("")
+        case .removed: return .drawn
+        case .unchanged: return CardArtSource.resolve(for: card)
         }
     }
 
@@ -321,16 +368,24 @@ struct CardBenefitsView: View {
 
     private func save() {
         saved.fire()
-        let next = card.removingBenefits(ids: dropped)
+        var next = card.removingBenefits(ids: dropped)
 
         switch mode {
         case .confirming:
             if let old = replacing {
-                store.replace(next.takingWalletPlace(of: old))
+                // The photo change is applied *after* taking the old card's
+                // place, not before: `takingWalletPlace(of:)` deliberately
+                // carries the previous card's photo across, and would
+                // otherwise overwrite the one just taken on this screen.
+                next = next.takingWalletPlace(of: old)
+                applyPhotoChange(to: &next)
+                store.replace(next)
             } else {
+                applyPhotoChange(to: &next)
                 store.add(next)
             }
         case .reviewing:
+            applyPhotoChange(to: &next)
             store.replace(next)
         }
 
@@ -338,6 +393,17 @@ struct CardBenefitsView: View {
             onFinish()
         } else {
             dismiss()
+        }
+    }
+
+    /// Writes the photo file and points the card at it, or deletes the one it
+    /// had. `WalletStore.setPhoto` owns both halves so an edit cannot leave an
+    /// orphaned image behind.
+    private func applyPhotoChange(to card: inout Card) {
+        switch photoChange {
+        case .unchanged: break
+        case .removed: store.setPhoto(nil, on: &card)
+        case .replaced(let image): store.setPhoto(image, on: &card)
         }
     }
 

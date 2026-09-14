@@ -37,12 +37,22 @@ struct RootTabView: View {
         /// inside More rather than a tab of its own — and pushing it from
         /// there is exactly the route a person takes to it. "watching" lands
         /// on Map for the same reason: it is a chip on that screen, and
-        /// `simctl` cannot tap a chip.
+        /// `simctl` cannot tap a chip. "cardphoto" and "cardbenefits" land on
+        /// Wallet and open themselves — see `WalletTab`.
+        ///
+        /// **A name missing from this list silently photographs Home**, which
+        /// is exactly what happened the first time the two card-art names were
+        /// added to the CI job and not to this switch: a green run, two new
+        /// files, and both of them a picture of the wrong screen. Add the name
+        /// here in the same commit as the `shoot` line.
         static var launched: Tab {
             guard let raw = DemoSeed.requestedTab else { return .home }
-            if raw == "impact" { return .more }
-            if raw == "watching" { return .map }
-            return Tab(rawValue: raw) ?? .home
+            switch raw {
+            case "impact": return .more
+            case "watching": return .map
+            case "cardphoto", "cardbenefits": return .wallet
+            default: return Tab(rawValue: raw) ?? .home
+            }
         }
     }
 
@@ -61,7 +71,7 @@ struct RootTabView: View {
             .tag(Tab.map)
 
             NavigationStack {
-                WalletStackView()
+                WalletTab()
             }
             .tabItem { Label("Wallet", systemImage: "creditcard.fill") }
             .tag(Tab.wallet)
@@ -83,6 +93,47 @@ struct RootTabView: View {
         .onChange(of: reminders.cardToOpen) { _, id in
             guard id != nil else { return }
             selection = .wallet
+        }
+    }
+}
+
+/// The wallet, plus the two card-art screens CI cannot tap its way to.
+///
+/// Photographing a card and confirming its benefits are both several taps past
+/// the wallet, and `simctl` cannot tap — so without this they would be the only
+/// screens in the app nobody has ever seen, which is exactly the state the
+/// screenshot job exists to end. Same trick as `MoreView(startOnImpact:)`.
+///
+/// Nothing here is gated on `#if DEBUG` because it does not need to be:
+/// `DemoSeed.requestedTab` is already nil in a release build, so both of these
+/// stay shut on a real phone.
+private struct WalletTab: View {
+    @Environment(WalletStore.self) private var store
+
+    @State private var isShowingPhoto = false
+    @State private var isShowingBenefits = false
+
+    var body: some View {
+        WalletStackView()
+            .sheet(isPresented: $isShowingPhoto) { photoScreen }
+            .navigationDestination(isPresented: $isShowingBenefits) { benefitsScreen }
+            .onAppear {
+                isShowingPhoto = DemoSeed.requestedTab == "cardphoto"
+                isShowingBenefits = DemoSeed.requestedTab == "cardbenefits"
+            }
+    }
+
+    @ViewBuilder
+    private var photoScreen: some View {
+        if let card = store.cards.first {
+            CardPhotoView(card: card) { _ in }
+        }
+    }
+
+    @ViewBuilder
+    private var benefitsScreen: some View {
+        if let card = store.cards.first {
+            CardBenefitsView(mode: .reviewing(card))
         }
     }
 }

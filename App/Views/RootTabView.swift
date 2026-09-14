@@ -37,12 +37,22 @@ struct RootTabView: View {
         /// inside More rather than a tab of its own — and pushing it from
         /// there is exactly the route a person takes to it. "watching" lands
         /// on Map for the same reason: it is a chip on that screen, and
-        /// `simctl` cannot tap a chip.
+        /// `simctl` cannot tap a chip. "cardphoto" and "cardbenefits" land on
+        /// Wallet and open themselves — see `WalletTab`.
+        ///
+        /// **A name missing from this list silently photographs Home**, which
+        /// is exactly what happened the first time the two card-art names were
+        /// added to the CI job and not to this switch: a green run, two new
+        /// files, and both of them a picture of the wrong screen. Add the name
+        /// here in the same commit as the `shoot` line.
         static var launched: Tab {
             guard let raw = DemoSeed.requestedTab else { return .home }
-            if raw == "impact" { return .more }
-            if raw == "watching" { return .map }
-            return Tab(rawValue: raw) ?? .home
+            switch raw {
+            case "impact": return .more
+            case "watching": return .map
+            case "cardphoto", "cardbenefits": return .wallet
+            default: return Tab(rawValue: raw) ?? .home
+            }
         }
     }
 

@@ -51,7 +51,6 @@ struct HomeView: View {
                 if store.cards.isEmpty {
                     firstCardPrompt
                 } else {
-                    nearbyBanner
                     watchingBanner
                     opportunitySection
                     walletPeek
@@ -77,15 +76,25 @@ struct HomeView: View {
             }
             .padding(.top, Metric.tight)
 
-            Text(greeting)
+            greetingText
                 .font(.system(.largeTitle, design: .rounded).weight(.bold))
-                .foregroundStyle(.white)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
 
             Text("The right card. Right when you need it.")
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.75))
+
+            // **The mockup's one real piece of layering.** What is nearby sat
+            // below the navy as another white card in a column of white
+            // cards, which is why the header read as a coloured strip rather
+            // than as a place. Inside it, on a translucent panel, it is the
+            // thing the screen opens *with* — and the hero stops being three
+            // lines of text with nothing in it.
+            if !store.cards.isEmpty {
+                nearbyBanner
+                    .padding(.top, Metric.tight)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Metric.margin)
@@ -106,11 +115,26 @@ struct HomeView: View {
         }
     }
 
-    private var greeting: String {
+    private var timeOfDay: String {
         let hour = Calendar.current.component(.hour, from: Date())
-        let time = hour < 12 ? "Good morning" : (hour < 18 ? "Good afternoon" : "Good evening")
+        return hour < 12 ? "Good morning" : (hour < 18 ? "Good afternoon" : "Good evening")
+    }
+
+    /// "Good morning, **Oren**" — with the name picked out, the way the mockup
+    /// does it.
+    ///
+    /// Two concatenated `Text`s rather than two views, so it stays one
+    /// paragraph and wraps as one. The name's colour is Light Blue and
+    /// **deliberately not the mockup's Accent Blue**, which measures 1.70:1
+    /// against the lighter end of the gradient behind it — see
+    /// `Color.cardWiseLightBlue`.
+    private var greetingText: Text {
         let name = preferredName.trimmingCharacters(in: .whitespaces)
-        return name.isEmpty ? time : "\(time), \(name)"
+        guard !name.isEmpty else {
+            return Text(timeOfDay).foregroundColor(.white)
+        }
+        return Text("\(timeOfDay), ").foregroundColor(.white)
+            + Text(name).foregroundColor(.cardWiseLightBlue)
     }
 
     // MARK: - What is around you
@@ -134,23 +158,20 @@ struct HomeView: View {
     private var nearbyBanner: some View {
         let count = nearby.opportunityCount
         if count > 0 {
-            HomeBanner(
+            HeroBanner(
                 symbolName: "mappin.and.ellipse",
-                tint: .cardWiseBlue,
                 title: count == 1 ? "1 opportunity nearby" : "\(count) opportunities nearby",
                 detail: "Places within \(nearby.filter.distance.displayName) where one of your cards pays more than usual."
             ) { goTo(.map) }
         } else if !nearby.results.isEmpty {
-            HomeBanner(
+            HeroBanner(
                 symbolName: "map",
-                tint: .secondary,
                 title: "\(nearby.results.count) places nearby",
                 detail: "None of them pays more than the card you would have reached for anyway."
             ) { goTo(.map) }
         } else {
-            HomeBanner(
+            HeroBanner(
                 symbolName: "map",
-                tint: .cardWiseBlue,
                 title: "See what is around you",
                 detail: "The map shows nearby shops and which of your cards wins at each."
             ) { goTo(.map) }
@@ -315,6 +336,57 @@ struct HomeView: View {
 }
 
 /// The status line under the header. One symbol, two lines, a chevron.
+/// A `HomeBanner` that lives **inside** the navy header rather than under it.
+///
+/// Same row, different ground, and the difference is the whole point: on the
+/// page it would be one more white card in a column of white cards, and in the
+/// header it is what the header is *about*. The mockup does this once, on this
+/// one banner, which is why the hero in it reads as a place and the app's read
+/// as a strip of paint.
+///
+/// **Every colour here is white at an opacity, never a palette colour.** The
+/// ground is a gradient from `#0B1F44` to `#1E56D6`, so anything drawn on it
+/// has to survive both ends — and the palette's own blues do not: Accent Blue
+/// measures 1.70:1 against the lighter end. White at 15% gives a panel that is
+/// 10.3:1 against the navy end and 4.6:1 against the blue one, with white text
+/// legible on both.
+private struct HeroBanner: View {
+    let symbolName: String
+    let title: String
+    let detail: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Metric.snug) {
+                Image(systemName: symbolName)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 38, height: 38)
+                    .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.75))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: Metric.tight)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.6))
+            }
+            .padding(Metric.snug)
+            .background(.white.opacity(0.15), in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 private struct HomeBanner: View {
     let symbolName: String
     let tint: Color

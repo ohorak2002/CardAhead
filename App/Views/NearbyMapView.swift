@@ -53,15 +53,38 @@ struct NearbyMapView: View {
     /// into two different ones, which a counter gives and the cluster's own id
     /// would not.
     @State private var clusterOpenings = 0
+    /// How tall the map is drawn, measured from the tab rather than fixed.
+    /// Feeds both the frame and the pin-clustering separation — see
+    /// `mapHeight(fitting:)`. The initial value is only ever on screen for the
+    /// one frame before the first layout reports a real one.
+    @State private var mapHeight: CGFloat = 300
 
     var body: some View {
         @Bindable var places = places
 
-        VStack(spacing: 0) {
-            header
-            controls
-            map
-            resultsList
+        // **A `GeometryReader` at the root, which is not the trap it looks
+        // like.** The warning written on the wallet stack is about measuring a
+        // container to size something *inside* it when that container's size
+        // comes from its children — VStack width from children, children sized
+        // from the measurement, round and round. This is the other case: a
+        // `GeometryReader` takes all the space offered to it and reports that,
+        // whatever its children do. The number it hands back is the tab's
+        // height, which is the screen's, and nothing below depends on it in a
+        // way that feeds back up.
+        GeometryReader { proxy in
+            VStack(spacing: 0) {
+                header
+                controls
+                map
+                resultsList
+            }
+            // `onChange`, not a `let` read during body: the height feeds the
+            // pin-clustering maths as well as the frame, and both want it from
+            // one place. `initial: true` fires it on appear, after layout, so
+            // nothing is assigned while a layout pass is running.
+            .onChange(of: proxy.size.height, initial: true) { _, height in
+                mapHeight = Self.mapHeight(fitting: height)
+            }
         }
         .background(Color(.systemGroupedBackground))
         .toolbar(.hidden, for: .navigationBar)
@@ -239,12 +262,23 @@ struct NearbyMapView: View {
 
     // MARK: - The map
 
-    /// 300 points: enough map to be worth panning, and short enough that the
-    /// first three rows of the list are on screen under it. Deliberately a
-    /// constant rather than a fraction measured with a `GeometryReader` —
-    /// measuring a container to size something inside it is the circular trap
-    /// that cost a whole CI round trip on the wallet stack.
-    private static let mapHeight: CGFloat = 300
+    /// How much of the screen the map gets.
+    ///
+    /// **This was a flat 300 points and that was too little.** On a modern
+    /// phone the tab is 874 points tall, so a third of the screen went to the
+    /// thing the tab is named after and two thirds to a header, a search box,
+    /// a row of chips and a list — on a screen whose entire job is showing you
+    /// where things are. The mockup makes the map the hero; 300 points made it
+    /// an illustration above a list.
+    ///
+    /// 46% of the available height, clamped. The floor keeps it usable on an
+    /// SE, where 46% is not much map; the ceiling stops it from swallowing the
+    /// list on a Pro Max, because the list is where the answer actually is —
+    /// a pin says *where*, only the row says *which card*. On a 874-point tab
+    /// that lands at 402 points, against 300 before.
+    private static func mapHeight(fitting available: CGFloat) -> CGFloat {
+        min(max(available * 0.46, 260), 460)
+    }
 
     /// The shops that already have a geofence around them.
     ///
@@ -257,14 +291,15 @@ struct NearbyMapView: View {
 
     /// Pins, grouped so they cannot sit on top of each other.
     ///
-    /// The grouping distance comes from the camera rather than a constant: a
-    /// pin is about 40 points across and the map is 300 points tall, so two
-    /// pins are touching when they are closer than `40/300` of whatever the
-    /// map is currently showing. Zoom in and the same two shops come apart on
-    /// their own.
+    /// The grouping distance comes from the camera *and* the map's own
+    /// height: a pin is about 40 points across, so two pins are touching when
+    /// they are closer than `40 / mapHeight` of whatever the map is currently
+    /// showing. Zoom in and the same two shops come apart on their own — and
+    /// a taller map, which now happens on a bigger phone, separates them
+    /// sooner rather than clustering as if it were still 300 points.
     private var pinGroups: [MapPinGroup] {
         let latitudeDelta = cameraSpan?.latitudeDelta ?? span(for: places.filter.distance).latitudeDelta
-        let separation = (NearbyPlaces.pinDiameterPoints / Double(Self.mapHeight)) * latitudeDelta
+        let separation = (NearbyPlaces.pinDiameterPoints / Double(mapHeight)) * latitudeDelta
         return NearbyPlaces.pinGroups(
             for: places.results,
             separationDegrees: separation,
@@ -349,7 +384,7 @@ struct NearbyMapView: View {
 
             recenterButton
         }
-        .frame(height: Self.mapHeight)
+        .frame(height: mapHeight)
         .clipShape(RoundedRectangle(cornerRadius: Metric.cardRadius, style: .continuous))
         .padding(.horizontal, Metric.margin)
         .animation(.snappy(duration: 0.25), value: selectedID)

@@ -37,6 +37,15 @@ extension Color {
     static let cardWiseBlue = Color(red: 0.118, green: 0.337, blue: 0.839)
     /// Accent Blue. The bottom of the lighter gradient.
     static let cardWiseAccent = Color(red: 0.231, green: 0.510, blue: 0.965)
+    /// Light Blue. The only palette colour that can tint text **on** the
+    /// header gradient.
+    ///
+    /// The mockup puts the name in the greeting in Accent Blue, and that
+    /// cannot be copied: Accent Blue on the gradient's lighter end is
+    /// **1.70:1**, worse than the invisible Card perks icon that `BrandTint`
+    /// exists because of. Light Blue is 5.51:1 at the same spot and reads as
+    /// the same idea — a name picked out from the words around it.
+    static let cardWiseLightBlue = Color(red: 0.902, green: 0.949, blue: 1.0)
 }
 
 extension ShapeStyle where Self == LinearGradient {

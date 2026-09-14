@@ -146,9 +146,6 @@ private struct WalletTab: View {
 struct MoreView: View {
 
     @Environment(ImpactStore.self) private var impact
-    /// Read so the impact row can stack its title and its value instead of
-    /// drawing them over each other. See the row itself.
-    @Environment(\.dynamicTypeSize) private var typeSize
     let auth: LocationAuthorization
     /// Pushes the impact screen straight away rather than waiting for a tap.
     /// Only ever true in a seeded CI run, so a screen two taps deep can still
@@ -161,67 +158,40 @@ struct MoreView: View {
         VStack(spacing: 0) {
         ScreenHeader("More")
         List {
+            // **The impact is a card, not a row.** This screen was three grey
+            // rows and 386 points — 44% of the phone — of empty background
+            // under them. The fix is not furniture to pad it out; it is
+            // giving the one genuinely valuable thing on it the weight it
+            // should have had. A number somebody wants to look at does not
+            // belong in the same typeface as "Settings".
+            //
+            // It also retires the Dynamic Type workaround that used to live
+            // here. A title and a value fighting over one line needed a
+            // special case at the accessibility sizes; stacked in a card they
+            // were never on one line to begin with.
             Section {
-                NavigationLink {
-                    ImpactView()
-                } label: {
-                    // **A title and a value on one line stop being one line at
-                    // the accessibility text sizes.** An `HStack` with a
-                    // `Spacer` between two `Text`s has no answer when neither
-                    // half fits: both wrap, the `Spacer` collapses to nothing,
-                    // and at the largest size "Your impact" and "$8.47 extra"
-                    // were drawn on top of each other — not truncated,
-                    // genuinely overlapping and unreadable.
-                    //
-                    // **The value goes under the whole `Label`, not inside
-                    // it.** Stacking the two `Text`s in the label's *title*
-                    // slot was the first attempt and it stopped the overlap
-                    // without fixing the layout: `Label` lays its title out
-                    // beside the icon, so every line after the first wrapped
-                    // back to the margin and the value arrived indented under
-                    // nothing. A `Label` is allowed to be one thing on one
-                    // line; the detail belongs beneath it.
-                    if typeSize.isAccessibilitySize {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Label {
-                                Text("Your impact")
-                            } icon: {
-                                Image(systemName: "chart.line.uptrend.xyaxis")
-                                    .foregroundStyle(Color.cardWiseBlue)
-                            }
-                            Text(impactSummary)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    } else {
-                        Label {
-                            HStack {
-                                Text("Your impact")
-                                Spacer(minLength: Metric.tight)
-                                Text(impactSummary)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } icon: {
-                            Image(systemName: "chart.line.uptrend.xyaxis")
-                                .foregroundStyle(Color.cardWiseBlue)
-                        }
-                    }
-                }
+                impactCard
+            }
+
+            Section {
                 NavigationLink {
                     WhyThisCardView()
                 } label: {
                     Label("Why this card", systemImage: "questionmark.circle")
                 }
-            } footer: {
-                Text("What these reminders have been worth, and how the ranking behind them works.")
-            }
-
-            Section {
                 NavigationLink {
                     SettingsView(auth: auth)
                 } label: {
                     Label("Settings", systemImage: "gearshape")
                 }
+            } footer: {
+                Text("How the ranking behind these reminders works, and everything else.")
+            }
+
+            Section {
+                EmptyView()
+            } footer: {
+                appFooter
             }
         }
         .listStyle(.insetGrouped)
@@ -236,12 +206,87 @@ struct MoreView: View {
         }
     }
 
-    private var impactSummary: String {
+    /// The one thing on this screen worth looking at, sized like it.
+    private var impactCard: some View {
+        NavigationLink {
+            ImpactView()
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.cardWiseBlue)
+                    Text("Your impact")
+                        .font(.subheadline.weight(.semibold))
+                }
+                Text(impactHeadline)
+                    .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                    .foregroundStyle(Color.cardWiseBlue)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                Text(impactCaption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, 6)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Your impact, \(impactHeadline). \(impactCaption)")
+    }
+
+    /// The figure, alone, big enough to be the reason you tapped.
+    private var impactHeadline: String {
         guard impact.isRecording else { return "Off" }
         let summary = impact.summary
-        guard summary.priced > 0 else { return summary.hasAnythingToShow ? "Nothing priced yet" : "Nothing yet" }
-        return String(format: "$%.2f extra", summary.estimatedIncrementalValueCents / 100)
+        guard summary.priced > 0 else { return summary.hasAnythingToShow ? "—" : "—" }
+        return String(format: "$%.2f", summary.estimatedIncrementalValueCents / 100)
     }
+
+    /// What the figure means. **Never "saved"** — nothing was discounted and
+    /// no price changed; and it is the *incremental* number, what the
+    /// recommended card earned over the next best card already in the wallet.
+    private var impactCaption: String {
+        guard impact.isRecording else {
+            return "Not recording. Switch it on to see what these reminders have been worth."
+        }
+        let summary = impact.summary
+        guard summary.priced > 0 else {
+            return summary.hasAnythingToShow
+                ? "Nothing priced yet — say what you spent and this fills in."
+                : "Nothing yet. This fills in once a reminder leads somewhere."
+        }
+        return "Estimated extra rewards, over your next best card."
+    }
+
+    /// The app saying what it is, once, at the bottom of the only screen with
+    /// room for it. Not a control — a version number is the first thing
+    /// anybody is asked for when something goes wrong.
+    private var appFooter: some View {
+        VStack(spacing: 2) {
+            Text("CardWise")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text("Smart cards. Better decisions.")
+                .font(.caption2)
+            Text(versionText)
+                .font(.caption2)
+                .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, Metric.tight)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var versionText: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = info?["CFBundleVersion"] as? String
+        guard let build, build != version else { return "Version \(version)" }
+        return "Version \(version) (\(build))"
+    }
+
 }
 
 #Preview {

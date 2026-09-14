@@ -120,13 +120,19 @@ jobs:
           # The map's "Watching" chip, which is the only view of the geofence
           # pipeline anybody can see without walking into a shop.
           shoot watching 7
+          # The two card-art screens. Both are several taps past the wallet,
+          # so without these they are the only screens in the app nobody has
+          # ever seen. The camera button is expected to be *absent* here — a
+          # simulator has no camera, and `CameraPicker.isAvailable` hides it.
+          shoot cardphoto 8
+          shoot cardbenefits 9
 
       # A palette that works on white paper is not automatically the one that
       # works at night, and nobody has ever seen this app at night.
       - name: Photograph it in the dark
         run: |
           xcrun simctl ui "$DEVICE" appearance dark
-          for TAB in home map wallet benefits impact watching; do
+          for TAB in home map wallet benefits impact watching cardphoto cardbenefits; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
             sleep 6

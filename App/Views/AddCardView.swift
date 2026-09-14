@@ -112,6 +112,7 @@ struct AddCardView: View {
                         CardBenefitsView(
                             mode: .confirming(entry),
                             replacing: replacing,
+                            presentation: .pushed,
                             onFinish: { dismiss() }
                         )
                     } label: {
@@ -135,6 +136,7 @@ struct AddCardView: View {
                     CardBenefitsView(
                         mode: .confirming(entry),
                         replacing: replacing,
+                        presentation: .pushed,
                         onFinish: { dismiss() }
                     )
                 } label: {

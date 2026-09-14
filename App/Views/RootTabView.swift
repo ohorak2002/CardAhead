@@ -133,7 +133,7 @@ private struct WalletTab: View {
     @ViewBuilder
     private var benefitsScreen: some View {
         if let card = store.cards.first {
-            CardBenefitsView(mode: .reviewing(card))
+            CardBenefitsView(mode: .reviewing(card), presentation: .pushed)
         }
     }
 }

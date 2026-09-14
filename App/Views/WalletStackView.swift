@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import CardKit
 
 /// The home screen, and deliberately the only thing on it: the cards, and a way
@@ -19,6 +20,9 @@ struct WalletStackView: View {
     @State private var draggingCardID: UUID?
     @State private var dragTranslation: CGFloat = 0
     @State private var isAddingCard = false
+    /// Measured, because a card cannot be sized any other way here. See
+    /// `row(for:at:)`.
+    @State private var cardWidth: CGFloat = 0
     /// Set when somebody says yes to the follow-up, which is the only route to
     /// the one screen in this app that asks for a number.
     @State private var pricing: OpenRecommendation?
@@ -43,7 +47,12 @@ struct WalletStackView: View {
     @ScaledMetric(relativeTo: .title3) private var cardHeight: CGFloat = 216
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            ScreenHeader(title: "Wallet", subtitle: walletSubtitle) {
+                HeaderButton(symbolName: "plus", label: "Add a card") {
+                    isAddingCard = true
+                }
+            }
             Group {
                 if store.cards.isEmpty {
                     EmptyStateView { isAddingCard = true }
@@ -51,28 +60,13 @@ struct WalletStackView: View {
                     stack
                 }
             }
-            .navigationTitle("Wallet")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    NavigationLink {
-                        SettingsView(auth: locationAuth)
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isAddingCard = true
-                    } label: {
-                        Label("Add a card", systemImage: "plus")
-                    }
-                }
             }
+            .background(Color(.systemGroupedBackground))
+            .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .bottom) {
-                // The undo banner has to survive the wallet going empty — you
-                // can remove your only card and still want it back — so it is
-                // not inside the `!store.cards.isEmpty` guard that hides `whyBar`.
-                if store.lastRemoved != nil || !store.cards.isEmpty {
+                // Both banners have to survive the wallet going empty — you
+                // can remove your only card and still want it back.
+                if store.lastRemoved != nil || impact.followUp != nil {
                     VStack(spacing: 10) {
                         if let removed = store.lastRemoved {
                             undoRemovedBanner(removed)
@@ -89,7 +83,6 @@ struct WalletStackView: View {
                             }
                             .padding(.top, 10)
                         }
-                        if !store.cards.isEmpty { whyBar }
                     }
                     .animation(motion, value: store.lastRemoved)
                 }
@@ -117,7 +110,6 @@ struct WalletStackView: View {
                 else { return }
                 shouldOfferPrimer = true
             }
-        }
     }
 
     /// Yes opens the optional second question; everything else is the end of
@@ -136,6 +128,17 @@ struct WalletStackView: View {
         guard shouldOfferPrimer else { return }
         shouldOfferPrimer = false
         isShowingLocationPrimer = true
+    }
+
+    /// "3 cards · 12 active benefits", or nothing at all when the wallet is
+    /// empty and there is no count worth printing.
+    private var walletSubtitle: String? {
+        guard !store.cards.isEmpty else { return nil }
+        let cards = store.cards.count == 1 ? "1 card" : "\(store.cards.count) cards"
+        let active = WalletInsights.activeBenefitCount(in: store.cards)
+        guard active > 0 else { return cards }
+        let benefits = active == 1 ? "1 active benefit" : "\(active) active benefits"
+        return "\(cards) · \(benefits)"
     }
 
     /// The app cannot do its job without both permissions. Missing either one
@@ -159,8 +162,15 @@ struct WalletStackView: View {
     // MARK: - The stack
 
     private var stack: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
+        // **Measured from the container, not from the content.** The first
+        // attempt put the GeometryReader behind the VStack, which is circular:
+        // the VStack's width comes from its children, the children are sized
+        // from the measurement, and the cards settled at whatever width the
+        // longest line of text happened to want. The screen's width depends on
+        // nothing inside it.
+        GeometryReader { outer in
+            ScrollViewReader { proxy in
+                ScrollView {
                 VStack(spacing: 0) {
                     if remindersAreOff { locationRow }
 
@@ -175,18 +185,26 @@ struct WalletStackView: View {
                         .foregroundStyle(.secondary)
                         .padding(.top, cardHeight - peekHeight + 18)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-                .padding(.bottom, 20)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, Metric.margin)
+                .padding(.top, Metric.tight)
+                // Clear of the floating tab bar, which draws over the end of
+                // any scroll view rather than shortening it.
+                .padding(.bottom, 90)
+                }
+                // Both, because a tap on a reminder can either wake an app
+                // that is already showing this screen or launch one that is
+                // not, and the order those happen in is not ours to decide.
+                .onChange(of: reminders.cardToOpen) { _, id in
+                    openCardFromReminder(id, using: proxy)
+                }
+                .onAppear {
+                    openCardFromReminder(reminders.cardToOpen, using: proxy)
+                }
             }
-            // Both, because a tap on a reminder can either wake an app that is
-            // already showing this screen or launch one that is not, and the
-            // order those happen in is not ours to decide.
-            .onChange(of: reminders.cardToOpen) { _, id in
-                openCardFromReminder(id, using: proxy)
-            }
-            .onAppear {
-                openCardFromReminder(reminders.cardToOpen, using: proxy)
+            .onAppear { cardWidth = outer.size.width - Metric.margin * 2 }
+            .onChange(of: outer.size.width) { _, width in
+                cardWidth = width - Metric.margin * 2
             }
         }
     }
@@ -196,14 +214,24 @@ struct WalletStackView: View {
         let isDragging = draggingCardID == card.id
 
         return VStack(spacing: 0) {
-            // No fixed height: the card sizes itself to the real 1.586 card
-            // ratio, and the row's frame below clips the *layout* height to the
-            // peek, which is what makes the stack overlap.
+            // **Explicitly sized, and it has to be.** `CardFaceView` sizes
+            // itself with `aspectRatio(1.586, contentMode: .fit)`, and the
+            // row's `frame(height: peekHeight)` below does not clip that — it
+            // *proposes* 96pt, which an aspect-fit view answers by shrinking
+            // to 152pt wide. Every card rendered at a third of the screen with
+            // its own name truncated, and nobody could see it until CI started
+            // taking screenshots. An explicit frame ignores the proposal, so
+            // the card keeps its full width and the row still only advances
+            // the layout by the peek — which is what makes the stack overlap.
             CardFaceView(
                 card: card,
                 highlight: highlight(for: card),
                 photo: store.photo(for: card)
             )
+                .frame(
+                    width: cardWidth > 0 ? cardWidth : nil,
+                    height: cardWidth > 0 ? cardWidth / 1.586 : nil
+                )
                 .contentShape(Rectangle())
                 .onTapGesture { toggle(card) }
                 .gesture(dragGesture(for: card, at: index))
@@ -262,29 +290,6 @@ struct WalletStackView: View {
         return reminders.isBlocked
             ? "We can see where you are, but notifications are switched off."
             : "We can see where you are. The reminder itself still needs a yes."
-    }
-
-    private var whyBar: some View {
-        NavigationLink {
-            WhyThisCardView()
-        } label: {
-            HStack {
-                Text("Why this card")
-                    .font(.body.weight(.semibold))
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 15)
-            .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 20)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
-        .background(.bar)
     }
 
     /// Removing a card asks no question first — see `WalletStore.remove(_:)`.
@@ -384,7 +389,12 @@ struct WalletStackView: View {
             }
         }
         if let best = card.rules.filter({ $0.category != .base }).max(by: { $0.rate < $1.rate }) {
-            return "\(card.currency.formatted(rate: best.rate)) on \(best.category.displayName.lowercased())"
+            // The shelf, not the raw category: `travelPortal` reads as "travel
+            // booked through the issuer", which truncates on a card face and
+            // is not how anybody describes their own card. Same reasoning as
+            // `HomeView.bestFor`.
+            let where_ = BenefitGroup.containing(best.category).displayName.lowercased()
+            return "\(card.currency.formatted(rate: best.rate)) on \(where_)"
         }
         if let base = card.rule(for: .base) {
             return "\(card.currency.formatted(rate: base.rate)) on everything"

@@ -4,19 +4,32 @@ on:
   push:
     branches: [main]
   pull_request:
+  # So any branch can be built for a phone without merging it to main first.
+  workflow_dispatch:
 
 jobs:
-  cardkit:
-    name: CardKit unit tests
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Swift version
-        run: swift --version
-      - name: Build
-        run: swift build --package-path Packages/CardKit
-      - name: Test
-        run: swift test --package-path Packages/CardKit
+  # **This repository is public, and that is load-bearing.** GitHub bills
+  # macOS runners at ten times a Linux one, against 2,000 minutes a month —
+  # about 200 real macOS minutes — and a single day of pushing exhausted it on
+  # 2026-09-13 while the repo was private. Public repositories get Actions for
+  # free, which is what makes the screenshot job below affordable at all.
+  #
+  # If this ever goes private again, the failure is deeply misleading: every
+  # job fails instantly with **zero steps run**, which reads as a broken build
+  # and is nothing of the kind. Check the billing page before debugging code.
+  #
+  # CardKit's tests still run on Linux only. They are Foundation-only, so a
+  # second macOS copy of the same suite tells you the same thing more slowly.
+
+  # **Read this before adding a macOS job.** GitHub bills macOS runners at
+  # **ten times** the rate of Linux, against a 2,000-minute monthly free
+  # allowance — so 200 real macOS minutes is the whole month. A day of pushing
+  # exhausted it once already, and the symptom is ugly: every job fails
+  # instantly with zero steps run, which looks exactly like a broken build and
+  # is not one.
+  #
+  # So: Linux does everything it can, macOS does only what it alone can do,
+  # and the expensive jobs are opt-in.
 
   app:
     name: iOS app builds
@@ -35,6 +48,89 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO
 
+  # Pictures of the app, from a machine that cannot run it.
+  #
+  # This is the answer to the fact at the top of CLAUDE.md: development happens
+  # on Windows, there is no Xcode, and until this job existed nobody could see a
+  # single screen. A macOS runner has simulators, so it boots one, installs a
+  # debug build, and photographs it. The app is launched with -CardWiseDemoSeed
+  # so the wallet has cards in it — see App/Store/DemoSeed.swift.
+  #
+  # Deliberately not required to pass. A screenshot job is a convenience, and a
+  # flaky simulator boot must never be the reason a correct change is blocked.
+  screenshots:
+    name: Screenshots
+    # Back on every run, now that the repository is public and minutes are
+    # free. This is the only way anybody sees this app before it is on a
+    # phone, and it has caught two real layout bugs that reading the diff did
+    # not — it earns its seven minutes.
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build for the simulator
+        run: |
+          xcodebuild build             -project CardWise.xcodeproj             -scheme CardWise             -configuration Debug             -destination 'generic/platform=iOS Simulator'             -derivedDataPath build/dd             CODE_SIGNING_ALLOWED=NO
+
+      - name: Boot a phone
+        run: |
+          # Whatever iPhone this runner image actually has, rather than a
+          # hardcoded model name that disappears with the next Xcode.
+          DEVICE=$(xcrun simctl list devices available | grep -Eo '[0-9A-F]{8}-[0-9A-F-]{27}' | head -1)
+          test -n "$DEVICE" || { echo "No simulator available"; exit 1; }
+          echo "DEVICE=$DEVICE" >> "$GITHUB_ENV"
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+
+      - name: Install it
+        run: |
+          APP=$(find build/dd/Build/Products -name 'CardWise.app' | head -1)
+          test -n "$APP" || { echo "No app was built"; exit 1; }
+          echo "Installing $APP"
+          xcrun simctl install "$DEVICE" "$APP"
+
+      # One relaunch per screen rather than tapping through: simctl cannot tap,
+      # and a launch argument naming the tab is deterministic in a way that
+      # scripted taps against a moving UI are not. See DemoSeed.
+      - name: Photograph every tab
+        run: |
+          mkdir -p screenshots
+          shoot () {
+            xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
+            xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$1"
+            sleep 6
+            xcrun simctl io "$DEVICE" screenshot "screenshots/$2-$1.png"
+          }
+          shoot home 1
+          shoot wallet 2
+          shoot benefits 3
+          shoot more 4
+          shoot impact 5
+
+      # A palette that works on white paper is not automatically the one that
+      # works at night, and nobody has ever seen this app at night.
+      - name: Photograph it in the dark
+        run: |
+          xcrun simctl ui "$DEVICE" appearance dark
+          for TAB in home wallet benefits impact; do
+            xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
+            xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
+            sleep 6
+            xcrun simctl io "$DEVICE" screenshot "screenshots/dark-$TAB.png"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CardWise-screenshots
+          path: screenshots
+          retention-days: 14
+          if-no-files-found: warn
+
   # The only way this app reaches a phone without anybody owning a Mac.
   #
   # GitHub's runner *is* a Mac, so it does the one job Windows cannot: turning
@@ -47,7 +143,7 @@ jobs:
   ipa:
     name: Installable app for sideloading
     runs-on: macos-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       - name: Install XcodeGen

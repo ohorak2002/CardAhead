@@ -1,11 +1,8 @@
 import SwiftUI
+import UIKit
 import CardKit
 
 /// Has this app been worth carrying?
-///
-/// Behind Settings rather than on the wallet, because it is a question people
-/// ask occasionally and a number nobody should be looking at daily. The wallet
-/// answers "which card", and that is all it should answer.
 ///
 /// **What this screen will not say.** Not "saved". Nothing was discounted, no
 /// price was lowered, and this app has never seen a transaction — every figure
@@ -15,121 +12,166 @@ import CardKit
 /// part of a reward an app can take any credit for. A card earning 4x would
 /// have earned 4x whether or not anybody was told about it; being told is
 /// worth the gap, not the total.
+///
+/// The one number gets the gradient and the big type because it is the only
+/// number here anybody came for. Everything under it is supporting evidence
+/// and is sized like it.
 struct ImpactView: View {
 
     @Environment(ImpactStore.self) private var impact
 
+    private var summary: ImpactSummary { impact.summary }
+
     var body: some View {
-        List {
-            if impact.isRecording {
-                if impact.summary.hasAnythingToShow {
-                    valueSection
-                    adviceSection
-                    quietSection
-                } else {
-                    nothingYetSection
+        ScrollView {
+            VStack(spacing: Metric.roomy) {
+                if impact.isRecording {
+                    hero
+                    if summary.hasAnythingToShow {
+                        counts
+                        if !summary.categoriesByValue.isEmpty { byCategory }
+                        quiet
+                    } else {
+                        nothingYet
+                    }
                 }
+                recordingControls
             }
-            recordingSection
+            .padding(.horizontal, Metric.margin)
+            .padding(.top, Metric.regular)
+            // Clear of the floating tab bar, which draws over the end of a
+            // scroll view rather than shortening it.
+            .padding(.bottom, 90)
         }
+        .background(Color(.systemGroupedBackground))
         .navigationTitle("Your impact")
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var summary: ImpactSummary { impact.summary }
+    // MARK: - The one number
 
-    // MARK: - What the choices earned
-
-    private var valueSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 6) {
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: Metric.tight) {
+            HStack(alignment: .top) {
                 Text(dollars(summary.estimatedIncrementalValueCents))
-                    .font(.largeTitle.weight(.semibold))
+                    .font(.system(size: 44, weight: .bold, design: .rounded))
                     .monospacedDigit()
-                Text(summary.priced == 0
-                     ? "Nothing priced yet."
-                     : "over your next best card, across \(purchaseCount)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+                Spacer(minLength: Metric.tight)
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .accessibilityHidden(true)
             }
-            .padding(.vertical, 4)
+            Text(heroCaption)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.85))
+        }
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Metric.roomy)
+        .background(.cardWiseAccentGradient, in: RoundedRectangle(cornerRadius: Metric.cardRadius, style: .continuous))
+        .shadow(color: Color.cardWiseBlue.opacity(0.28), radius: 14, x: 0, y: 6)
+        .accessibilityElement(children: .combine)
+    }
 
-            if summary.priced > 0 {
-                LabeledContent("Estimated rewards earned", value: dollars(summary.estimatedRewardValueCents))
-                    .monospacedDigit()
-            }
-        } header: {
-            Text("Estimated extra rewards").textCase(nil)
-        } footer: {
-            Text("An estimate, and only of the purchases you put a number on. Not savings: nothing was discounted and no price changed. The figure above is the gap between the card you were told to use and the next best one you already own — the part being told about actually accounts for.")
+    private var heroCaption: String {
+        guard summary.priced > 0 else {
+            return "Estimated extra rewards. Nothing priced yet."
+        }
+        let purchases = summary.priced == 1 ? "one purchase" : "\(summary.priced) purchases"
+        return "Estimated extra rewards, over your next best card, across \(purchases)."
+    }
+
+    // MARK: - Supporting evidence
+
+    private var counts: some View {
+        HStack(spacing: Metric.snug) {
+            StatTile(value: "\(summary.shown)", label: "Reminders")
+            StatTile(value: "\(summary.accepted)", label: "You used")
+            StatTile(value: "\(summary.priced)", label: "Priced")
         }
     }
 
-    private var purchaseCount: String {
-        summary.priced == 1 ? "one purchase" : "\(summary.priced) purchases"
-    }
+    private var byCategory: some View {
+        VStack(alignment: .leading, spacing: Metric.snug) {
+            SectionHeader("Where it came from")
 
-    // MARK: - Whether the advice landed
-
-    @ViewBuilder
-    private var adviceSection: some View {
-        Section {
-            LabeledContent("Reminders sent", value: "\(summary.shown)")
-                .monospacedDigit()
-            LabeledContent("Opened", value: "\(summary.opened)")
-                .monospacedDigit()
-            if let rate = summary.acceptanceRate {
-                LabeledContent("You said you used the card", value: percent(rate))
-                    .monospacedDigit()
-            } else {
-                Text("Nothing answered yet. The question appears on the wallet after a reminder, and ignoring it is a fine thing to do with it.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            VStack(spacing: Metric.snug) {
+                ForEach(summary.categoriesByValue, id: \.category) { entry in
+                    CategoryValueBar(
+                        category: entry.category,
+                        cents: entry.cents,
+                        fraction: fraction(of: entry.cents)
+                    )
+                }
             }
-        } header: {
-            Text("Whether the advice landed").textCase(nil)
-        } footer: {
-            if summary.acceptanceRate != nil {
-                Text("Out of the reminders you answered, not out of all of them.")
+            .padding(Metric.regular)
+            .cardWisePanel()
+        }
+    }
+
+    /// Relative to the biggest bar, not to a total — the bars are for
+    /// comparing categories with each other, and scaling them against a sum
+    /// makes every bar short as soon as somebody logs a fourth one.
+    private func fraction(of cents: Double) -> Double {
+        let largest = summary.categoriesByValue.map(\.cents).max() ?? 0
+        guard largest > 0 else { return 0 }
+        return max(0.04, min(1, cents / largest))
+    }
+
+    private var quiet: some View {
+        VStack(alignment: .leading, spacing: Metric.tight) {
+            HStack {
+                CategoryIcon(symbolName: "bell.slash.fill", tint: .secondary, size: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Stayed quiet \(summary.suppressed) times")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Arrivals where nothing was worth interrupting you for.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
             }
         }
+        .padding(Metric.regular)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardWisePanel()
+        .accessibilityElement(children: .combine)
     }
 
-    // MARK: - Restraint
-
-    private var quietSection: some View {
-        Section {
-            LabeledContent("Times it stayed quiet", value: "\(summary.suppressed)")
-                .monospacedDigit()
-        } header: {
-            Text("When it said nothing").textCase(nil)
-        } footer: {
-            Text("Arrivals where there was nothing worth interrupting you for: the same shop twice in a day, a card with no real lead over the others, or a cap already spent. Counted because staying quiet is half the job.")
-        }
-    }
-
-    private var nothingYetSection: some View {
-        Section {
-            Text("Nothing yet. Once a reminder has reached you, what came of it appears here.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
+    private var nothingYet: some View {
+        Text("Nothing yet. Once a reminder has reached you, what came of it appears here — and answering it is entirely optional.")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Metric.regular)
+            .cardWisePanel()
     }
 
     // MARK: - The switch
 
-    private var recordingSection: some View {
-        Section {
+    private var recordingControls: some View {
+        VStack(alignment: .leading, spacing: Metric.snug) {
             Toggle("Keep track of this", isOn: Binding(
                 get: { impact.isRecording },
                 set: { impact.setRecording($0) }
             ))
+            .font(.subheadline.weight(.medium))
+
+            Text("Kept on this iPhone and nowhere else. There is no account, nothing is uploaded, and no bank or card account is ever read — the dollar figures are the ones you typed in. Switching this off erases what is here.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             if impact.isRecording && summary.hasAnythingToShow {
                 Button("Erase this history", role: .destructive) { impact.erase() }
+                    .font(.subheadline)
+                    .padding(.top, 2)
             }
-        } footer: {
-            Text("Kept on this iPhone and nowhere else. There is no account, nothing is uploaded, and no bank or card account is ever read — the dollar figures are the ones you typed in. Switching this off erases what is here.")
         }
+        .padding(Metric.regular)
+        .cardWisePanel()
     }
 
     // MARK: - Numbers as words
@@ -142,9 +184,44 @@ struct ImpactView: View {
         formatter.maximumFractionDigits = 2
         return formatter.string(from: NSNumber(value: cents / 100)) ?? String(format: "$%.2f", cents / 100)
     }
+}
 
-    private func percent(_ fraction: Double) -> String {
-        "\(Int((fraction * 100).rounded()))%"
+/// One category's share, as a bar. Its own colour, so the same green means
+/// groceries here as it does on the Benefits grid.
+private struct CategoryValueBar: View {
+    let category: SpendingCategory
+    let cents: Double
+    let fraction: Double
+
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: Metric.tight) {
+                CategoryIcon(symbolName: category.symbolName, tint: category.tint, size: 28)
+                Text(category.displayName)
+                    .font(.subheadline)
+                    .lineLimit(1)
+                Spacer(minLength: Metric.tight)
+                Text(amount)
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+            }
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(category.tint.opacity(0.14))
+                    Capsule()
+                        .fill(category.tint)
+                        .frame(width: max(6, proxy.size.width * fraction))
+                }
+            }
+            .frame(height: 6)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(category.displayName), \(amount)")
+    }
+
+    private var amount: String {
+        String(format: "$%.2f", cents / 100)
     }
 }
 

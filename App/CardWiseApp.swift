@@ -18,12 +18,19 @@ struct CardWiseApp: App {
     /// the time launch finishes or the event is dropped, and a background
     /// launch may never evaluate a single view.
     init() {
-        let store = WalletStore()
+        // Before anything reads a file. Does nothing at all unless this is a
+        // debug build launched with `-CardWiseDemoSeed` — which is how CI
+        // photographs screens that have something on them. See `DemoSeed`.
+        DemoSeed.install()
+        let seeded = DemoSeed.isActive
+
+        let store = WalletStore(fileURL: seeded ? DemoSeed.walletURL() : nil)
         let reminders = ReminderCenter()
-        let impact = ImpactStore()
+        let impact = ImpactStore(fileURL: seeded ? DemoSeed.impactURL() : nil)
         let monitor = RegionMonitor(
             merchantSource: PlacesProvider.makeSource(),
-            notifier: reminders
+            notifier: reminders,
+            stateURL: seeded ? DemoSeed.regionsURL() : nil
         )
 
         reminders.walletCards = { store.cards }
@@ -46,7 +53,7 @@ struct CardWiseApp: App {
 
     var body: some Scene {
         WindowGroup {
-            WalletStackView()
+            RootTabView()
                 .environment(store)
                 .environment(reminders)
                 .environment(monitor)

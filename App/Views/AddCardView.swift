@@ -86,13 +86,15 @@ struct AddCardView: View {
                 NavigationLink {
                     productList(for: issuer)
                 } label: {
-                    HStack {
+                    HStack(spacing: Metric.snug) {
+                        IssuerMonogram(name: issuer.fullName)
                         Text(issuer.fullName)
-                        Spacer(minLength: 8)
+                        Spacer(minLength: Metric.tight)
                         Text("\(issuer.cardCount)")
                             .font(.subheadline.monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
+                    .padding(.vertical, 2)
                 }
             }
         } header: {

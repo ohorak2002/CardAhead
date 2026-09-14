@@ -16,15 +16,29 @@ struct CardDetailView: View {
     private var currentQuarter: Quarter { Quarter.containing(Date()) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: Metric.roomy) {
+            statsRow
             rotatingSection
             benefitsSection
             notesSection
             actionsSection
         }
         .padding(.horizontal, 4)
-        .padding(.top, 16)
+        .padding(.top, Metric.regular)
         .padding(.bottom, 28)
+    }
+
+    // MARK: - The three facts
+
+    /// What the card is for and what it costs, before any of the detail. The
+    /// two questions anybody actually opens a card to answer — see
+    /// `Card.headlineStats`.
+    private var statsRow: some View {
+        HStack(spacing: Metric.snug) {
+            ForEach(card.headlineStats()) { stat in
+                StatTile(value: stat.value, label: stat.label, tint: art.accent)
+            }
+        }
     }
 
     // MARK: - Rotating
@@ -142,6 +156,15 @@ struct CardDetailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     sectionTitle(group.displayName)
                     ForEach(benefits.filter { $0.group == group }) { benefit in
+                        HStack(alignment: .top, spacing: Metric.snug) {
+                        // The shelf's own colour and symbol, so a benefit is
+                        // recognisable here as the same thing it is on the
+                        // Benefits tab before its label is read.
+                        CategoryIcon(
+                            symbolName: group.symbolName,
+                            tint: benefit.isActive ? group.tint : Color.secondary,
+                            size: 32
+                        )
                         VStack(alignment: .leading, spacing: 5) {
                             Text(benefit.title)
                                 .font(.subheadline)
@@ -153,6 +176,8 @@ struct CardDetailView: View {
                             if let cap = benefit.cap, benefit.isActive || cap.isExhausted {
                                 capBar(cap, label: benefit.title)
                             }
+                        }
+                        Spacer(minLength: 0)
                         }
                     }
                 }
@@ -240,11 +265,12 @@ struct CardDetailView: View {
 
     // MARK: - Pieces
 
+    /// Sentence case, not tracked-out caps — see the note in CLAUDE.md about
+    /// the design tells to avoid.
     private func sectionTitle(_ text: String) -> some View {
         Text(text)
-            .font(.footnote.weight(.semibold))
+            .font(.subheadline.weight(.semibold))
             .foregroundStyle(.secondary)
-            .textCase(.uppercase)
     }
 
     private func capBar(_ cap: EarnCap, label: String) -> some View {

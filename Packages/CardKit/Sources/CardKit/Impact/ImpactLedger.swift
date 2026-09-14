@@ -277,6 +277,11 @@ public struct ImpactSummary: Hashable, Sendable {
     /// best other card in the same wallet.
     public var estimatedIncrementalValueCents: Double
 
+    /// The same incremental figure, split by the kind of shop it came from.
+    /// Only categories with something in them; a bar at zero is not a fact
+    /// about anybody's spending, it is a gap in what they bothered to log.
+    public var incrementalValueByCategory: [SpendingCategory: Double]
+
     public init(_ ledger: ImpactLedger) {
         generated = ledger.count(of: .recommendationGenerated)
         suppressed = ledger.count(of: .recommendationSuppressed)
@@ -287,10 +292,29 @@ public struct ImpactSummary: Hashable, Sendable {
         uncertain = ledger.count(of: .recommendationUncertain)
         ignored = ledger.count(of: .recommendationIgnored)
 
-        let estimates = ledger.events.compactMap(\.estimate).filter(\.isUserConfirmed)
+        let priceable = ledger.events.filter { $0.estimate?.isUserConfirmed == true }
+        let estimates = priceable.compactMap(\.estimate)
         priced = estimates.count
         estimatedRewardValueCents = estimates.reduce(0) { $0 + $1.estimatedValueCents }
         estimatedIncrementalValueCents = estimates.reduce(0) { $0 + ($1.incrementalValueCents ?? 0) }
+
+        var byCategory: [SpendingCategory: Double] = [:]
+        for event in priceable {
+            guard let category = event.category,
+                  let incremental = event.estimate?.incrementalValueCents
+            else { continue }
+            byCategory[category, default: 0] += incremental
+        }
+        incrementalValueByCategory = byCategory
+    }
+
+    /// Categories with something to show, biggest first — the order the bars
+    /// are drawn in.
+    public var categoriesByValue: [(category: SpendingCategory, cents: Double)] {
+        incrementalValueByCategory
+            .filter { $0.value != 0 }
+            .sorted { $0.value > $1.value }
+            .map { (category: $0.key, cents: $0.value) }
     }
 
     /// Of the suggestions somebody answered, the share they said they acted

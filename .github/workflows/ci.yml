@@ -150,7 +150,9 @@ jobs:
       - name: Photograph it at the largest text size
         run: |
           xcrun simctl ui "$DEVICE" appearance light
-          xcrun simctl ui "$DEVICE" content-size accessibility-extra-extra-extra-large
+          # `content_size`, with an underscore — unlike `appearance` above.
+          # simctl prints its whole usage page and exits 117 for the hyphen.
+          xcrun simctl ui "$DEVICE" content_size accessibility-extra-extra-extra-large
           for TAB in home wallet benefits more; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
@@ -159,9 +161,16 @@ jobs:
           done
           # Put it back, so anything added after this step photographs the
           # app at the size everybody else sees.
-          xcrun simctl ui "$DEVICE" content-size medium
+          xcrun simctl ui "$DEVICE" content_size medium
 
+      # **`always()`, so a broken photograph step cannot cost every picture.**
+      # The job is already `continue-on-error`, which stops it failing the run
+      # — but a failed *step* still halts the ones after it, and the first
+      # version of the Dynamic Type pass above took the entire artifact down
+      # with it over a hyphen in a simctl option. Whatever got taken before the
+      # failure is exactly what somebody needs in order to diagnose it.
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: CardWise-screenshots
           path: screenshots

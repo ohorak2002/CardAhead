@@ -219,6 +219,43 @@ public enum MerchantCategoryMap {
         "tourist_attraction"
     ]
 
+    /// Types that name a whole class of business rather than a business.
+    ///
+    /// Both of these are in the reading map on purpose — a place that only
+    /// says `food` is probably somewhere you eat, and filing it under dining
+    /// is better than dropping it. But "probably" is the operative word, and
+    /// the notification policy is entitled to know the difference between a
+    /// place Google called a `pizza_restaurant` and one it could only manage
+    /// `food` for.
+    ///
+    /// **Kept to two entries deliberately.** Every additional member
+    /// downgrades a whole class of real, correctly-identified shops, and the
+    /// cost of that is silence somebody never finds out about. This is the
+    /// same trap `multiTenantTypes` documents for `point_of_interest`.
+    private static let broadTypes: Set<String> = [
+        "food",
+        "shopping_mall"
+    ]
+
+    /// Whether the category was inferred from a catch-all rather than from
+    /// something specific.
+    ///
+    /// Answers with the same walk `category(forPlaceTypes:merchantName:)`
+    /// takes, so the two can never disagree about which type actually won: a
+    /// name override is never weak, and otherwise the first type that matches
+    /// the map is the one that decided, weak or not.
+    public static func isWeaklyTyped(placeTypes types: [String], merchantName: String? = nil) -> Bool {
+        if let name = merchantName?.lowercased() {
+            for needle in nameOverrides.keys where name.contains(needle) { return false }
+        }
+        for type in types {
+            let lowered = type.lowercased()
+            guard placeTypes[lowered] != nil else { continue }
+            return broadTypes.contains(lowered)
+        }
+        return false
+    }
+
     /// A place we cannot pin to a single till produces a category-level nudge
     /// rather than the name of a business that might be the wrong one.
     public static func confidence(forPlaceTypes types: [String]) -> MerchantConfidence {

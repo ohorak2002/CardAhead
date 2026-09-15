@@ -29,6 +29,8 @@ struct PlaceDetailView: View {
     @Environment(NearbyPlacesStore.self) private var places
     @Environment(WalletStore.self) private var wallet
     @Environment(RegionMonitor.self) private var monitor
+    @Environment(NotificationPolicyStore.self) private var notifications
+    @Environment(ImpactStore.self) private var impact
     @Environment(\.openURL) private var openURL
 
     /// The row the list already had. Replaced by a richer copy once the
@@ -62,6 +64,7 @@ struct PlaceDetailView: View {
                 recommendationSection
                 factsSection
                 nearbyCards
+                muteSection
             }
             .padding(.bottom, 90)
         }
@@ -276,6 +279,83 @@ struct PlaceDetailView: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, Metric.margin)
+    }
+
+    // MARK: - Quiet, here
+
+    /// The one place a person can actually silence a shop.
+    ///
+    /// **`NotificationPolicy` could hold a mute from the day it was written,
+    /// and nothing could set one.** A policy that supports a thing no screen
+    /// offers is a promise, not a feature — and the obvious home for it is not
+    /// a settings list, where somebody would have to already know the shop's
+    /// name to go and find it. It is here, on the shop, at the moment they are
+    /// thinking about it.
+    ///
+    /// Shown only for a place the app is actually watching. Offering to
+    /// silence somewhere that was never going to say anything is an option
+    /// that does nothing, which is worse than no option at all.
+    @ViewBuilder
+    private var muteSection: some View {
+        if isWatched || isMuted {
+            VStack(alignment: .leading, spacing: Metric.snug) {
+                SectionHeader("Reminders here")
+                if isMuted {
+                    HStack(alignment: .firstTextBaseline, spacing: Metric.snug) {
+                        Label("Muted", systemImage: "bell.slash.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(Color.secondary)
+                        Spacer(minLength: 0)
+                        Button("Unmute") { notifications.unmute(merchantID: place.id) }
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .padding(Metric.regular)
+                    .cardWisePanel()
+                } else {
+                    Menu {
+                        ForEach(NotificationPolicy.MuteDuration.allCases, id: \.self) { duration in
+                            Button(duration.displayName) { mute(for: duration) }
+                        }
+                    } label: {
+                        HStack(spacing: Metric.snug) {
+                            Image(systemName: "bell.slash")
+                            Text("Mute reminders here")
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption)
+                                .foregroundStyle(Color.secondary)
+                        }
+                        .font(.subheadline)
+                        .padding(Metric.regular)
+                        .cardWisePanel()
+                    }
+                }
+                Text(muteFooter)
+                    .font(.footnote)
+                    .foregroundStyle(Color.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, Metric.margin)
+        }
+    }
+
+    private var isMuted: Bool {
+        notifications.policy.isMuted(merchantID: place.id, at: Date())
+    }
+
+    /// **Muting stops the words, not the watching.** The geofence stays
+    /// registered and the arrival still reaches the impact ledger, so "how
+    /// often was I somewhere a card would have helped" keeps its answer. What
+    /// changes is that nothing is said.
+    private var muteFooter: String {
+        isMuted
+            ? "CardWise still notices when you are here. It just says nothing."
+            : "Stops reminders about this place. It keeps watching, and keeps counting."
+    }
+
+    private func mute(for duration: NotificationPolicy.MuteDuration) {
+        notifications.mute(merchantID: place.id, for: duration)
+        impact.recordSilenced(category: place.spendingCategory)
     }
 
     /// Apple Maps rather than a coordinate URL of our own: the phone knows

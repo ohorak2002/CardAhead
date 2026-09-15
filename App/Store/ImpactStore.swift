@@ -156,6 +156,20 @@ final class ImpactStore {
         record(.rotatingBonusActivated, card: card)
     }
 
+    /// Somebody muted a place or switched a whole category off.
+    ///
+    /// **The category is carried and the place never is.** Which *kind* of
+    /// shop somebody stopped wanting to hear about is the answerable question
+    /// — it says the policy is wrong about a category. *Which* shop is the
+    /// one thing this ledger has always refused to hold, and muting one is
+    /// not a reason to start.
+    func recordSilenced(category: SpendingCategory? = nil, at date: Date = Date()) {
+        guard isRecording else { return }
+        emit {
+            $0.record(ImpactEvent(kind: .recommendationsSilenced, date: date, category: category))
+        }
+    }
+
     private func record(_ kind: ImpactEventKind, card: Card) {
         guard isRecording else { return }
         emit {

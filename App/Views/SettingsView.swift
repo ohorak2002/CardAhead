@@ -14,6 +14,7 @@ struct SettingsView: View {
     @Environment(ReminderCenter.self) private var reminders
     @Environment(ImpactStore.self) private var impact
     @Environment(NearbyPlacesStore.self) private var nearby
+    @Environment(NotificationPolicyStore.self) private var notifications
     let auth: LocationAuthorization
 
     @AppStorage("preferredName") private var preferredName = ""
@@ -122,6 +123,16 @@ struct SettingsView: View {
                 Button("Open Settings") { reminders.openSettings() }
             }
             NavigationLink {
+                NotificationSettingsView()
+            } label: {
+                HStack {
+                    Text("How much to say")
+                    Spacer(minLength: 8)
+                    Text(notifications.policy.intensity.displayName)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            NavigationLink {
                 RegionActivityView()
             } label: {
                 HStack {
@@ -131,6 +142,9 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            #if DEBUG
+            NavigationLink("Notification lab") { NotificationLabView() }
+            #endif
         } header: {
             Text("Reminders").textCase(nil)
         } footer: {
@@ -147,7 +161,7 @@ struct SettingsView: View {
         if !reminders.isAuthorized {
             return "The app can see when you arrive somewhere. It just has no way to tell you about it."
         }
-        return "Limits on how often you are nudged arrive with the reminders themselves."
+        return notifications.policy.intensity.explanation
     }
 
     private var watchingSummary: String {

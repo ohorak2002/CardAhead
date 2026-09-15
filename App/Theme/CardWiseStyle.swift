@@ -249,6 +249,46 @@ extension SpendingCategory {
     var tint: Color { BenefitGroup.containing(self).tint }
     var pinTint: Color { BenefitGroup.containing(self).pinTint }
     var symbolName: String { BenefitGroup.containing(self).symbolName }
+
+    /// The glyph on a notification badge, which is **not** the shelf's.
+    ///
+    /// **Found by photographing all seventeen side by side, and obvious the
+    /// moment they were.** The shelf symbol is a symbol for a *group* — the
+    /// Benefits screen has one row per shelf, so an aeroplane meaning "travel"
+    /// is exactly right there. A notification badge is about one specific
+    /// place, and borrowing the group's glyph made seven of the seventeen the
+    /// same blue aeroplane: a hotel, a subway station, a taxi and an airport
+    /// all wore an identical chip. Groceries and a warehouse club shared a
+    /// basket; three kinds of shopping shared a bag.
+    ///
+    /// The whole job of the chip is to say what kind of place this is before a
+    /// word is read, and seven identical ones cannot do it. The colours still
+    /// come from the shelf — a family resemblance across travel is useful —
+    /// but the glyph is per category.
+    ///
+    /// `gas` is the one that was also plain wrong rather than merely
+    /// duplicated: the shelf uses `bolt.car.fill`, which is a charging point.
+    var badgeSymbolName: String {
+        switch self {
+        case .base: return "creditcard.fill"
+        case .dining: return "fork.knife"
+        case .groceries: return "basket.fill"
+        case .warehouseClub: return "shippingbox.fill"
+        case .gas: return "fuelpump.fill"
+        case .drugstores: return "cross.case.fill"
+        case .travel: return "suitcase.fill"
+        case .travelPortal: return "globe.americas.fill"
+        case .flights: return "airplane"
+        case .hotels: return "bed.double.fill"
+        case .transit: return "tram.fill"
+        case .rideshare: return "car.fill"
+        case .streaming: return "play.tv.fill"
+        case .entertainment: return "ticket.fill"
+        case .onlineShopping: return "bag.fill"
+        case .homeImprovement: return "hammer.fill"
+        case .departmentStore: return "building.2.fill"
+        }
+    }
 }
 
 // MARK: - Pieces

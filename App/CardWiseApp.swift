@@ -9,6 +9,7 @@ struct CardWiseApp: App {
     @State private var monitor: RegionMonitor
     @State private var impact: ImpactStore
     @State private var nearby: NearbyPlacesStore
+    @State private var notifications: NotificationPolicyStore
     /// Not `@State`: it has no observable state to redraw on, and it outlives
     /// every view that reads it. See `EnvironmentValues.placePhotos`.
     private let photos: PlacePhotoLoader
@@ -31,6 +32,9 @@ struct CardWiseApp: App {
         let store = WalletStore(fileURL: seeded ? DemoSeed.walletURL() : nil)
         let reminders = ReminderCenter()
         let impact = ImpactStore(fileURL: seeded ? DemoSeed.impactURL() : nil)
+        let notifications = NotificationPolicyStore(
+            fileURL: seeded ? DemoSeed.notificationsURL() : nil
+        )
         let monitor = RegionMonitor(
             merchantSource: PlacesProvider.makeSource(),
             notifier: reminders,
@@ -58,6 +62,18 @@ struct CardWiseApp: App {
 
         reminders.walletCards = { store.cards }
         reminders.onOpened = { [weak impact] id in impact?.recordOpened(id) }
+        // Two ledgers, on purpose. The policy store needs the answer to
+        // enforce a mute and to show it on the debug screen; the impact ledger
+        // needs it to count whether this app's advice is any use. Neither can
+        // read the other's file, and folding them together would put a
+        // merchant id into the one structure that refuses to hold one.
+        reminders.onFeedback = { [weak impact, weak notifications] id, feedback in
+            notifications?.note(feedback, forRecommendationID: id)
+            switch feedback {
+            case .usedIt: impact?.recordAnswer(.recommendationAccepted, for: id)
+            case .notHere: impact?.recordAnswer(.recommendationPlaceRejected, for: id)
+            }
+        }
         monitor.walletCards = { store.cards }
         nearby.walletCards = { store.cards }
         // The map's "Watching" view reads the geofence plan directly rather
@@ -65,6 +81,7 @@ struct CardWiseApp: App {
         // filtering would under-report. See `RegionPlan.watchedPlaces`.
         nearby.watchedPlaces = { [weak monitor] in monitor?.plan?.watchedPlaces ?? [] }
         monitor.impact = impact
+        monitor.policy = notifications
         store.onChange = { [weak impact] change in
             switch change {
             case .added(let card): impact?.recordCardAdded(card)
@@ -78,6 +95,7 @@ struct CardWiseApp: App {
         _monitor = State(initialValue: monitor)
         _impact = State(initialValue: impact)
         _nearby = State(initialValue: nearby)
+        _notifications = State(initialValue: notifications)
         self.photos = photos
     }
 
@@ -89,6 +107,7 @@ struct CardWiseApp: App {
                 .environment(monitor)
                 .environment(impact)
                 .environment(nearby)
+                .environment(notifications)
                 .environment(\.placePhotos, photos)
                 .task { await reminders.refreshStatus() }
                 .onChange(of: scenePhase) { _, phase in

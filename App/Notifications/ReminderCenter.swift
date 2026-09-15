@@ -29,6 +29,16 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
     static let recommendationIDKey = "recommendationID"
     private static let threadIdentifier = "arrivals"
 
+    /// The category the actions hang off. Registered once at launch —
+    /// `UNNotificationCategory` is matched by string at delivery time, so a
+    /// notification whose category was never registered simply arrives with
+    /// no actions and no error.
+    static let arrivalCategoryIdentifier = "arrival"
+
+    /// Told when somebody answers one of the actions on the notification
+    /// itself. A closure for the same reason `walletCards` is one.
+    @ObservationIgnored var onFeedback: (UUID, NotificationFeedback) -> Void = { _, _ in }
+
     private(set) var status: UNAuthorizationStatus = .notDetermined
     /// Set when somebody taps a reminder. The wallet screen consumes it and
     /// puts it back to nil.
@@ -51,6 +61,40 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
         // Set during launch, not on first use: a tap on a reminder is what
         // launches the app, and the delegate has to exist to receive it.
         center.delegate = self
+        registerActions()
+    }
+
+    /// The buttons under a reminder.
+    ///
+    /// **Two, not four.** "Used it" and "Not here" are the two answers worth
+    /// having from a lock screen: one says the advice landed, the other says
+    /// the *detection* was wrong, and they are different bugs with different
+    /// fixes. "Not useful" is a preference, not a moment — it belongs in
+    /// Settings next to the category switches, where somebody can see what
+    /// they are turning off. A lock screen with four buttons on it is a form.
+    ///
+    /// Neither is destructive and neither needs the app open: both are
+    /// `.authenticationRequired` off and handled in the background, so
+    /// answering costs a tap and not a launch.
+    private func registerActions() {
+        let usedIt = UNNotificationAction(
+            identifier: NotificationFeedback.usedIt.rawValue,
+            title: NotificationFeedback.usedIt.displayName,
+            options: []
+        )
+        let notHere = UNNotificationAction(
+            identifier: NotificationFeedback.notHere.rawValue,
+            title: NotificationFeedback.notHere.displayName,
+            options: []
+        )
+        center.setNotificationCategories([
+            UNNotificationCategory(
+                identifier: Self.arrivalCategoryIdentifier,
+                actions: [usedIt, notHere],
+                intentIdentifiers: [],
+                options: []
+            )
+        ])
     }
 
     // MARK: - Permission
@@ -106,7 +150,7 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
     /// later. The cancel below is what makes that work when the *new* answer
     /// is silence: the first call had nothing to cancel, but a refresh does.
     @discardableResult
-    func schedule(_ arrival: PendingArrival) -> ArrivalDecision {
+    func schedule(_ arrival: PendingArrival, decision policy: NotificationDecision? = nil) -> ArrivalDecision {
         let decision = engine.decide(
             for: arrival,
             cards: walletCards(),
@@ -121,8 +165,33 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
         let content = UNMutableNotificationContent()
         content.title = reminder.title
         content.body = reminder.body
-        content.sound = .default
         content.threadIdentifier = Self.threadIdentifier
+        content.categoryIdentifier = Self.arrivalCategoryIdentifier
+
+        // **How loud, and the one thing this app will not do.** A band below
+        // normal arrives silently in Notification Centre rather than as a
+        // banner. Nothing here is ever Time Sensitive: Apple reserves that for
+        // what needs attention *now*, and using it to win attention for a
+        // restaurant tip is how an app's notifications get switched off by
+        // somebody who felt tricked. `NotificationInterruption` has no case
+        // that would allow it — see its doc comment.
+        //
+        // Nil means this is a re-render of a reminder already scheduled, so
+        // it keeps the ordinary treatment rather than inventing a new one.
+        switch policy?.interruption ?? .active {
+        case .passive:
+            content.interruptionLevel = .passive
+            content.sound = nil
+        case .active:
+            content.interruptionLevel = .active
+            content.sound = .default
+        }
+
+        // What iOS uses to sort a notification summary. The same deterministic
+        // score out of a hundred — see `NotificationScore.relevance`.
+        if let relevance = policy?.relevance {
+            content.relevanceScore = relevance
+        }
         content.userInfo = [
             Self.cardIDKey: reminder.cardID.uuidString,
             Self.recommendationIDKey: snapshot.id.uuidString
@@ -173,12 +242,22 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
     ) {
         defer { completionHandler() }
         let userInfo = response.notification.request.content.userInfo
+        let recommendationID = (userInfo[Self.recommendationIDKey] as? String)
+            .flatMap(UUID.init(uuidString:))
+
+        // An action is an answer, not an opening. Somebody who taps "Not here"
+        // has told us something specific and has not asked to see a card —
+        // counting it as an open would inflate the one number that says
+        // whether these reminders are worth anything.
+        if let feedback = NotificationFeedback(rawValue: response.actionIdentifier) {
+            if let recommendationID { onFeedback(recommendationID, feedback) }
+            return
+        }
 
         // The suggestion first: a tap counts even if the card it named has
         // been removed in the meantime, and that case is exactly the one
         // worth being able to count.
-        if let raw = userInfo[Self.recommendationIDKey] as? String,
-           let recommendationID = UUID(uuidString: raw) {
+        if let recommendationID {
             onOpened(recommendationID)
         }
 

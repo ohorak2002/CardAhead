@@ -95,7 +95,7 @@ enum ReminderBadge {
                 pointSize: side * 0.46,
                 weight: .semibold
             )
-            guard let symbol = UIImage(systemName: category.symbolName, withConfiguration: configuration)?
+            guard let symbol = UIImage(systemName: category.badgeSymbolName, withConfiguration: configuration)?
                 .withTintColor(.white, renderingMode: .alwaysOriginal)
             else { return }
 

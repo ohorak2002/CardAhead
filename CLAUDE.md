@@ -47,7 +47,6 @@ Packages/CardKit/       Pure Swift. No UIKit, no Core Location, no SwiftUI.
                          CardArtLibrary (licensed card art registry)
     Geo/                GeoCoordinate, Merchant, RegionPlanner (which 20
                          places to watch), ArrivalTracker (the dwell rule),
-                         ReminderThrottle (daily/per-merchant limits),
                          MerchantSource. And the map's own four:
                          MapCategory (what kind of shop), MapPlace (a pin,
                          with an optional earning category), MapFilter +
@@ -57,6 +56,13 @@ Packages/CardKit/       Pure Swift. No UIKit, no Core Location, no SwiftUI.
     Engine/ArrivalReminder.swift   the words on the lock screen, and the
                          ArrivalDecision that carries either those words or
                          the reason there were none
+    Notifications/      the second engine: NotificationDecisionEngine (is a
+                         recommendation worth interrupting for),
+                         NotificationPolicy + NotificationIntensity (every
+                         tunable, in one place), NotificationHistory (what was
+                         decided, sent or not), RecommendationIdentity (what
+                         makes two recommendations the same one),
+                         NotificationScore, QuietHours, OpportunityValue
     Impact/             RecommendationSnapshot (the numbers frozen at the
                          till), BenefitEstimate + BenefitValueCalculator,
                          ImpactEvent, ImpactLedger, AnalyticsService (a
@@ -77,6 +83,10 @@ App/
   Location/RegionMonitor.swift           CLCircularRegion plumbing only
   Location/ArrivalNotifier.swift         seam between arriving and being told
   Notifications/ReminderCenter.swift     UNUserNotificationCenter, both ends
+  Notifications/ReminderBadge.swift      the coloured chip on a reminder,
+                         drawn as a real PNG and attached
+  Notifications/NotificationPolicyStore.swift  the policy and the decision
+                         history, on disk
   Places/PlacesProvider.swift            URLSession, and the API key or not.
                          Vends two sources off one key: makeSource() for
                          geofences, makePlaceSearchSource() for the map
@@ -295,16 +305,86 @@ not go back there.
   contrast at night. `AppIcon` is a single 1024×1024 asset (Xcode 14's
   single-size format) — replace that one file, not a dozen sizes, if the icon
   ever changes.
-- **A reminder is throttled at the moment it is scheduled (entry), not at the
-  moment it is delivered.** `ReminderThrottle` (CardKit) enforces one per
-  merchant per day and a daily ceiling; `RegionMonitor.didEnterRegion` checks
-  and records against it before calling `notifier.schedule`. There is no code
-  that runs at actual delivery to check against instead — see
-  `ReminderThrottle`'s own doc comment for the one imprecision this accepts
-  (an early exit still spends the day's count). `schedule(_:)` on
-  `ArrivalNotifier` returns whether it actually scheduled something, so the
-  throttle is only ever charged for a reminder that stood a chance of
-  arriving.
+- **There are two engines and they answer different questions.**
+  `RecommendationEngine` answers *which card is best here* — about money, with
+  a right answer. `NotificationDecisionEngine`
+  (`Packages/CardKit/Sources/CardKit/Notifications/`) answers *is that worth
+  interrupting somebody for* — about attention, with no right answer, only a
+  policy. Keeping them apart is what stops the ranking acquiring opinions
+  about times of day, and stops the notification policy acquiring a second
+  opinion about rates. **`RegionMonitor.evaluate(_:merchant:)` is the only
+  place they meet**, and nothing else in the app may consult either.
+- **The model is ARRIVE → RECOMMEND → SCORE → DECIDE → NOTIFY | SUPPRESS.**
+  Gates first — quiet hours, a muted shop, a switched-off category, merchant
+  and category cooldowns, a duplicate, driving past — then a scored judgement.
+  A gate is an answer on its own, not a reason to score lower: running the
+  arithmetic anyway would report "scored 42" when the real reason was "it is
+  3am". **The user's own choices are checked before the app's judgement**, so
+  a suppression somebody asked for is never reported as the app deciding
+  something was not worth their time.
+- **`NotificationPolicy` is the only place a threshold may be written.** Four
+  intensities (Minimal/Balanced/Helpful/Frequent) are four sets of *numbers*
+  fed to one engine, never four behaviours — a bug found at Balanced is a bug
+  fixed at all four, and `testIntensityOnlyMovesTheNumbers` pins that the
+  arithmetic is identical across them. Balanced is the default and the whole
+  settings screen is refinement: an app that needs configuring before it
+  behaves sensibly has handed the user its homework.
+- **`NotificationHistory` replaced `ReminderThrottle`, and it records
+  suppressions too.** One list of rows answers the daily budget, both
+  cooldowns, duplicate suppression *and* the debug screen, where the old type
+  answered two questions and would have grown a parallel array per limit.
+  Recording what was held back is the half that can answer "why was it quiet
+  all afternoon", which is the first question anybody asks of this feature —
+  a silence that leaves no trace is indistinguishable from a bug. Four days of
+  retention, a 200-row ceiling, an opaque merchant id and no coordinate, no
+  dwell, no address: it must never become a location history.
+- **The budget's override runs *before* the score bar, deliberately.** An
+  opportunity valuable enough to break a daily budget is valuable enough to
+  send, so it skips the bar rather than meeting it — by the time three
+  notifications have gone out, the "already sent today" penalty has taken
+  twenty-odd points off everything, and a hotel genuinely worth twenty dollars
+  would otherwise be refused for being the fourth thing said rather than for
+  being unimportant. Nothing above it is skipped.
+- **`OpportunityValue` prices an interruption and must never become a claim.**
+  A cents-per-dollar edge alone says a coffee and a hotel are worth the same,
+  which is false and is the mistake that makes an app feel stupid — so there
+  is a coarse typical-ticket table, used only to rank one interruption against
+  another. It is **never shown to anybody**. The rule that this app reports no
+  reward nobody volunteered (`BenefitValueCalculator`, `ImpactView`) is
+  untouched: that is a different quantity with a different job.
+- **Nothing is ever Time Sensitive.** `NotificationInterruption` has two cases,
+  `passive` and `active`, and no case that would allow it. Apple reserves Time
+  Sensitive for what needs attention *now*; a restaurant recommendation is
+  useful without being urgent, and using it to win attention is how an app's
+  notifications get switched off by somebody who felt tricked. Quiet hours
+  **suppress**; they never downgrade. `relevanceScore` is the same
+  deterministic score over a hundred and is not a confidence value.
+- **A re-render is not a new reminder.** `RegionMonitor.refreshPendingReminders`
+  calls `notifier.schedule(arrival)` with **no decision**, on purpose: that is
+  the same reminder being corrected against an edited wallet, and running the
+  gates again would suppress it as a duplicate of itself and leave the stale
+  words on the lock screen.
+- **`RecommendationIdentity` is content, not object identity.** The engine runs
+  several times per suggestion — on entry, on a wallet edit, on a location fix
+  — and each run produces a fresh `RecommendationSnapshot.id`, so by object
+  identity the app has never repeated itself in its life. Identity is where,
+  what category, which card, what rate, whether a bonus needs switching on.
+  **The rate is rounded to three places** because it has been through point
+  valuation and two identical runs differ in the fifteenth decimal; an
+  identity that moved with the noise would look like deduplication and
+  deduplicate nothing.
+- **Two notification actions, not four.** "Used it" says the advice landed;
+  "Not here" says the *detection* was wrong. Different bugs, different fixes,
+  and neither is the other. "Not useful" is a preference and lives in Settings
+  where somebody can see what they are switching off — a lock screen with four
+  buttons on it is a form. **An action is an answer, not an open**, and must
+  never be counted as one: `recommendationOpened` is the number that says
+  whether these reminders are worth anything.
+- **Movement is `unknown` most of the time and that is correct.** A geofence
+  crossing carries no location with it, so `RegionMonitor` keeps the last fix's
+  speed for three minutes and reports `.unknown` beyond that. `unknown` scores
+  zero either way. **Do not build a motion subsystem for this** — a whole
+  framework and a whole permission for one input to one score.
 - **A reminder is an emoji and a place, then a card and a rate, and nothing
   else.** The title is `<emoji> <shop>` or `<emoji> <kind of place> nearby`;
   the body is "Use <card> for <rate> <where it applies>." It used to be
@@ -465,6 +545,13 @@ not go back there.
   appearances, so photographing it twice is not worth the runner time. The
   step puts `content-size` back to `medium` when it finishes, so anything
   added after it photographs the app at the size everybody else sees.
+  **The Notification lab is in the screenshot list for one reason:** CI
+  photographs *screens*, and the coloured chip on a reminder is a PNG that
+  only iOS ever draws, so the lab puts all seventeen category badges on a
+  real screen where they can be looked at. It also shows each decision with
+  its full arithmetic, which is what makes the weights tunable at all — a
+  score is a number nobody can argue with until they can see what it is made
+  of. Debug builds only.
   `DemoSeed` also **registers** (never sets) a `preferredName`, so Home's
   greeting photographs as "Good morning, Oren" rather than the nameless
   fallback — the Settings field that sets it has existed since that screen was
@@ -686,7 +773,8 @@ not go back there.
 | 1. Data model | Done |
 | 2. Wallet UI (stack, add, edit, expand, pin, reorder) | Done. Onboarding redesigned around card *selection* (roadmap v2 steps 1-5). |
 | 3. Recommendation engine, testable with no location | Done |
-| 4. Region monitoring + notification pipeline | **Built and hardened, unverifiable without a device.** `RegionMonitor` registers the nearest 20 relevant merchants as `CLCircularRegion`s, handles enter/exit, applies a four-minute dwell, and redraws on significant location change. `ReminderCenter` schedules the local notification on entry and cancels it on exit; a tap opens that card. `ReminderThrottle` caps it at one reminder per shop and a daily ceiling, `RecommendationEngine.minimumArrivalEdgeCentsPerDollar` silences a trivial win, and `walletDidChange()` re-renders any notification still in its dwell window against a wallet edit. Nothing is registered in practice until step 5 gives `MerchantSource` somewhere to get shops from. |
+| 4. Region monitoring + notification pipeline | **Built and hardened, unverifiable without a device.** `RegionMonitor` registers the nearest 20 relevant merchants as `CLCircularRegion`s, handles enter/exit, applies a four-minute dwell, and redraws on significant location change. `ReminderCenter` schedules the local notification on entry and cancels it on exit; a tap opens that card, and two actions on it answer "Used it" / "Not here". `walletDidChange()` re-renders any notification still in its dwell window against a wallet edit. Nothing is registered in practice until step 5 gives `MerchantSource` somewhere to get shops from. |
+| 4b. Notification decision engine | **Built, tested, unverified on a phone.** Whether a recommendation is worth interrupting for: gates, a deterministic score, a daily budget with a value override, merchant and category cooldowns, duplicate suppression, quiet hours, four intensities, per-category switches, merchant muting. All of it in `CardKit/Notifications` and tested on Linux. What a device would add: whether the *cadence* is right, which is the one thing no test can answer. |
 | 5. Places API merchant resolution | **Done, needs a key.** `GooglePlacesSource` calls Places API (New) `searchNearby` behind `MerchantCache` (250m grid, one week, 40 squares, LRU). Resolution happens when the plan is redrawn, *not* when a geofence fires — the shop's name and category are already in the registered region by then. No key is committed; see `docs/places-api.md`. |
 | 6. Significant-location-change travel mode | Not started |
 | 9. Nearby Map (added, not in the original spec) | **Built, needs a key and a device.** A fifth tab: `NearbyMapView` over `NearbyPlacesStore`, drawing MapKit pins for whatever `PlaceSearchSource` returns, with filter chips, a distance, a search box, per-place card ranking and a detail screen. All the filtering/measuring/ranking is `NearbyPlaces.results` in CardKit and tested on Linux. With no Places key it shows location only and says so. Nothing about the map has been seen on a real phone — panning, selection and the "Search this area" threshold are exactly the parts CI screenshots cannot photograph. |

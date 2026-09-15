@@ -66,10 +66,6 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
 
     private(set) var plan: RegionPlan?
     private(set) var tracker = ArrivalTracker()
-    /// Today's frequency limits, and what has already been scheduled against
-    /// them. Persisted alongside `tracker` — see `StoredState` — because a
-    /// limit that resets every time the app is killed is not a limit.
-    private(set) var throttle = ReminderThrottle()
     private(set) var isMonitoring = false
     /// Newest first, capped. Shown in Settings.
     private(set) var recentEvents: [RegionEvent] = []
@@ -95,6 +91,28 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
     /// anybody is counting, and this class must keep working with nothing
     /// attached — a preview, a test, a user who switched recording off.
     @ObservationIgnored var impact: ImpactStore?
+
+    /// Whether a reminder is worth sending, and the record of what has
+    /// already been sent.
+    ///
+    /// **Not optional, unlike `impact`.** Counting is something this class can
+    /// do without; deciding is not. With no policy every geofence crossing
+    /// would notify, which is the behaviour this whole layer exists to stop,
+    /// and a silently-permissive default is the worst possible way to fail.
+    @ObservationIgnored var policy = NotificationPolicyStore()
+
+    /// The last location fix, kept only long enough to say whether somebody
+    /// is arriving or driving past.
+    ///
+    /// **A fix and a geofence crossing are two separate wake-ups**, and the
+    /// crossing does not carry a location with it. So this is whatever the
+    /// most recent fix said, and it is deliberately dropped after a few
+    /// minutes: a speed from half an hour ago is not evidence about now, and
+    /// `ArrivalMovement.unknown` is a better answer than a stale one.
+    @ObservationIgnored private var lastFix: (speed: Double, at: Date)?
+
+    /// How long a speed reading is worth believing.
+    private static let fixFreshness: TimeInterval = 180
 
     /// How far out to ask the place provider for shops. Wider than a geofence
     /// on purpose: twenty candidates within 100m would be a plan that expires
@@ -319,6 +337,10 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
     /// this is the same reminder being re-rendered, not a new one being sent.
     private func refreshPendingReminders() {
         for arrival in tracker.pending {
+            // No policy check here on purpose. This is the *same* reminder
+            // being rewritten against an edited wallet, not a new one being
+            // sent — running the gates again would suppress it as a duplicate
+            // of itself and leave the old, now-wrong words on the lock screen.
             switch notifier.schedule(arrival) {
             case .send(_, let snapshot):
                 // A correction, not a second suggestion — `recordGenerated`
@@ -366,6 +388,10 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
         )
         guard coordinate.isValid else { return }
 
+        // Kept for the few minutes it is evidence about anything. See
+        // `movement(asOf:)`.
+        lastFix = (speed: location.speed, at: location.timestamp)
+
         // The same wake-up that says "you have moved" is the cheapest moment to
         // notice an arrival whose clock ran out while the app was asleep.
         settleOutstandingArrivals()
@@ -384,21 +410,72 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
         // The dwell is tracked either way — the event log above is honest that
         // an arrival was noticed even on a day the reminder itself is held
         // back. Only the notification is gated.
-        guard throttle.allows(merchantID: monitored.merchant.id, at: arrival.confirmAt) else {
-            // record(_:_:) already saves; the throttle itself was not touched.
-            record(.skipped, "Already reminded about \(monitored.merchant.name) enough today. Nothing else will be sent.")
-            impact?.recordSuppressed(.throttled, category: monitored.merchant.category, at: arrival.confirmAt)
+        evaluate(arrival, merchant: monitored.merchant)
+    }
+
+    /// Rank the wallet, judge the result, and send or stay quiet.
+    ///
+    /// **Both engines, in order, and this is the only place they meet.**
+    /// `RecommendationEngine` says which card wins and whether there is
+    /// anything worth saying at all; `NotificationDecisionEngine` says whether
+    /// that is worth somebody's attention right now. Neither is consulted
+    /// anywhere else in this file.
+    ///
+    /// The decision is recorded either way. A suppression that leaves no trace
+    /// is indistinguishable from a bug, and "why did I hear nothing all
+    /// afternoon" is the first question anybody asks of this feature.
+    private func evaluate(_ arrival: PendingArrival, merchant: Merchant) {
+        let when = arrival.confirmAt
+        let assessment = RecommendationEngine().assess(
+            for: arrival,
+            cards: walletCards(),
+            asOf: when
+        )
+
+        guard let candidate = NotificationCandidate(
+            merchant: merchant,
+            assessment: assessment,
+            movement: movement(asOf: Date()),
+            asOf: when
+        ) else {
+            // The ranking engine had nothing to say. Its own reason is the
+            // honest one; the policy never got a look.
+            if case .stayQuiet(let reason) = assessment.decision {
+                impact?.recordSuppressed(reason, category: merchant.category, at: when)
+                record(.skipped, "Nothing worth saying about \(merchant.name): \(reason.displayName.lowercased()).")
+            }
             return
         }
 
-        switch notifier.schedule(arrival) {
+        let decision = policy.decide(candidate, at: when)
+        policy.record(decision, for: candidate, at: when)
+
+        guard decision.shouldNotify else {
+            let reason = decision.suppression ?? .belowThreshold
+            impact?.recordSuppressed(reason, category: merchant.category, at: when)
+            record(.skipped, "\(reason.displayName) — nothing sent about \(merchant.name).")
+            return
+        }
+
+        switch notifier.schedule(arrival, decision: decision) {
         case .send(_, let snapshot):
             impact?.recordGenerated(snapshot, forRegionID: arrival.regionID)
-            throttle.recordFired(merchantID: monitored.merchant.id, at: arrival.confirmAt)
             save()
         case .stayQuiet(let reason):
-            impact?.recordSuppressed(reason, category: monitored.merchant.category, at: arrival.confirmAt)
+            // The wallet moved between the two runs above. Rare, and the
+            // history row already written says it was sent — so correct it
+            // rather than leave a lie in the budget.
+            policy.markNotSent(recommendationID: candidate.snapshot.id)
+            impact?.recordSuppressed(reason, category: merchant.category, at: when)
         }
+    }
+
+    /// Arriving, driving past, or no idea.
+    private func movement(asOf date: Date) -> ArrivalMovement {
+        guard let fix = lastFix, date.timeIntervalSince(fix.at) < Self.fixFreshness else {
+            return .unknown
+        }
+        return ArrivalMovement.from(speedMetersPerSecond: fix.speed)
     }
 
     func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
@@ -455,11 +532,6 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
         /// What the wallet made relevant when the plan was drawn, so a card
         /// added while the app was closed is noticed on the next fix.
         var categories: Set<SpendingCategory>
-        /// Optional, not because a throttle can meaningfully be absent, but so
-        /// a `regions.json` written before this field existed still decodes —
-        /// see `Card.finish` for the same pattern. Missing means never
-        /// throttled yet, so an empty one is the correct default.
-        var throttle: ReminderThrottle?
     }
 
     private static func defaultStateURL() -> URL {
@@ -481,7 +553,6 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
         tracker = state.tracker
         recentEvents = state.events
         plannedCategories = state.categories
-        throttle = state.throttle ?? ReminderThrottle()
     }
 
     private func save() {
@@ -491,8 +562,7 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
             plan: plan,
             tracker: tracker,
             events: recentEvents,
-            categories: plannedCategories,
-            throttle: throttle
+            categories: plannedCategories
         )
         guard let data = try? encoder.encode(state) else { return }
         try? data.write(to: stateURL, options: [.atomic])

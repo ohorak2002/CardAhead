@@ -33,6 +33,15 @@ public enum ImpactEventKind: String, Codable, Sendable, CaseIterable {
     /// the question expires, so silence is counted rather than forgotten.
     case recommendationIgnored
 
+    /// Somebody tapped "Not here" on the notification itself. A complaint
+    /// about *detection* rather than about advice: the app named a place they
+    /// were not at, or had already left.
+    case recommendationPlaceRejected
+    /// Somebody muted a place, or switched a whole category off. The
+    /// strongest signal this app gets, and the only one it acts on
+    /// immediately.
+    case recommendationsSilenced
+
     /// A spend was volunteered.
     case purchaseAmountEntered
     /// And turned into an estimate. Carries the estimate.
@@ -47,8 +56,9 @@ public enum ImpactEventKind: String, Codable, Sendable, CaseIterable {
 /// Why the app said nothing. The useful half of the notification story: a
 /// product that only counts what it sent cannot tell restraint from silence.
 public enum SuppressionReason: String, Codable, Sendable, CaseIterable {
-    /// Already reminded about this shop today, or the day's ceiling is spent.
-    case throttled
+
+    // MARK: Reasons the ranking engine has
+
     /// There was no wallet to rank.
     case noCards
     /// Nothing here pays a bonus on any card held, or the best card's lead
@@ -57,12 +67,67 @@ public enum SuppressionReason: String, Codable, Sendable, CaseIterable {
     /// The user left before the dwell completed, so the reminder was pulled.
     case leftEarly
 
+    // MARK: Reasons the notification policy has
+
+    /// Superseded. It used to mean both "this shop already, today" and "the
+    /// day is full", which are different problems with different fixes — they
+    /// are `merchantCooldown` and `dailyBudget` now. **Kept only so a ledger
+    /// written before the split still decodes**, and nothing raises it any
+    /// more.
+    case throttled
+
+    /// Already said something about this exact shop, recently.
+    case merchantCooldown
+    /// Already said something about this *kind* of shop, recently.
+    case categoryCooldown
+    /// The day's budget is spent and this was not valuable enough to be an
+    /// exception to it.
+    case dailyBudget
+    /// This exact recommendation has already been sent. Same shop, same
+    /// category, same card, same rate — see `RecommendationIdentity`.
+    case duplicate
+    /// It is the middle of the night.
+    case quietHours
+    /// The user switched this category off.
+    case categoryDisabled
+    /// The user muted this shop.
+    case merchantMuted
+    /// The place could not be identified confidently enough to be worth
+    /// asserting anything about. A wrong notification costs more trust than a
+    /// missing one earns.
+    case lowConfidence
+    /// Moving too fast to be arriving anywhere. Driving past, not stopping.
+    case movingTooFast
+    /// Everything was permitted and it still was not worth it — the score
+    /// came in under the bar for the user's chosen intensity.
+    case belowThreshold
+
     public var displayName: String {
         switch self {
         case .throttled: return "Already said enough today"
         case .noCards: return "No cards to rank"
         case .noMeaningfulEdge: return "No card was meaningfully better"
         case .leftEarly: return "You left before it was due"
+        case .merchantCooldown: return "Already mentioned this place"
+        case .categoryCooldown: return "Already mentioned this kind of place"
+        case .dailyBudget: return "Enough for one day"
+        case .duplicate: return "You have been told this already"
+        case .quietHours: return "Quiet hours"
+        case .categoryDisabled: return "This category is switched off"
+        case .merchantMuted: return "This place is muted"
+        case .lowConfidence: return "Not sure enough where you were"
+        case .movingTooFast: return "You were passing through"
+        case .belowThreshold: return "Not worth interrupting you for"
+        }
+    }
+
+    /// Whether this is the user's own doing rather than the app's judgement.
+    /// The debug screen sorts by it: a suppression somebody asked for is not
+    /// a tuning problem.
+    public var isUserChoice: Bool {
+        switch self {
+        case .categoryDisabled, .merchantMuted, .quietHours: return true
+        default: return false
         }
     }
 }

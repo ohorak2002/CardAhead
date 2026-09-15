@@ -24,8 +24,8 @@ public struct OpenRecommendation: Identifiable, Codable, Hashable, Sendable {
 /// Everything the app knows about whether its own advice was any use.
 ///
 /// A value type with an injected clock, like `ArrivalTracker` and
-/// `ReminderThrottle` next door, so the rules below are unit tests rather than
-/// something only observable by walking around a city for a week.
+/// `NotificationHistory` next door, so the rules below are unit tests rather
+/// than something only observable by walking around a city for a week.
 ///
 /// **This ledger never leaves the device.** It is written to a file beside the
 /// wallet, it is erased with everything else, and there is no service behind

@@ -144,13 +144,22 @@ jobs:
           shoot carddetail 13
           # Step one of adding a card, behind the wallet's plus button.
           shoot addcard 14
+          # How much to say, two taps past More, and the notification lab.
+          #
+          # **The lab is the only way the notification badges get looked at.**
+          # A simulator screenshot photographs screens; the coloured chip on a
+          # reminder is a PNG that only iOS ever draws, so the lab puts all
+          # seventeen on a real screen next to the decisions that produced
+          # them. Debug build, so the row exists here and not on a phone.
+          shoot notifications 15
+          shoot notificationlab 16
 
       # A palette that works on white paper is not automatically the one that
       # works at night, and nobody has ever seen this app at night.
       - name: Photograph it in the dark
         run: |
           xcrun simctl ui "$DEVICE" appearance dark
-          for TAB in home map wallet benefits impact watching cardphoto cardbenefits placecard carddetail addcard; do
+          for TAB in home map wallet benefits impact watching cardphoto cardbenefits placecard carddetail addcard notifications notificationlab; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
             sleep 6

@@ -443,17 +443,16 @@ struct WalletStackView: View {
                 break
             }
         }
-        if let best = card.rules.filter({ $0.category != .base }).max(by: { $0.rate < $1.rate }) {
-            // The shelf, not the raw category: `travelPortal` reads as "travel
-            // booked through the issuer", which truncates on a card face and
-            // is not how anybody describes their own card. Same reasoning as
-            // `HomeView.bestFor`.
-            let where_ = BenefitGroup.containing(best.category).displayName.lowercased()
-            return "\(card.currency.formatted(rate: best.rate)) on \(where_)"
-        }
-        if let base = card.rule(for: .base) {
-            return "\(card.currency.formatted(rate: base.rate)) on everything"
-        }
+        // **Nothing else goes on the face any more.** This used to fall
+        // through to the card's best rate, and then to its base rate — which
+        // `RewardSummary` now prints directly under the card, in full. The
+        // screenshot showed the cost: a face reading "5x on travel" above a
+        // line reading "5x on travel booked through the issuer", which is the
+        // same fact twice, the second time more accurately.
+        //
+        // The rotating cases above survive because they are the one thing the
+        // summary deliberately leaves out: a quarter nobody has switched on is
+        // a *status*, not a rate, and it belongs where the card is.
         return nil
     }
 }

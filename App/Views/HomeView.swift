@@ -103,7 +103,10 @@ struct HomeView: View {
     ///
     /// Everything shown here is derived, never asserted: the place and the
     /// card come from `MapPlaceResult`, the rate from `rewardLine`, and the
-    /// reason from the engine's own `headline`. When there is no fix, no
+    /// reason from the engine's own `best.reason` — which names the *category*
+    /// ("4x at restaurants") rather than repeating the card. `headline` was
+    /// tried first and read "Use Amex Gold here", directly under a line
+    /// already saying "4x points with Amex Gold". When there is no fix, no
     /// lookup or no bonus anywhere nearby, this says so plainly instead of
     /// inventing something — the rule the rest of this screen already follows.
     @ViewBuilder
@@ -121,7 +124,7 @@ struct HomeView: View {
                     placeName: result.place.name,
                     distance: result.distanceText,
                     rewardLine: result.rewardLine,
-                    reason: recommendation.headline
+                    reason: recommendation.best.reason
                 ) {
                     goTo(.map)
                 }

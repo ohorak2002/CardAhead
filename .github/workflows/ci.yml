@@ -126,13 +126,31 @@ jobs:
           # simulator has no camera, and `CameraPicker.isAvailable` hides it.
           shoot cardphoto 8
           shoot cardbenefits 9
+          # The Add Card preview, which is three taps inside a sheet.
+          shoot cardpreview 10
+          # The map's two place surfaces. Both need a pin tapped, which
+          # `simctl` cannot do — see the note in NearbyMapView.
+          #
+          # **Neither shows a real photograph and that is expected.** The
+          # seeded run uses `StaticPlaceSearchSource`, which has no photo
+          # handles and never calls Google, so both of these photograph the
+          # *fallback* — which is the point of the fallback being designed
+          # rather than apologetic. The photographic path can only be seen on
+          # a build with a real Places key.
+          shoot placecard 11
+          shoot placedetail 12
+          # A card opened in the wallet. One tap deep, so `simctl`
+          # cannot reach it either.
+          shoot carddetail 13
+          # Step one of adding a card, behind the wallet's plus button.
+          shoot addcard 14
 
       # A palette that works on white paper is not automatically the one that
       # works at night, and nobody has ever seen this app at night.
       - name: Photograph it in the dark
         run: |
           xcrun simctl ui "$DEVICE" appearance dark
-          for TAB in home map wallet benefits impact watching cardphoto cardbenefits; do
+          for TAB in home map wallet benefits impact watching cardphoto cardbenefits placecard carddetail addcard; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
             sleep 6
@@ -159,7 +177,7 @@ jobs:
           # `content_size`, with an underscore — unlike `appearance` above.
           # simctl prints its whole usage page and exits 117 for the hyphen.
           xcrun simctl ui "$DEVICE" content_size accessibility-extra-extra-extra-large
-          for TAB in home wallet benefits more; do
+          for TAB in home wallet benefits more carddetail; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
             sleep 6

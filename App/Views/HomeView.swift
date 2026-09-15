@@ -46,14 +46,27 @@ struct HomeView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: Metric.roomy) {
+            // **The order is the argument, and the first attempt had it
+            // wrong.** The wallet led and the recommendation followed, which
+            // reads sensibly in a list and fails on a phone: the wallet strip
+            // is a third of the screen, so the one fact somebody opened the
+            // app for started below the fold. The screenshot also put the same
+            // Amex Gold on screen twice within an inch of itself — once in the
+            // strip and once as the hero — which reads as a rendering bug
+            // rather than as an answer.
+            //
+            // The answer leads. The wallet is still directly under it and
+            // still the product; what changed is that the screen now answers
+            // its own question before asking you to scroll.
+            VStack(spacing: Metric.section) {
                 header
                 if store.cards.isEmpty {
                     firstCardPrompt
                 } else {
-                    watchingBanner
-                    opportunitySection
+                    bestCardNow
                     walletPeek
+                    opportunitySection
+                    watchingBanner
                 }
             }
             .padding(.bottom, 90)
@@ -62,6 +75,118 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $isAddingCard) { AddCardView() }
+    }
+
+    // MARK: - The answer
+
+    /// The nearest place where a card in this wallet beats the everyday one.
+    ///
+    /// **The nearest, not the richest.** A 5x card four miles away is not a
+    /// recommendation, it is a suggestion to drive somewhere — and this screen
+    /// is read standing on a pavement deciding what to pull out of a pocket.
+    /// `results` is already ranked by whatever the map's sort says, which is
+    /// the user's business and not this screen's, so the distance comparison
+    /// happens here rather than being inherited.
+    private var nearestOpportunity: MapPlaceResult? {
+        nearby.results
+            .filter(\.isOpportunity)
+            .min { $0.distanceMeters < $1.distanceMeters }
+    }
+
+    /// The card, the reward, the reason — in that order, and nothing else.
+    ///
+    /// **This screen had no answer on it at all.** It carried a count of
+    /// opportunities, a permissions banner and a list of chores, and the one
+    /// thing a person opens this app to find out — *which card* — was never
+    /// on it. The recommendation existed; it lived three taps away inside the
+    /// map.
+    ///
+    /// Everything shown here is derived, never asserted: the place and the
+    /// card come from `MapPlaceResult`, the rate from `rewardLine`, and the
+    /// reason from the engine's own `best.reason` — which names the *category*
+    /// ("4x at restaurants") rather than repeating the card. `headline` was
+    /// tried first and read "Use Amex Gold here", directly under a line
+    /// already saying "4x points with Amex Gold". When there is no fix, no
+    /// lookup or no bonus anywhere nearby, this says so plainly instead of
+    /// inventing something — the rule the rest of this screen already follows.
+    @ViewBuilder
+    private var bestCardNow: some View {
+        VStack(alignment: .leading, spacing: Metric.snug) {
+            SectionHeader("Use this card nearby")
+                .padding(.horizontal, Metric.margin)
+
+            if let result = nearestOpportunity,
+               let recommendation = result.recommendation,
+               let card = store.card(withID: recommendation.best.card.id) {
+                RecommendationHero(
+                    card: card,
+                    photo: store.photo(for: card),
+                    placeName: result.place.name,
+                    placeSubtitle: result.place.subtitle,
+                    placePhoto: result.place.photo,
+                    placeSymbol: result.place.mapCategory.symbolName,
+                    placeTint: result.place.mapCategory.listTint,
+                    distance: result.distanceText,
+                    rewardLine: result.rewardLine,
+                    // **The runner-up, not the category, and the doc comment
+                    // above records why `headline` lost this slot first.**
+                    // "4x points with Amex Gold" over "4x dining" is the same
+                    // number twice; the fact actually missing is what the card
+                    // you would otherwise have reached for pays. Falls back to
+                    // the category line for a wallet with nothing to compare.
+                    reason: recommendation.runnerUpLine ?? recommendation.best.reason
+                ) {
+                    goTo(.map)
+                }
+                .padding(.horizontal, Metric.margin)
+            } else {
+                allSetPanel
+                    .padding(.horizontal, Metric.margin)
+            }
+        }
+    }
+
+    /// The calm empty state. Three different reasons there is nothing to say,
+    /// and each one says which it is — "nothing nearby pays more" and "the map
+    /// has not looked yet" are very different facts about the app, and a
+    /// single cheerful "You're all set" for both is the kind of empty state
+    /// that reads as an apology.
+    private var allSetPanel: some View {
+        HStack(spacing: Metric.snug) {
+            Image(systemName: allSetSymbol)
+                .font(.title3)
+                .foregroundStyle(Color.cardWiseBlue)
+                .frame(width: 38, height: 38)
+                .background(Color.cardWiseBlue.opacity(0.12), in: Circle())
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(allSetTitle)
+                    .font(.subheadline.weight(.semibold))
+                Text(allSetDetail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(Metric.regular)
+        .cardWisePanel()
+        .accessibilityElement(children: .combine)
+    }
+
+    private var allSetSymbol: String {
+        nearby.results.isEmpty ? "location.magnifyingglass" : "checkmark.circle"
+    }
+
+    private var allSetTitle: String {
+        nearby.results.isEmpty ? "Nothing looked up yet" : "You're all set"
+    }
+
+    private var allSetDetail: String {
+        nearby.results.isEmpty
+            ? "Open the map and CardWise will check what is around you."
+            : "Nothing within reach pays more than the card you would have reached for anyway."
     }
 
     // MARK: - The navy top
@@ -322,11 +447,8 @@ struct HomeView: View {
                 isAddingCard = true
             } label: {
                 Text("Add a card")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, Metric.snug)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.cardWisePrimary)
             .padding(.top, Metric.tight)
         }
         .padding(Metric.roomy)
@@ -356,34 +478,64 @@ private struct HeroBanner: View {
     let detail: String
     var action: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// **It stacks once the text is large, and the screenshots are why.**
+    ///
+    /// Sharing a row with a 38-point square *and* a chevron leaves the words
+    /// about 220 points, which at the accessibility sizes is not enough for
+    /// "opportunities" — the largest-text screenshot rendered it hyphenated
+    /// across three lines as "5 / opportu- / nities / nearby", the loudest
+    /// thing on Home broken into pieces. Given the full width it stays whole.
+    ///
+    /// Same reasoning, and the same fix, as `BenefitGroupTile`'s rate.
     var body: some View {
         Button(action: action) {
-            HStack(spacing: Metric.snug) {
-                Image(systemName: symbolName)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 38, height: 38)
-                    .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                    Text(detail)
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.75))
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+            Group {
+                if typeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: Metric.tight) {
+                        icon
+                        words
+                    }
+                } else {
+                    HStack(spacing: Metric.snug) {
+                        icon
+                        words
+                        Spacer(minLength: Metric.tight)
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.6))
+                    }
                 }
-                Spacer(minLength: Metric.tight)
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.6))
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Metric.snug)
             .background(.white.opacity(0.15), in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
+    }
+
+    private var icon: some View {
+        Image(systemName: symbolName)
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 38, height: 38)
+            .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+    }
+
+    private var words: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.75))
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 

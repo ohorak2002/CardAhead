@@ -200,10 +200,8 @@ struct LocationPrimerView: View {
                 advance()
             } label: {
                 Text(primaryTitle)
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(.cardWisePrimary)
 
             if step != .done {
                 Button("Not now") { finish() }

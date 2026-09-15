@@ -91,11 +91,8 @@ struct MapFiltersView: View {
                     dismiss()
                 } label: {
                     Text("Apply filters")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, Metric.snug)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.cardWisePrimary)
                 .padding(.horizontal, Metric.margin)
                 .padding(.vertical, Metric.snug)
                 .background(.bar)

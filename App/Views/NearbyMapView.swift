@@ -20,6 +20,23 @@ import CardKit
 /// dependency and no attribution overlay, and looks like the rest of iOS. The
 /// data and the canvas do not have to come from the same company.
 ///
+/// ## The screen was rebuilt, and this is what changed
+///
+/// It used to be a navy header, a search field, a row of chips, a map inset
+/// into a rounded rectangle, and a list of cards under it — a vertical stack
+/// in which the map got about a quarter of the screen. Everything on it was
+/// correct and the whole was wrong: **the tab named Map was mostly not a
+/// map.** A map you cannot see is a picture of a map.
+///
+/// So the map is now the screen, edge to edge, and everything else floats over
+/// it: the search field and the chips at the top, the results in a sheet that
+/// pulls up from the bottom. That costs the shared navy `ScreenHeader` this
+/// app wears everywhere else, which is a real loss of family resemblance and
+/// worth it exactly once — a title bar over a map is 190 points spent saying
+/// the word "Map" above a map. The brand stays visible where it does work:
+/// the pins, the chips, and the one blue line in every row that says which
+/// card wins.
+///
 /// Three things this screen will not do:
 ///
 /// - **It does not invent a pin.** With no Places key it shows the user's own
@@ -53,11 +70,11 @@ struct NearbyMapView: View {
     /// into two different ones, which a counter gives and the cluster's own id
     /// would not.
     @State private var clusterOpenings = 0
-    /// How tall the map is drawn, measured from the tab rather than fixed.
-    /// Feeds both the frame and the pin-clustering separation — see
-    /// `mapHeight(fitting:)`. The initial value is only ever on screen for the
-    /// one frame before the first layout reports a real one.
-    @State private var mapHeight: CGFloat = 300
+    /// How much room the whole tab has. Feeds the sheet's three heights and
+    /// the pin clustering, both of which used to be measured against a map
+    /// that had a fixed height of its own.
+    @State private var availableHeight: CGFloat = 700
+    @State private var detent: CardWiseSheetDetent = .half
 
     var body: some View {
         @Bindable var places = places
@@ -68,22 +85,15 @@ struct NearbyMapView: View {
         // comes from its children — VStack width from children, children sized
         // from the measurement, round and round. This is the other case: a
         // `GeometryReader` takes all the space offered to it and reports that,
-        // whatever its children do. The number it hands back is the tab's
-        // height, which is the screen's, and nothing below depends on it in a
-        // way that feeds back up.
+        // whatever its children do.
         GeometryReader { proxy in
-            VStack(spacing: 0) {
-                header
-                controls
-                map
-                resultsList
+            ZStack(alignment: .top) {
+                mapLayer
+                floatingControls
+                sheetLayer
             }
-            // `onChange`, not a `let` read during body: the height feeds the
-            // pin-clustering maths as well as the frame, and both want it from
-            // one place. `initial: true` fires it on appear, after layout, so
-            // nothing is assigned while a layout pass is running.
             .onChange(of: proxy.size.height, initial: true) { _, height in
-                mapHeight = Self.mapHeight(fitting: height)
+                availableHeight = height
             }
         }
         .background(Color(.systemGroupedBackground))
@@ -106,6 +116,27 @@ struct NearbyMapView: View {
             // `onChange` only fires on a *change*, so the first look at an
             // anchor that was set before this view existed needs this.
             focusCamera()
+        }
+        // **Two screens CI could not otherwise reach.** The selected-place
+        // card and the place detail are both a tap on a pin away, and `simctl`
+        // cannot tap a pin — so without this they would be the two newest
+        // surfaces in the app and the only ones nobody had ever seen. Same
+        // arrangement as `WalletTab`'s two card-art screens.
+        //
+        // Driven off `results.count` rather than `onAppear` because the seeded
+        // lookup answers a moment after this view exists, and a pin cannot be
+        // selected before there are any.
+        .onChange(of: places.results.count, initial: true) { _, _ in
+            guard let wanted = DemoSeed.requestedTab else { return }
+            guard let first = pinGroups.first(where: { !$0.isCluster }) else { return }
+            switch wanted {
+            case "placecard" where selectedID == nil:
+                selectedID = first.id
+                detent = .half
+            case "placedetail" where openPlace == nil:
+                openPlace = first.single?.place
+            default: break
+            }
         }
         .onChange(of: places.center) { _, _ in focusCamera() }
         .onChange(of: places.filter.distance) { _, _ in focusCamera() }
@@ -130,155 +161,7 @@ struct NearbyMapView: View {
         .sensoryFeedback(.impact(weight: .light), trigger: clusterOpenings)
     }
 
-    // MARK: - The navy top
-
-    private var header: some View {
-        ScreenHeader(title: "Nearby Map") {
-            HeaderButton(symbolName: "slider.horizontal.3", label: "Filters") {
-                isFiltering = true
-            }
-        }
-    }
-
-    // MARK: - Search and chips
-
-    private var controls: some View {
-        @Bindable var places = places
-
-        return VStack(spacing: Metric.snug) {
-            HStack(spacing: Metric.tight) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField("Search places, stores, or categories", text: $places.searchText)
-                    .submitLabel(.search)
-                    .autocorrectionDisabled()
-                    .onSubmit { places.runSearch() }
-                if !places.searchText.isEmpty {
-                    Button {
-                        places.clearSearch()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.tertiary)
-                    }
-                    .accessibilityLabel("Clear search")
-                }
-            }
-            .padding(.horizontal, Metric.snug)
-            .padding(.vertical, 10)
-            // **Not `.background.secondary`.** In dark mode that is a visible
-            // grey, but on the light grouped background it resolves to very
-            // nearly the same grey as the page and the field disappeared
-            // entirely — which is what the first screenshots showed. The
-            // grouped-secondary role is white on light and grey on dark, which
-            // is the one that means "a control sitting on a grouped page".
-            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous))
-            .padding(.horizontal, Metric.margin)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Metric.tight) {
-                    FilterChip(
-                        title: "All",
-                        isOn: !places.isShowingWatchedOnly && places.filter.isShowingEverything,
-                        tint: .cardWiseBlue
-                    ) {
-                        places.showEverywhere()
-                        places.filter.showEverything()
-                    }
-                    // **Always shown, even when nothing is watched**, and that
-                    // is the point rather than an oversight. "CardWise is not
-                    // watching anything yet, and here is why" is precisely the
-                    // answer somebody comes to this chip for when no reminder
-                    // has arrived. Hiding the chip would hide the diagnosis
-                    // along with the diagnostic.
-                    FilterChip(
-                        title: places.watchedCount > 0 ? "Watching \(places.watchedCount)" : "Watching",
-                        symbolName: "bell.fill",
-                        isOn: places.isShowingWatchedOnly,
-                        tint: .cardWiseBlue
-                    ) {
-                        if places.isShowingWatchedOnly {
-                            places.showEverywhere()
-                        } else {
-                            places.showWatchedOnly()
-                        }
-                    }
-                    ForEach(MapCategory.quickFilters, id: \.self) { category in
-                        FilterChip(
-                            title: category.shortName,
-                            isOn: !places.isShowingWatchedOnly
-                                && !places.filter.isShowingEverything
-                                && places.filter.categories == [category],
-                            tint: category.mapTint
-                        ) {
-                            // A chip is a "show me only this" switch, and
-                            // tapping the one already on goes back to
-                            // everything. Ticking several at once is what the
-                            // filter sheet is for.
-                            //
-                            // It also leaves the watched view, because the
-                            // chips read as one row of alternatives and a
-                            // category chip that narrowed the *watched* set
-                            // while staying dim would be lying about which of
-                            // them is on.
-                            let wasWatching = places.isShowingWatchedOnly
-                            places.showEverywhere()
-                            if !wasWatching, places.filter.categories == [category] {
-                                places.filter.showEverything()
-                            } else {
-                                places.filter.showOnly(category)
-                            }
-                        }
-                    }
-                    // Hidden in the watched view rather than shown having no
-                    // effect: the geofence plan has whatever reach it has, and
-                    // a control that silently does nothing is worse than one
-                    // that is not there.
-                    if !places.isShowingWatchedOnly {
-                        Menu {
-                            Picker("Distance", selection: $places.filter.distance) {
-                                ForEach(MapDistance.allCases, id: \.self) { distance in
-                                    Text(distance.displayName).tag(distance)
-                                }
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(places.filter.distance.shortName)
-                                Image(systemName: "chevron.down")
-                                    .font(.caption2.weight(.semibold))
-                            }
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(Color.primary)
-                            .padding(.horizontal, Metric.snug)
-                            .padding(.vertical, 7)
-                            .background(Color(.secondarySystemGroupedBackground), in: Capsule())
-                        }
-                    }
-                }
-                .padding(.horizontal, Metric.margin)
-            }
-        }
-        .padding(.vertical, Metric.snug)
-    }
-
-    // MARK: - The map
-
-    /// How much of the screen the map gets.
-    ///
-    /// **This was a flat 300 points and that was too little.** On a modern
-    /// phone the tab is 874 points tall, so a third of the screen went to the
-    /// thing the tab is named after and two thirds to a header, a search box,
-    /// a row of chips and a list — on a screen whose entire job is showing you
-    /// where things are. The mockup makes the map the hero; 300 points made it
-    /// an illustration above a list.
-    ///
-    /// 46% of the available height, clamped. The floor keeps it usable on an
-    /// SE, where 46% is not much map; the ceiling stops it from swallowing the
-    /// list on a Pro Max, because the list is where the answer actually is —
-    /// a pin says *where*, only the row says *which card*. On a 874-point tab
-    /// that lands at 402 points, against 300 before.
-    private static func mapHeight(fitting available: CGFloat) -> CGFloat {
-        min(max(available * 0.46, 260), 460)
-    }
+    // MARK: - The map, which is now the screen
 
     /// The shops that already have a geofence around them.
     ///
@@ -291,15 +174,14 @@ struct NearbyMapView: View {
 
     /// Pins, grouped so they cannot sit on top of each other.
     ///
-    /// The grouping distance comes from the camera *and* the map's own
-    /// height: a pin is about 40 points across, so two pins are touching when
-    /// they are closer than `40 / mapHeight` of whatever the map is currently
-    /// showing. Zoom in and the same two shops come apart on their own — and
-    /// a taller map, which now happens on a bigger phone, separates them
-    /// sooner rather than clustering as if it were still 300 points.
+    /// The grouping distance comes from the camera *and* the height the map is
+    /// drawn at: a pin is about 40 points across, so two pins are touching
+    /// when they are closer than `40 / height` of whatever the map is
+    /// currently showing. Zoom in and the same two shops come apart on their
+    /// own.
     private var pinGroups: [MapPinGroup] {
         let latitudeDelta = cameraSpan?.latitudeDelta ?? span(for: places.filter.distance).latitudeDelta
-        let separation = (NearbyPlaces.pinDiameterPoints / Double(mapHeight)) * latitudeDelta
+        let separation = (NearbyPlaces.pinDiameterPoints / Double(max(availableHeight, 1))) * latitudeDelta
         return NearbyPlaces.pinGroups(
             for: places.results,
             separationDegrees: separation,
@@ -307,50 +189,192 @@ struct NearbyMapView: View {
         )
     }
 
-    private var map: some View {
-        ZStack(alignment: .bottom) {
-            Map(position: $camera) {
-                UserAnnotation()
-                ForEach(pinGroups) { group in
-                    Annotation(
-                        group.id,
-                        coordinate: CLLocationCoordinate2D(
-                            latitude: group.coordinate.latitude,
-                            longitude: group.coordinate.longitude
-                        ),
-                        anchor: .center
-                    ) {
-                        // **A button rather than `Map(selection:)`.** A tap on
-                        // a cluster has to zoom and a tap on a single shop has
-                        // to select it; one selection binding cannot say which
-                        // happened, and working it back out of the tag was two
-                        // code paths that had to agree with each other.
-                        Button {
-                            tap(group)
-                        } label: {
-                            MapPin(
-                                group: group,
-                                isSelected: selectedID == group.id,
-                                isWatched: isWatched(group)
-                            )
-                        }
-                        .buttonStyle(.plain)
+    private var mapLayer: some View {
+        Map(position: $camera) {
+            UserAnnotation()
+            ForEach(pinGroups) { group in
+                Annotation(
+                    group.id,
+                    coordinate: CLLocationCoordinate2D(
+                        latitude: group.coordinate.latitude,
+                        longitude: group.coordinate.longitude
+                    ),
+                    anchor: .center
+                ) {
+                    // **A button rather than `Map(selection:)`.** A tap on a
+                    // cluster has to zoom and a tap on a single shop has to
+                    // select it; one selection binding cannot say which
+                    // happened, and working it back out of the tag was two
+                    // code paths that had to agree with each other.
+                    Button {
+                        tap(group)
+                    } label: {
+                        MapPin(
+                            group: group,
+                            isSelected: selectedID == group.id,
+                            isWatched: isWatched(group)
+                        )
                     }
-                    .annotationTitles(.hidden)
+                    .buttonStyle(.plain)
+                }
+                .annotationTitles(.hidden)
+            }
+        }
+        .mapControls {
+            MapCompass()
+        }
+        .onMapCameraChange(frequency: .onEnd) { context in
+            cameraCenter = GeoCoordinate(
+                latitude: context.region.center.latitude,
+                longitude: context.region.center.longitude
+            )
+            cameraSpan = context.region.span
+        }
+        // Edge to edge, under the status bar and under the sheet. The map is
+        // the ground everything else on this screen stands on.
+        .ignoresSafeArea()
+    }
+
+    // MARK: - What floats over it
+
+    /// The search field, the chips, and the filter button.
+    ///
+    /// **Translucent, not solid.** The whole argument for floating a control
+    /// over the map instead of putting it in a bar is that the map stays
+    /// visible underneath; a control filled with the page's own colour is a
+    /// bar with extra steps. See `ControlGround`.
+    private var floatingControls: some View {
+        @Bindable var places = places
+
+        return VStack(spacing: Metric.snug) {
+            HStack(spacing: Metric.tight) {
+                CardWiseSearchField(
+                    placeholder: "Search places or categories",
+                    text: $places.searchText,
+                    onSubmit: { places.runSearch() },
+                    ground: .floating
+                )
+
+                Button {
+                    isFiltering = true
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.headline)
+                        .foregroundStyle(Color.cardWiseBlue)
+                        .frame(width: 44, height: 44)
+                        .background(.regularMaterial, in: Circle())
+                        .shadow(color: Color.cardWiseNavy.opacity(0.18), radius: 14, y: 5)
+                }
+                .accessibilityLabel("Filters")
+            }
+            .padding(.horizontal, Metric.regular)
+
+            chips
+        }
+        .padding(.top, Metric.tight)
+    }
+
+    private var chips: some View {
+        @Bindable var places = places
+
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Metric.tight) {
+                CardWiseChip(
+                    title: "All",
+                    isOn: !places.isShowingWatchedOnly && places.filter.isShowingEverything,
+                    tint: .cardWiseBlue,
+                    ground: .floating
+                ) {
+                    places.showEverywhere()
+                    places.filter.showEverything()
+                }
+                // **Always shown, even when nothing is watched**, and that is
+                // the point rather than an oversight. "CardWise is not
+                // watching anything yet, and here is why" is precisely the
+                // answer somebody comes to this chip for when no reminder has
+                // arrived. Hiding the chip would hide the diagnosis along with
+                // the diagnostic.
+                CardWiseChip(
+                    title: places.watchedCount > 0 ? "Watching \(places.watchedCount)" : "Watching",
+                    symbolName: "bell.fill",
+                    isOn: places.isShowingWatchedOnly,
+                    tint: .cardWiseBlue,
+                    ground: .floating
+                ) {
+                    if places.isShowingWatchedOnly {
+                        places.showEverywhere()
+                    } else {
+                        places.showWatchedOnly()
+                    }
+                }
+                ForEach(MapCategory.quickFilters, id: \.self) { category in
+                    CardWiseChip(
+                        title: category.shortName,
+                        isOn: !places.isShowingWatchedOnly
+                            && !places.filter.isShowingEverything
+                            && places.filter.categories == [category],
+                        tint: category.mapTint,
+                        ground: .floating
+                    ) {
+                        // A chip is a "show me only this" switch, and tapping
+                        // the one already on goes back to everything. Ticking
+                        // several at once is what the filter sheet is for.
+                        //
+                        // It also leaves the watched view, because the chips
+                        // read as one row of alternatives and a category chip
+                        // that narrowed the *watched* set while staying dim
+                        // would be lying about which of them is on.
+                        let wasWatching = places.isShowingWatchedOnly
+                        places.showEverywhere()
+                        if !wasWatching, places.filter.categories == [category] {
+                            places.filter.showEverything()
+                        } else {
+                            places.filter.showOnly(category)
+                        }
+                    }
+                }
+                // Hidden in the watched view rather than shown having no
+                // effect: the geofence plan has whatever reach it has, and a
+                // control that silently does nothing is worse than one that is
+                // not there.
+                if !places.isShowingWatchedOnly {
+                    Menu {
+                        Picker("Distance", selection: $places.filter.distance) {
+                            ForEach(MapDistance.allCases, id: \.self) { distance in
+                                Text(distance.displayName).tag(distance)
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(places.filter.distance.shortName)
+                            Image(systemName: "chevron.down")
+                                .font(.caption2.weight(.semibold))
+                        }
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Color.primary)
+                        .padding(.horizontal, Metric.snug)
+                        .padding(.vertical, 7)
+                        .background(.regularMaterial, in: Capsule())
+                        .shadow(color: Color.cardWiseNavy.opacity(0.18), radius: 8, y: 3)
+                    }
                 }
             }
-            .mapControls {
-                MapCompass()
-            }
-            .onMapCameraChange(frequency: .onEnd) { context in
-                cameraCenter = GeoCoordinate(
-                    latitude: context.region.center.latitude,
-                    longitude: context.region.center.longitude
-                )
-                cameraSpan = context.region.span
-            }
+            .padding(.horizontal, Metric.regular)
+            // The shadows on the chips are clipped by the scroll view without
+            // this: a horizontal scroll view clips to its own bounds, and the
+            // bounds are exactly the chips' height.
+            .padding(.vertical, 6)
+        }
+        .scrollClipDisabled()
+    }
 
-            VStack(spacing: Metric.tight) {
+    // MARK: - The sheet, and what sits just above it
+
+    private var sheetLayer: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+
+            HStack(alignment: .bottom) {
                 if let panned = pannedAway {
                     Button {
                         places.searchArea(around: panned)
@@ -359,60 +383,215 @@ struct NearbyMapView: View {
                         Label("Search this area", systemImage: "arrow.clockwise")
                             .font(.subheadline.weight(.semibold))
                             .padding(.horizontal, Metric.regular)
-                            .padding(.vertical, Metric.tight)
-                            .background(.background, in: Capsule())
-                            .shadow(color: Color.cardWiseNavy.opacity(0.18), radius: 8, y: 2)
+                            .padding(.vertical, 10)
+                            .background(.regularMaterial, in: Capsule())
+                            .shadow(color: Color.cardWiseNavy.opacity(0.18), radius: 10, y: 3)
                     }
                     .buttonStyle(.plain)
+                    .transition(.scale.combined(with: .opacity))
                 }
-                Spacer(minLength: 0)
-                if let selected {
-                    SelectedPlaceCard(
-                        result: selected,
-                        isWatched: watchedIDs.contains(selected.place.id)
-                    ) {
-                        openPlace = selected.place
-                    } onDismiss: {
-                        selectedID = nil
-                    }
-                    .padding(.horizontal, Metric.snug)
-                    .padding(.bottom, Metric.snug)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+                Spacer(minLength: Metric.tight)
+                recenterButton
             }
-            .padding(.top, Metric.snug)
+            .padding(.horizontal, Metric.regular)
+            .padding(.bottom, Metric.snug)
 
-            recenterButton
+            CardWiseBottomSheet(detent: $detent, availableHeight: availableHeight) {
+                sheetContent
+            }
         }
-        .frame(height: mapHeight)
-        .clipShape(RoundedRectangle(cornerRadius: Metric.cardRadius, style: .continuous))
-        .padding(.horizontal, Metric.margin)
         .animation(.snappy(duration: 0.25), value: selectedID)
+        .animation(.snappy(duration: 0.25), value: pannedAway != nil)
     }
 
     private var recenterButton: some View {
-        VStack {
-            Spacer(minLength: 0)
-            HStack {
-                Spacer(minLength: 0)
-                Button {
-                    places.recenterOnUser()
+        Button {
+            places.recenterOnUser()
+        } label: {
+            Image(systemName: "location.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.cardWiseBlue)
+                .frame(width: 44, height: 44)
+                .background(.regularMaterial, in: Circle())
+                .shadow(color: Color.cardWiseNavy.opacity(0.18), radius: 10, y: 3)
+        }
+        .accessibilityLabel("Back to my location")
+    }
+
+    /// Either the place you tapped, or everything nearby.
+    ///
+    /// **One surface, not two.** The old screen put a small selected-place
+    /// card over the map *and* kept the list underneath, which meant two
+    /// answers to the same question on screen at once and the card covering
+    /// the pin it described. Selecting a place now replaces the list with it,
+    /// the way every map application does, and closing it puts the list back.
+    @ViewBuilder
+    private var sheetContent: some View {
+        if let selected {
+            ScrollView {
+                MerchantPlaceCard(
+                    result: selected,
+                    isWatched: watchedIDs.contains(selected.place.id),
+                    onOpen: { openPlace = selected.place },
+                    onDismiss: { selectedID = nil }
+                )
+                // Clears the floating tab bar the sheet now runs behind.
+                .padding(.bottom, 90)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+        } else {
+            resultsList
+        }
+    }
+
+    // MARK: - The list
+
+    private var resultsList: some View {
+        @Bindable var places = places
+
+        return VStack(spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(places.resultsTitle)
+                    .font(.headline)
+                Spacer(minLength: Metric.tight)
+                Menu {
+                    Picker("Sort", selection: $places.filter.sort) {
+                        ForEach(MapSort.allCases, id: \.self) { sort in
+                            Text(sort.displayName).tag(sort)
+                        }
+                    }
                 } label: {
-                    Image(systemName: "location.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.cardWiseBlue)
-                        .frame(width: 38, height: 38)
-                        .background(.background, in: Circle())
-                        .shadow(color: Color.cardWiseNavy.opacity(0.18), radius: 6, y: 2)
+                    HStack(spacing: 4) {
+                        Text("Sort")
+                        Image(systemName: "chevron.down")
+                            .font(.caption2.weight(.semibold))
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(Color.cardWiseBlue)
                 }
-                .accessibilityLabel("Back to my location")
+            }
+            .padding(.horizontal, Metric.margin)
+            .padding(.bottom, Metric.tight)
+
+            ScrollView {
+                if places.isLoading && places.results.isEmpty {
+                    loadingRow
+                } else if let failure = places.failure {
+                    CardWiseEmptyState(
+                        symbolName: "exclamationmark.triangle",
+                        title: "We couldn't load nearby places",
+                        message: failure
+                    ) {
+                        Button("Try again") { places.refresh() }
+                            .buttonStyle(CardWiseSecondaryButtonStyle())
+                    }
+                } else if places.results.isEmpty {
+                    emptyMessage
+                } else {
+                    resultRows
+                }
             }
         }
-        .padding(Metric.snug)
-        // Out of the way of the selected-place card, which owns the bottom of
-        // the map when there is one.
-        .padding(.bottom, selected == nil ? 0 : 96)
+        .padding(.bottom, Metric.tight)
     }
+
+    private var resultRows: some View {
+        // Read once rather than per row: it walks the whole region plan.
+        let watched = watchedIDs
+        let results = places.results
+        return LazyVStack(spacing: 0) {
+            ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
+                Button {
+                    openPlace = result.place
+                } label: {
+                    MerchantRow(
+                        result: result,
+                        isWatched: watched.contains(result.place.id),
+                        showsSeparator: index < results.count - 1
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, Metric.margin)
+        // Clears the floating tab bar, which content passes under on iOS 26.
+        .padding(.bottom, 90)
+    }
+
+    private var loadingRow: some View {
+        VStack(spacing: 0) {
+            // Three rows the shape of the real thing, rather than a spinner in
+            // the middle of a blank panel: the list does not jump when the
+            // places land, and the wait looks like the thing being waited for.
+            ForEach(0..<3, id: \.self) { index in
+                HStack(spacing: Metric.snug) {
+                    RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
+                        .fill(Color.cardWiseHairline.opacity(0.6))
+                        .frame(width: 68, height: 68)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Capsule().fill(Color.cardWiseHairline.opacity(0.6)).frame(width: 150, height: 12)
+                        Capsule().fill(Color.cardWiseHairline.opacity(0.45)).frame(width: 100, height: 10)
+                        Capsule().fill(Color.cardWiseHairline.opacity(0.45)).frame(width: 130, height: 10)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, Metric.snug)
+                if index < 2 {
+                    Hairline(inset: 68 + Metric.snug)
+                }
+            }
+        }
+        .padding(.horizontal, Metric.margin)
+        .accessibilityElement()
+        .accessibilityLabel("Looking around you")
+    }
+
+    /// Four different silences, and they need four different sentences. A map
+    /// that is blank because no key was built in looks exactly like a map that
+    /// is blank because it is three in the morning in a field.
+    ///
+    /// Two of the four are a filter set too narrowly, and those two carry the
+    /// way out as a button. Telling somebody what to do and leaving them to go
+    /// and find it is the kind of empty state that reads as an apology.
+    @ViewBuilder
+    private var emptyMessage: some View {
+        if places.hasNoProvider {
+            CardWiseEmptyState(
+                symbolName: "mappin.slash",
+                title: "No place provider",
+                message: "This build of CardWise has nowhere to get shops from, so the map can only show where you are. Everything else in the app still works."
+            )
+        } else if places.center == nil {
+            CardWiseEmptyState(
+                symbolName: "location.slash",
+                title: "CardWise cannot see where you are",
+                message: "The map needs location access to know what is around you. You can turn it on under More › Settings."
+            )
+        } else if places.isShowingWatchedOnly {
+            CardWiseEmptyState(
+                symbolName: "bell.slash",
+                title: "Nothing being watched yet",
+                message: "CardWise watches up to twenty nearby shops where one of your cards pays more than usual. Add a card, or move around a little, and they will appear here."
+            ) {
+                Button("Show everything nearby") { places.showEverywhere() }
+                    .buttonStyle(CardWiseSecondaryButtonStyle())
+            }
+        } else {
+            CardWiseEmptyState(
+                symbolName: "mappin.and.ellipse",
+                title: "Nothing nearby",
+                message: "No places matched here. Try a wider distance, or a different category."
+            ) {
+                Button("Show everything nearby") {
+                    places.showEverywhere()
+                    places.filter.showEverything()
+                }
+                .buttonStyle(CardWiseSecondaryButtonStyle())
+            }
+        }
+    }
+
+    // MARK: - Behaviour
 
     private func isWatched(_ group: MapPinGroup) -> Bool {
         let watched = watchedIDs
@@ -424,6 +603,10 @@ struct NearbyMapView: View {
     private func tap(_ group: MapPinGroup) {
         guard group.isCluster else {
             selectedID = group.id
+            // A selected place needs room to be read, and the peek height
+            // shows only its photograph. Never *shrinks* the sheet, though:
+            // somebody who pulled it all the way up did that on purpose.
+            if detent == .peek { detent = .half }
             return
         }
         selectedID = nil
@@ -485,13 +668,28 @@ struct NearbyMapView: View {
         // The furthest pin in each direction, mirrored so the anchor stays in
         // the middle, with a little air around the edge. Floored at ~500m
         // across so three shops on one block do not zoom to the pavement.
+        //
+        // **Weighted downward**, because the bottom half of the map is behind
+        // the sheet. Fitting pins to the whole map and then covering half of
+        // it with a sheet hides half the pins.
         let minimum = 500 / 111_194.93
         let latitude = coordinates.map { abs($0.latitude - center.latitude) }.max() ?? 0
         let longitude = coordinates.map { abs($0.longitude - center.longitude) }.max() ?? 0
+
+        // The sheet covers the bottom half at its resting height, so the pins
+        // are fitted into the *top* half: the span is widened to make room,
+        // and the camera's centre is then moved south of the anchor by a
+        // quarter of it, which lifts everything into the part you can see.
+        // Fitting to the whole map and then covering half of it is how you
+        // end up with a well-framed map of pins nobody can see.
+        let latitudeSpan = max(latitude * 2.5, minimum) * 1.6
         return MKCoordinateRegion(
-            center: middle,
+            center: CLLocationCoordinate2D(
+                latitude: center.latitude - latitudeSpan * 0.25,
+                longitude: center.longitude
+            ),
             span: MKCoordinateSpan(
-                latitudeDelta: max(latitude * 2.5, minimum),
+                latitudeDelta: latitudeSpan,
                 longitudeDelta: max(longitude * 2.5, minimum)
             )
         )
@@ -501,182 +699,6 @@ struct NearbyMapView: View {
         // Twice the radius across, with a little air around the edge.
         let degrees = (distance.meters * 2.4) / 111_194.93
         return MKCoordinateSpan(latitudeDelta: degrees, longitudeDelta: degrees)
-    }
-
-    // MARK: - The list
-
-    private var resultsList: some View {
-        @Bindable var places = places
-
-        return ScrollView {
-            VStack(alignment: .leading, spacing: Metric.snug) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(places.resultsTitle)
-                        .font(.headline)
-                    Spacer(minLength: Metric.tight)
-                    Menu {
-                        Picker("Sort", selection: $places.filter.sort) {
-                            ForEach(MapSort.allCases, id: \.self) { sort in
-                                Text(sort.displayName).tag(sort)
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text("Sort")
-                            Image(systemName: "chevron.down")
-                                .font(.caption2.weight(.semibold))
-                        }
-                        .font(.subheadline)
-                        .foregroundStyle(Color.cardWiseBlue)
-                    }
-                }
-                .padding(.horizontal, Metric.margin)
-                .padding(.top, Metric.regular)
-
-                if places.isLoading && places.results.isEmpty {
-                    loadingRow
-                } else if let failure = places.failure {
-                    message(symbolName: "exclamationmark.triangle", title: "Could not look up nearby places", detail: failure)
-                } else if places.results.isEmpty {
-                    emptyMessage
-                } else {
-                    resultRows
-                }
-            }
-            .padding(.bottom, 90)
-        }
-    }
-
-    private var resultRows: some View {
-        // Read once rather than per row: it walks the whole region plan.
-        let watched = watchedIDs
-        return LazyVStack(spacing: Metric.snug) {
-            ForEach(places.results) { result in
-                Button {
-                    openPlace = result.place
-                } label: {
-                    PlaceRow(result: result, isWatched: watched.contains(result.place.id))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, Metric.margin)
-    }
-
-    private var loadingRow: some View {
-        HStack(spacing: Metric.snug) {
-            ProgressView()
-            Text("Looking around you…")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Metric.regular)
-        .cardWisePanel()
-        .padding(.horizontal, Metric.margin)
-    }
-
-    /// Four different silences, and they need four different sentences. A map
-    /// that is blank because no key was built in looks exactly like a map that
-    /// is blank because it is three in the morning in a field.
-    ///
-    /// Two of the four are a filter set too narrowly, and those two carry the
-    /// way out as a button. Telling somebody what to do and leaving them to go
-    /// and find it is the kind of empty state that reads as an apology.
-    @ViewBuilder
-    private var emptyMessage: some View {
-        if places.hasNoProvider {
-            message(
-                symbolName: "mappin.slash",
-                title: "No place provider",
-                detail: "This build of CardWise has nowhere to get shops from, so the map can only show where you are. Everything else in the app still works."
-            )
-        } else if places.center == nil {
-            message(
-                symbolName: "location.slash",
-                title: "CardWise cannot see where you are",
-                detail: "The map needs location access to know what is around you. You can turn it on under More › Settings."
-            )
-        } else if places.isShowingWatchedOnly {
-            // The most useful empty state in the app: somebody who has had no
-            // reminders and wants to know whether that is restraint or a
-            // broken permission. Every reason listed is one this app can
-            // actually be in, and each names the screen that fixes it.
-            message(
-                symbolName: "bell.slash",
-                title: "Not watching anything yet",
-                detail: "Geofences are registered once there is a card with a bonus category in your wallet, Always location is granted, and CardWise has had a location fix. More › Settings › Reminder activity says which of those is missing."
-            ) {
-                Button("Show everywhere") { places.showEverywhere() }
-                    .buttonStyle(.borderedProminent)
-            }
-        } else if places.activeQuery != nil {
-            message(
-                symbolName: "magnifyingglass",
-                title: "Nothing matched",
-                detail: "No place within \(places.filter.distance.displayName) matched that."
-            ) {
-                widenButton
-                Button("Clear the search") { places.clearSearch() }
-                    .buttonStyle(.bordered)
-            }
-        } else {
-            message(
-                symbolName: "mappin.and.ellipse",
-                title: "Nothing within \(places.filter.distance.displayName)",
-                detail: "Nothing of the kind you asked for is in range."
-            ) {
-                widenButton
-                if !places.filter.isShowingEverything {
-                    Button("Show every kind of place") { places.filter.showEverything() }
-                        .buttonStyle(.bordered)
-                }
-            }
-        }
-    }
-
-    /// Widens to the next step out. Absent at ten miles, because a button that
-    /// does nothing is worse than no button.
-    @ViewBuilder
-    private var widenButton: some View {
-        if let wider = nextDistanceOut {
-            Button("Widen to \(wider.displayName)") {
-                places.filter.distance = wider
-            }
-            .buttonStyle(.borderedProminent)
-        }
-    }
-
-    private var nextDistanceOut: MapDistance? {
-        let all = MapDistance.allCases
-        guard let index = all.firstIndex(of: places.filter.distance),
-              index + 1 < all.count
-        else { return nil }
-        return all[index + 1]
-    }
-
-    private func message<Actions: View>(
-        symbolName: String,
-        title: String,
-        detail: String,
-        @ViewBuilder actions: () -> Actions = { EmptyView() }
-    ) -> some View {
-        VStack(alignment: .leading, spacing: Metric.tight) {
-            Label(title, systemImage: symbolName)
-                .font(.subheadline.weight(.semibold))
-            Text(detail)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: Metric.tight) {
-                actions()
-            }
-            .font(.subheadline)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Metric.regular)
-        .cardWisePanel()
-        .padding(.horizontal, Metric.margin)
     }
 }
 
@@ -715,11 +737,13 @@ private struct MapPin: View {
     let isSelected: Bool
     let isWatched: Bool
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     private var tint: Color { group.dominantCategory.mapTint }
 
     private var size: CGFloat {
         if group.isCluster { return isSelected ? 48 : 42 }
-        return isSelected ? 42 : 32
+        return isSelected ? 44 : 32
     }
 
     var body: some View {
@@ -753,6 +777,15 @@ private struct MapPin: View {
                     .offset(x: size * 0.38, y: -size * 0.38)
             }
         }
+        // The selected pin grows, which is how you find it again after the
+        // sheet has covered half the map. Motion, so Reduce Motion turns it
+        // into an instant change of size rather than a spring.
+        .animation(
+            reduceMotion
+                ? Animation?.none
+                : Animation.spring(response: 0.28, dampingFraction: 0.7),
+            value: isSelected
+        )
         .accessibilityElement()
         .accessibilityLabel(label)
     }
@@ -767,100 +800,6 @@ private struct MapPin: View {
     }
 }
 
-/// A filter chip: on is filled, off is a plain capsule.
-private struct FilterChip: View {
-    let title: String
-    /// Only the Watching chip has one. A row of chips that all carry a symbol
-    /// reads as a toolbar; one that carries a symbol among plain ones reads as
-    /// the odd one out, which is exactly what it is.
-    var symbolName: String?
-    let isOn: Bool
-    var tint: Color = .cardWiseBlue
-    var action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 5) {
-                if let symbolName {
-                    Image(systemName: symbolName)
-                        .font(.caption2.weight(.semibold))
-                }
-                Text(title)
-            }
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(isOn ? Color.white : Color.primary)
-            .padding(.horizontal, Metric.snug)
-            .padding(.vertical, 7)
-            .background(
-                isOn ? AnyShapeStyle(tint) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
-                in: Capsule()
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isOn ? [.isSelected] : [])
-    }
-}
-
-/// The card that slides up over the map when a pin is tapped.
-private struct SelectedPlaceCard: View {
-    let result: MapPlaceResult
-    var isWatched: Bool
-    var onOpen: () -> Void
-    var onDismiss: () -> Void
-
-    /// **Not a `Button` wrapping another `Button`.** The close control is a
-    /// real button and the card around it is a tap gesture, because SwiftUI
-    /// routes a tap inside nested buttons to whichever one it feels like and
-    /// the X would sometimes open the place instead of dismissing it.
-    var body: some View {
-        HStack(spacing: Metric.snug) {
-            CategoryIcon(
-                symbolName: result.place.mapCategory.symbolName,
-                tint: result.place.mapCategory.listTint,
-                size: 44
-            )
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(result.place.name)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    if isWatched { WatchingMark() }
-                }
-                Text("\(result.place.subtitle) · \(result.distanceText)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                if let reward = result.rewardLine {
-                    Text(reward)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(Color.cardWiseBlue)
-                        .lineLimit(1)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onOpen)
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction(named: "Open", onOpen)
-
-            Button(action: onDismiss) {
-                Image(systemName: "xmark")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Close")
-        }
-        .padding(Metric.snug)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous))
-        .shadow(color: Color.cardWiseNavy.opacity(0.2), radius: 12, y: 4)
-    }
-}
-
 /// The bell that means "a reminder is already set up for this shop".
 ///
 /// One glyph on the map and on a row, a whole sentence on the place detail —
@@ -871,64 +810,6 @@ struct WatchingMark: View {
             .font(.caption2)
             .foregroundStyle(Color.cardWiseBlue)
             .accessibilityLabel("CardWise is watching this place")
-    }
-}
-
-/// One row of the list under the map.
-///
-/// **No photograph.** The mockup puts a picture of each shop here, and Google
-/// will sell them — but a place photo is a separately billed request per
-/// image, carries its own attribution requirement, and would be twenty of them
-/// per screen. The category tile costs nothing, is legible at a glance, and is
-/// the same colour the pin was, which is the actual job the picture was doing.
-struct PlaceRow: View {
-    let result: MapPlaceResult
-    var isWatched: Bool = false
-
-    var body: some View {
-        HStack(spacing: Metric.snug) {
-            CategoryIcon(
-                symbolName: result.place.mapCategory.symbolName,
-                tint: result.place.mapCategory.listTint,
-                size: 48
-            )
-            VStack(alignment: .leading, spacing: 3) {
-                Text(result.place.name)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                HStack(spacing: 6) {
-                    Text(result.place.subtitle)
-                        .lineLimit(1)
-                    Text("·")
-                    Text(result.distanceText)
-                        .monospacedDigit()
-                    if let rating = result.place.rating {
-                        Text("·")
-                        Label(String(format: "%.1f", rating), systemImage: "star.fill")
-                            .labelStyle(.titleAndIcon)
-                            .monospacedDigit()
-                    }
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-                Text(result.rewardLine ?? "No card in your wallet earns extra here")
-                    .font(.caption.weight(result.rewardLine == nil ? .regular : .medium))
-                    .foregroundStyle(result.rewardLine == nil ? Color.secondary : Color.cardWiseBlue)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: Metric.tight)
-            VStack(spacing: 6) {
-                if isWatched { WatchingMark() }
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .padding(Metric.snug)
-        .cardWisePanel(radius: Metric.tileRadius)
-        .accessibilityElement(children: .combine)
     }
 }
 

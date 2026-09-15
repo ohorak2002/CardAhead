@@ -47,12 +47,24 @@ struct WalletStackView: View {
     @AppStorage("hasOfferedLocationPrimer") private var hasOfferedLocationPrimer = false
 
     /// The peek has to clear the issuer, the card name *and* the highlight line.
-    /// Cut it any shorter and the most useful line on the card hides behind the
-    /// card below it.
-    @ScaledMetric(relativeTo: .title3) private var peekHeight: CGFloat = 96
-    /// 344pt wide at the real card ratio. Used only for the trailing gap under
-    /// the last card — the card's own height comes from its aspect ratio.
+    /// 344pt wide at the real card ratio — the fallback height before the
+    /// first layout has measured the screen.
     @ScaledMetric(relativeTo: .title3) private var cardHeight: CGFloat = 216
+    /// Roughly how tall one whole row is: the card face at its real ratio,
+    /// its reward summary, and the gap to the next one.
+    ///
+    /// **Only the drag gesture uses this, and only to count slots.** It is
+    /// deliberately approximate: `move(id:to:)` clamps to the ends of the
+    /// wallet, and the result is rounded, so being a few points out moves a
+    /// card by the same number of places it would have anyway. Measuring it
+    /// exactly would mean a `GeometryReader` per row to make a rounding
+    /// operation marginally more precise.
+    private var rowPitch: CGFloat {
+        let face = cardWidth > 0 ? cardWidth / 1.586 : cardHeight
+        return face + summaryHeight + Metric.roomy
+    }
+    /// The reward line under a card. One line of footnote plus its padding.
+    @ScaledMetric(relativeTo: .footnote) private var summaryHeight: CGFloat = 40
 
     var body: some View {
         VStack(spacing: 0) {
@@ -185,7 +197,13 @@ struct WalletStackView: View {
         GeometryReader { outer in
             ScrollViewReader { proxy in
                 ScrollView {
-                VStack(spacing: 0) {
+                // **The stack is gone and that is the point.** Cards used
+                // to overlap, showing 96 points of each — a fan of coloured
+                // edges with one whole card at the bottom. It was compact and
+                // it meant you could not actually look at your cards, which
+                // is the one thing a wallet is for. Each card is now whole,
+                // with what it earns underneath it.
+                VStack(spacing: Metric.roomy) {
                     if remindersAreOff { locationRow }
 
                     ForEach(Array(store.cards.enumerated()), id: \.element.id) { index, card in
@@ -197,7 +215,7 @@ struct WalletStackView: View {
                     Text("Tap a card to open it. Drag one to move it.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .padding(.top, cardHeight - peekHeight + 18)
+                        .padding(.top, Metric.tight)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, Metric.margin)
@@ -214,6 +232,16 @@ struct WalletStackView: View {
                 }
                 .onAppear {
                     openCardFromReminder(reminders.cardToOpen, using: proxy)
+                    // The expanded card is a tap away, and `simctl` cannot
+                    // tap — so without this the card detail would be the one
+                    // screen in the app nobody had ever seen. Same arrangement
+                    // as the map's two place surfaces. Nil in any real build.
+                    if DemoSeed.requestedTab == "carddetail", expandedCardID == nil {
+                        expandedCardID = store.cards.first?.id
+                    }
+                    // The add-card sheet is behind the plus button, which
+                    // `simctl` cannot press either.
+                    if DemoSeed.requestedTab == "addcard" { isAddingCard = true }
                 }
             }
             .onAppear { cardWidth = outer.size.width - Metric.margin * 2 }
@@ -228,14 +256,15 @@ struct WalletStackView: View {
         let isDragging = draggingCardID == card.id
 
         return VStack(spacing: 0) {
-            // **Explicitly sized, and it has to be.** `CardFaceView` sizes
-            // itself with `aspectRatio(1.586, contentMode: .fit)`, and the
-            // row's `frame(height: peekHeight)` below does not clip that — it
-            // *proposes* 96pt, which an aspect-fit view answers by shrinking
-            // to 152pt wide. Every card rendered at a third of the screen with
-            // its own name truncated, and nobody could see it until CI started
-            // taking screenshots. An explicit frame ignores the proposal, so
-            // the card keeps its full width and the row still only advances
+            // **Explicitly sized, and it still has to be even without the
+            // stack.** `CardFaceView` sizes itself with
+            // `aspectRatio(1.586, contentMode: .fit)`, which answers a short
+            // height proposal by shrinking its *width* — that is how every
+            // card once rendered at a third of the screen with its own name
+            // truncated, invisible until CI started taking screenshots. An
+            // explicit frame ignores the proposal, so the card keeps its full
+            // width. The row no longer advances by a peek, but the reason the
+            // frame exists is unchanged and it must not be removed
             // the layout by the peek — which is what makes the stack overlap.
             CardFaceView(
                 card: card,
@@ -250,12 +279,19 @@ struct WalletStackView: View {
                 .onTapGesture { toggle(card) }
                 .gesture(dragGesture(for: card, at: index))
 
-            if isExpanded {
+            // **The summary is what a *closed* card says.** Open, it was the
+            // same three rules printed twice a hundred points apart — once
+            // here with icons, once under "Dining" and "Groceries" in the
+            // detail's own list. The detail supersedes it rather than
+            // repeating it.
+            if !isExpanded {
+                RewardSummary(card: card)
+                    .padding(.top, Metric.snug)
+            } else {
                 CardDetailView(card: card)
                     .transition(.opacity)
             }
         }
-        .frame(height: isExpanded ? nil : peekHeight, alignment: .top)
         .offset(y: isDragging ? dragTranslation : 0)
         .scaleEffect(isDragging ? 1.04 : 1.0)
         // A dragged card tilts the way a real one would if you picked it out of
@@ -374,7 +410,7 @@ struct WalletStackView: View {
                 // clamps to the ends of the wallet, so the worst a hard flick
                 // can do is send the card to the top or the bottom — which is
                 // exactly what a hard flick should do.
-                let slots = Int((value.predictedEndTranslation.height / peekHeight).rounded())
+                let slots = Int((value.predictedEndTranslation.height / rowPitch).rounded())
                 dropped.fire()
                 withAnimation(motion) {
                     store.move(id: card.id, to: index + slots)
@@ -422,17 +458,16 @@ struct WalletStackView: View {
                 break
             }
         }
-        if let best = card.rules.filter({ $0.category != .base }).max(by: { $0.rate < $1.rate }) {
-            // The shelf, not the raw category: `travelPortal` reads as "travel
-            // booked through the issuer", which truncates on a card face and
-            // is not how anybody describes their own card. Same reasoning as
-            // `HomeView.bestFor`.
-            let where_ = BenefitGroup.containing(best.category).displayName.lowercased()
-            return "\(card.currency.formatted(rate: best.rate)) on \(where_)"
-        }
-        if let base = card.rule(for: .base) {
-            return "\(card.currency.formatted(rate: base.rate)) on everything"
-        }
+        // **Nothing else goes on the face any more.** This used to fall
+        // through to the card's best rate, and then to its base rate — which
+        // `RewardSummary` now prints directly under the card, in full. The
+        // screenshot showed the cost: a face reading "5x on travel" above a
+        // line reading "5x on travel booked through the issuer", which is the
+        // same fact twice, the second time more accurately.
+        //
+        // The rotating cases above survive because they are the one thing the
+        // summary deliberately leaves out: a quarter nobody has switched on is
+        // a *status*, not a rate, and it belongs where the card is.
         return nil
     }
 }

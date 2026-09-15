@@ -446,13 +446,7 @@ struct CardBenefitsView: View {
         return "\(money(cap.remainingDollars)) of \(money(cap.limitDollars)) \(cap.period.displayName) left"
     }
 
-    private func money(_ amount: Money) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        formatter.maximumFractionDigits = 0
-        return formatter.string(from: NSDecimalNumber(decimal: amount)) ?? "$\(amount)"
-    }
+    private func money(_ amount: Money) -> String { CardWiseFormat.money(amount) }
 
     private func trim(_ value: Double) -> String {
         value == value.rounded() ? String(Int(value)) : String(format: "%.1f", value)

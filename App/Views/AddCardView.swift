@@ -13,6 +13,15 @@ import CardKit
 /// bank → exact product → `CardBenefitsView`. Describing a card by hand is
 /// still possible, because the catalog is nine cards deep and somebody's
 /// credit union is not in it, but it is a way out rather than the way in.
+///
+/// **The flow was already right; the presentation was not.** It was a `List`
+/// with `.insetGrouped`, `.searchable` and an inline navigation title — four
+/// pieces of system furniture that between them made onboarding a card feel
+/// like filling in a record. Onboarding should feel like the app doing
+/// something for you. So the chrome is gone, the title is large type in the
+/// content, and the rows are separated by hairlines rather than boxed one per
+/// panel — the same language the map's results settled on, for the same
+/// reason: a column of containers reads as a column of competing objects.
 struct AddCardView: View {
 
     /// When set, whatever is chosen here replaces this card instead of joining
@@ -49,20 +58,29 @@ struct AddCardView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                if trimmedQuery.isEmpty {
-                    issuerSection
-                } else if results.isEmpty {
-                    noMatchSection
-                } else {
-                    resultsSection
-                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: Metric.roomy) {
+                    title
+                    CardWiseSearchField(
+                        placeholder: "Bank, card name or nickname",
+                        text: $query
+                    )
+                    .padding(.horizontal, Metric.margin)
 
-                if replacing == nil { byHandSection }
+                    if trimmedQuery.isEmpty {
+                        issuerSection
+                        byHandSection
+                    } else if results.isEmpty {
+                        noMatchSection
+                        byHandSection
+                    } else {
+                        resultsSection
+                    }
+                }
+                .padding(.top, Metric.snug)
+                .padding(.bottom, Metric.section)
             }
-            .listStyle(.insetGrouped)
-            .searchable(text: $query, prompt: "Bank, card name or nickname")
-            .navigationTitle(replacing == nil ? "Add a card" : "Change card")
+            .background(Color(.systemGroupedBackground))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -78,101 +96,163 @@ struct AddCardView: View {
         }
     }
 
+    /// A title in the content rather than in the navigation bar, which leaves
+    /// the bar holding only Cancel.
+    private var title: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(replacing == nil ? "Add a card" : "Change card")
+                .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Pick your bank, then the exact card. CardWise already knows what each one earns.")
+                .font(.subheadline)
+                .foregroundStyle(Color.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Metric.margin)
+    }
+
     // MARK: - Choosing a bank
 
     private var issuerSection: some View {
-        Section {
-            ForEach(issuers) { issuer in
-                NavigationLink {
-                    productList(for: issuer)
-                } label: {
-                    HStack(spacing: Metric.snug) {
-                        IssuerMonogram(name: issuer.fullName)
-                        Text(issuer.fullName)
-                        Spacer(minLength: Metric.tight)
-                        Text("\(issuer.cardCount)")
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: Metric.snug) {
+            sectionLabel("Which bank is it from?")
+
+            VStack(spacing: 0) {
+                ForEach(Array(issuers.enumerated()), id: \.element.id) { index, issuer in
+                    NavigationLink {
+                        productList(for: issuer)
+                    } label: {
+                        HStack(spacing: Metric.snug) {
+                            IssuerMonogram(name: issuer.fullName, size: 44)
+                            Text(issuer.fullName)
+                                .font(.body.weight(.medium))
+                                .foregroundStyle(Color.primary)
+                                .multilineTextAlignment(.leading)
+                            Spacer(minLength: Metric.tight)
+                            Text("\(issuer.cardCount)")
+                                .font(.subheadline.monospacedDigit())
+                                .foregroundStyle(Color.secondary)
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Color.secondary.opacity(0.5))
+                        }
+                        .padding(.vertical, Metric.snug)
+                        .contentShape(Rectangle())
                     }
-                    .padding(.vertical, 2)
+                    .buttonStyle(.plain)
+
+                    if index < issuers.count - 1 {
+                        Hairline(inset: 44 + Metric.snug)
+                    }
                 }
             }
-        } header: {
-            Text("Which bank is it from?").textCase(nil)
-        } footer: {
-            Text("Or search for the card by name. \(catalogFreshness)")
+            .padding(.horizontal, Metric.margin)
+
+            Text(catalogFreshness)
+                .font(.caption)
+                .foregroundStyle(Color.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, Metric.margin)
         }
     }
 
     private func productList(for issuer: CatalogIssuer) -> some View {
-        List {
-            Section {
-                ForEach(entries.filter { $0.card.issuer == issuer.name }) { entry in
-                    NavigationLink {
-                        CardBenefitsView(
-                            mode: .confirming(entry),
-                            replacing: replacing,
-                            presentation: .pushed,
-                            onFinish: { dismiss() }
-                        )
-                    } label: {
-                        CardProductRow(entry: entry, isAlreadyHeld: isAlreadyHeld(entry))
-                    }
-                }
-            } footer: {
+        let products = entries.filter { $0.card.issuer == issuer.name }
+        return ScrollView {
+            VStack(alignment: .leading, spacing: Metric.snug) {
                 Text("Pick the exact card. Banks sell several that look alike and earn nothing alike.")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, Metric.margin)
+                    .padding(.top, Metric.tight)
+
+                productRows(products)
             }
+            .padding(.bottom, Metric.section)
         }
+        .background(Color(.systemGroupedBackground))
         .navigationTitle(issuer.fullName)
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
     }
 
-    // MARK: - Searching
-
-    private var resultsSection: some View {
-        Section {
-            ForEach(results) { entry in
+    /// Shared by the bank's list and the search results, so a card looks the
+    /// same however you arrived at it.
+    private func productRows(_ products: [CatalogEntry]) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(products.enumerated()), id: \.element.id) { index, entry in
                 NavigationLink {
-                    CardBenefitsView(
-                        mode: .confirming(entry),
+                    CardPreviewView(
+                        entry: entry,
                         replacing: replacing,
-                        presentation: .pushed,
+                        isAlreadyHeld: isAlreadyHeld(entry),
                         onFinish: { dismiss() }
                     )
                 } label: {
                     CardProductRow(entry: entry, isAlreadyHeld: isAlreadyHeld(entry))
                 }
+                .buttonStyle(.plain)
+
+                if index < products.count - 1 {
+                    Hairline(inset: CardProductRow.thumbnailWidth + 12)
+                }
             }
-        } header: {
-            Text(results.count == 1 ? "One match" : "\(results.count) matches").textCase(nil)
+        }
+        .padding(.horizontal, Metric.margin)
+    }
+
+    // MARK: - Searching
+
+    private var resultsSection: some View {
+        VStack(alignment: .leading, spacing: Metric.snug) {
+            sectionLabel(results.count == 1 ? "One match" : "\(results.count) matches")
+            productRows(results)
         }
     }
 
     private var noMatchSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("No card called that yet")
-                    .font(.subheadline.weight(.semibold))
-                Text("The list is nine cards deep so far. Yours can still go in — you would just be the one saying what it earns.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.vertical, 4)
+        VStack(alignment: .leading, spacing: 6) {
+            Text("No card called that yet")
+                .font(.headline)
+            Text("The list is nine cards deep so far. Yours can still go in — you would just be the one saying what it earns.")
+                .font(.subheadline)
+                .foregroundStyle(Color.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Metric.margin)
     }
 
     // MARK: - The way out
 
+    /// **Quiet, and underneath.** Describing a card by hand is the escape
+    /// hatch, not the route — it produces a card with no source and no date,
+    /// which is exactly what the catalog exists to avoid. A secondary button
+    /// under a line of explanation says that without a warning label.
     private var byHandSection: some View {
-        Section {
+        VStack(alignment: .leading, spacing: Metric.tight) {
+            Hairline()
+                .padding(.bottom, Metric.tight)
             Button {
                 isAddingByHand = true
             } label: {
                 Label("My card is not on the list", systemImage: "square.and.pencil")
             }
-        } footer: {
+            .buttonStyle(CardWiseSecondaryButtonStyle())
+
             Text("You describe it, and it is ranked exactly the same way. Cards added by hand carry no source or date, because nobody checked them against the bank.")
+                .font(.caption)
+                .foregroundStyle(Color.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.horizontal, Metric.margin)
+    }
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.headline)
+            .padding(.horizontal, Metric.margin)
     }
 
     /// The seed rates carry the day somebody last read them off the issuer's
@@ -188,9 +268,18 @@ struct AddCardView: View {
 
 /// One product in the list: which card it is, what it costs to hold, and the
 /// two things it is best at. Enough to recognise a card without opening it.
+///
+/// **The drawn card face is the anchor**, the same job the photograph does on
+/// a map row. It is the one thing in the row that says "this is the gold one"
+/// before a single word is read, and it costs nothing and needs no licence —
+/// which is the whole argument for the app drawing its own faces.
 struct CardProductRow: View {
     let entry: CatalogEntry
     var isAlreadyHeld: Bool = false
+
+    /// Shared with the list that draws the hairlines between these rows, so
+    /// the rule lines up with the text rather than with a guess.
+    static let thumbnailWidth: CGFloat = 64
 
     private var headline: [String] {
         entry.card
@@ -202,34 +291,45 @@ struct CardProductRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            CardThumbnail(card: entry.card)
+            // Sized by its own `width`, not by an outer `.frame`.
+            // `CardThumbnail` sets its height from an aspect ratio, and this
+            // repo has already lost a whole wallet layout to a frame fighting
+            // an `aspectRatio` over who decides the width.
+            CardThumbnail(card: entry.card, width: Self.thumbnailWidth)
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(entry.card.name)
                         .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.primary)
                     if isAlreadyHeld {
                         Text("In your wallet")
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.secondary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(.fill.tertiary, in: Capsule())
+                            .background(Color.cardWiseHairline, in: Capsule())
                     }
                 }
                 Text(feeLine)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondary)
                 if !headline.isEmpty {
                     Text(headline.joined(separator: ", "))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.secondary)
                         .lineLimit(2)
                 }
             }
             Spacer(minLength: 0)
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Color.secondary.opacity(0.5))
+                .padding(.top, 4)
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, Metric.snug)
+        .contentShape(Rectangle())
     }
 
     private var feeLine: String {
@@ -240,13 +340,7 @@ struct CardProductRow: View {
         return "\(network), \(money(entry.card.annualFeeDollars)) a year"
     }
 
-    private func money(_ amount: Money) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        formatter.maximumFractionDigits = 0
-        return formatter.string(from: NSDecimalNumber(decimal: amount)) ?? "$\(amount)"
-    }
+    private func money(_ amount: Money) -> String { CardWiseFormat.money(amount) }
 }
 
 #Preview {

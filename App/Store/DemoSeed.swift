@@ -305,11 +305,74 @@ enum DemoSeed {
             // The planner's own answer, not a hand-rolled one: it strips
             // `.base`, and a set that disagreed would make the monitor think
             // the wallet had changed and redraw on the next fix.
-            categories: RegionPlanner().relevantCategories(in: cards),
-            throttle: nil
+            categories: RegionPlanner().relevantCategories(in: cards)
         )
         if let data = try? encoder.encode(regions) {
             try? data.write(to: regionsURL(), options: [.atomic])
         }
+
+        // A day of notification decisions, so the Notification lab has
+        // something on it when CI photographs it. Three sent and three held
+        // back, because the screen exists to show *both* — a lab that only
+        // ever shows successes cannot be used to work out why an afternoon
+        // was quiet.
+        if let data = try? encoder.encode(notificationState()) {
+            try? data.write(to: notificationsURL(), options: [.atomic])
+        }
+    }
+
+    /// The seeded policy and history.
+    ///
+    /// Written through the real types for the same reason the region plan is:
+    /// a hand-written JSON mirror decodes to nothing the first time a field
+    /// is added, and does it silently.
+    private static func notificationState() -> SeededNotifications {
+        let now = Date()
+        func ago(_ minutes: Int) -> Date { now.addingTimeInterval(Double(-minutes) * 60) }
+
+        var history = NotificationHistory()
+        history.record(NotificationRecord(
+            date: ago(310), merchantID: "demo-cafe", merchantName: "Blue Bottle Coffee",
+            category: .dining, cardName: "Amex Gold", identityKey: "demo-1",
+            score: 71, band: .normal, wasSent: true, feedback: .usedIt
+        ))
+        history.record(NotificationRecord(
+            date: ago(295), merchantID: "demo-deli", merchantName: "Court Street Deli",
+            category: .dining, cardName: "Amex Gold", identityKey: "demo-2",
+            score: 64, band: .normal, wasSent: false, suppression: .categoryCooldown
+        ))
+        history.record(NotificationRecord(
+            date: ago(180), merchantID: "demo-market", merchantName: "Whole Foods Market",
+            category: .groceries, cardName: "Blue Cash Preferred", identityKey: "demo-3",
+            score: 88, band: .high, wasSent: true
+        ))
+        history.record(NotificationRecord(
+            date: ago(95), merchantID: "demo-mall", category: .departmentStore,
+            cardName: "Citi Double Cash", identityKey: "demo-4",
+            score: 34, band: .suppress, wasSent: false, suppression: .lowConfidence
+        ))
+        history.record(NotificationRecord(
+            date: ago(60), merchantID: "demo-pump", merchantName: "Shell",
+            category: .gas, cardName: "Costco Anywhere Visa", identityKey: "demo-5",
+            score: 67, band: .normal, wasSent: true
+        ))
+        history.record(NotificationRecord(
+            date: ago(20), merchantID: "demo-pharmacy", merchantName: "Walgreens",
+            category: .drugstores, cardName: "Citi Double Cash", identityKey: "demo-6",
+            score: 52, band: .passive, wasSent: false, suppression: .dailyBudget
+        ))
+
+        return SeededNotifications(policy: NotificationPolicy(), history: history)
+    }
+
+    /// Mirrors `NotificationPolicyStore.Stored`, which is private to it.
+    ///
+    /// Duplicating two field names is the lesser evil against making that
+    /// type internal: a `Stored` anything else can build is a `Stored`
+    /// anything else can write, and this file is the only caller that will
+    /// ever want one.
+    struct SeededNotifications: Codable {
+        var policy: NotificationPolicy
+        var history: NotificationHistory
     }
 }

@@ -48,7 +48,11 @@ struct RootTabView: View {
         static var launched: Tab {
             guard let raw = DemoSeed.requestedTab else { return .home }
             switch raw {
-            case "impact": return .more
+            // Three screens that live under More. "notifications" and
+            // "notificationlab" are one level deeper still — inside Settings
+            // — and are pushed straight from More rather than through it, the
+            // same shortcut "impact" takes.
+            case "impact", "notifications", "notificationlab": return .more
             // All three are the Map tab: "watching" is a chip on it,
             // "placecard" selects a pin, and "placedetail" opens one. None of
             // the three is reachable by `simctl`, which cannot tap.
@@ -86,7 +90,7 @@ struct RootTabView: View {
             .tag(Tab.benefits)
 
             NavigationStack {
-                MoreView(auth: locationAuth, startOnImpact: DemoSeed.requestedTab == "impact")
+                MoreView(auth: locationAuth, deepLink: DemoSeed.requestedTab)
             }
             .tabItem { Label("More", systemImage: "ellipsis.circle.fill") }
             .tag(Tab.more)
@@ -165,12 +169,14 @@ struct MoreView: View {
 
     @Environment(ImpactStore.self) private var impact
     let auth: LocationAuthorization
-    /// Pushes the impact screen straight away rather than waiting for a tap.
-    /// Only ever true in a seeded CI run, so a screen two taps deep can still
-    /// be photographed — see `DemoSeed`.
-    var startOnImpact: Bool = false
+    /// A screen to push straight away rather than waiting for a tap. Only
+    /// ever set in a seeded CI run, so screens two and three taps deep can
+    /// still be photographed — see `DemoSeed`.
+    var deepLink: String?
 
     @State private var isShowingImpact = false
+    @State private var isShowingNotifications = false
+    @State private var isShowingLab = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -227,9 +233,29 @@ struct MoreView: View {
         .background(Color(.systemGroupedBackground))
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(isPresented: $isShowingImpact) { ImpactView() }
-        .onAppear {
-            guard startOnImpact, !isShowingImpact else { return }
+        .navigationDestination(isPresented: $isShowingNotifications) {
+            NotificationSettingsView()
+        }
+        #if DEBUG
+        .navigationDestination(isPresented: $isShowingLab) { NotificationLabView() }
+        #endif
+        .onAppear(perform: followDeepLink)
+    }
+
+    /// **Guarded against re-entry, and that guard is load-bearing.**
+    /// `onAppear` runs again every time the pushed screen is popped, so
+    /// without it a deep link would re-push itself and the screen could never
+    /// be left.
+    private func followDeepLink() {
+        switch deepLink {
+        case "impact" where !isShowingImpact:
             isShowingImpact = true
+        case "notifications" where !isShowingNotifications:
+            isShowingNotifications = true
+        case "notificationlab" where !isShowingLab:
+            isShowingLab = true
+        default:
+            break
         }
     }
 

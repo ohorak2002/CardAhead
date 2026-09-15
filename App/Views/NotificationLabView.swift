@@ -27,9 +27,15 @@ struct NotificationLabView: View {
 
     var body: some View {
         List {
+            // **The badges go first, and the ordering is for the camera.**
+            // On the first CI run they were the last section and the
+            // screenshot cut off above them, so the one thing on this screen
+            // that cannot be seen any other way was the one thing nobody
+            // could see. A workbench is allowed to be ordered for whoever is
+            // looking at it; everything below this scrolls.
+            badgeSection
             todaySection
             decisionsSection
-            badgeSection
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Notification lab")

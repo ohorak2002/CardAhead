@@ -270,7 +270,7 @@ struct CardDetailView: View {
     private var factsSection: some View {
         VStack(spacing: 0) {
             Hairline()
-            factRow("Annual fee", RecommendationEngine.dollars(card.annualFeeDollars))
+            factRow("Annual fee", Self.dollars(card.annualFeeDollars))
             Hairline()
             factRow(
                 "Everything else",
@@ -402,6 +402,19 @@ struct CardDetailView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label) cap")
         .accessibilityValue(capText(cap))
+    }
+
+    /// **Formatted here rather than by `RecommendationEngine.dollars`**,
+    /// which is internal to CardKit — and deliberately so, since CardKit is
+    /// tested on Linux where `maximumFractionDigits = 0` is ignored. This is
+    /// the app, which only ever runs on iOS, so the same formatter behaves.
+    /// `capText` below has always done it this way for the same reason.
+    private static func dollars(_ amount: Money) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "USD"
+        formatter.maximumFractionDigits = 0
+        return formatter.string(from: NSDecimalNumber(decimal: amount)) ?? "$\(amount)"
     }
 
     private func capText(_ cap: EarnCap) -> String {

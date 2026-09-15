@@ -58,6 +58,91 @@ public struct BenefitGroupSummary: Identifiable, Hashable, Sendable {
         let number = rate == rate.rounded() ? String(Int(rate)) : String(format: "%.1f", rate)
         return style == .percent ? "\(number)%" : "\(number)x"
     }
+
+    // MARK: - The line that is always true
+
+    /// What a shelf can say about itself when a number would be dishonest.
+    ///
+    /// **This exists because `bestRateText` is nil most of the time, and that
+    /// is correct.** Five of a seven-shelf wallet mix a points card and a cash
+    /// back card, so five tiles had no number on them and two did — which
+    /// reads as a rendering fault rather than as restraint. The fix is not to
+    /// invent a comparison between 4x and 3%; it is to give every shelf a
+    /// third line that is worth reading whether or not a number is available.
+    ///
+    /// The order is a priority, not a taste: anything needing attention
+    /// outranks anything merely informative, because the whole point of a
+    /// rewards organiser is that the thing about to lapse finds *you*.
+    public enum Lead: Hashable, Sendable {
+        /// Something here has a real deadline inside the window.
+        case endsSoon
+        /// A rotating bonus nobody has switched on. Doing nothing costs money.
+        case needsSwitchingOn
+        /// One card is the reason you have this shelf.
+        case bestWith(String)
+        /// Several cards contribute and none is the obvious lead.
+        case severalCards(Int)
+        /// The shelf exists on paper but nothing on it is paying.
+        case nothingPaying
+    }
+
+    /// The shelf's own headline, in priority order. See `Lead`.
+    ///
+    /// `expiringSoon` is passed in rather than recomputed because the screen
+    /// has already built it for its own "Running out" list, and walking every
+    /// card's benefits a second time per tile is work for nothing.
+    public func lead(expiring: Set<String> = []) -> Lead {
+        if benefits.contains(where: { expiring.contains($0.id) }) { return .endsSoon }
+
+        // A rotating benefit that is present but not active is, in this model,
+        // exactly the "switched off" case — `CardBenefit.isActive` is false
+        // for an unactivated quarter.
+        if benefits.contains(where: { $0.benefit.origin == .rotating && !$0.benefit.isActive }) {
+            return .needsSwitchingOn
+        }
+
+        let active = benefits.filter(\.benefit.isActive)
+        guard !active.isEmpty else { return .nothingPaying }
+
+        let names = Set(active.map(\.cardName))
+        if names.count == 1, let only = names.first { return .bestWith(only) }
+
+        // Several cards pay here. One of them leads only if it pays strictly
+        // more than the rest *in the same units* — otherwise naming a "best"
+        // is the comparison this whole type exists to avoid.
+        let rated = active.filter { $0.benefit.rate != nil }
+        if let top = rated.max(by: { ($0.benefit.rate ?? 0) < ($1.benefit.rate ?? 0) }),
+           let topRate = top.benefit.rate,
+           rated.filter({ $0.benefit.rate == topRate }).count == 1,
+           Set(rated.map(\.cardName)).count > 1 {
+            return .bestWith(top.cardName)
+        }
+        return .severalCards(names.count)
+    }
+}
+
+public extension BenefitGroupSummary.Lead {
+    /// The words themselves, so the phrasing lives next to the rule that
+    /// chose it rather than in a `switch` inside a view.
+    var text: String {
+        switch self {
+        case .endsSoon: return "Ends soon"
+        case .needsSwitchingOn: return "Needs switching on"
+        case .bestWith(let card): return "Best with \(card)"
+        case .severalCards(let count): return "\(count) cards pay here"
+        case .nothingPaying: return "Nothing paying now"
+        }
+    }
+
+    /// Whether this is something to do rather than something to know. Drives
+    /// the colour, and nothing else — the wording stands on its own for
+    /// anybody who cannot tell the two apart.
+    var needsAttention: Bool {
+        switch self {
+        case .endsSoon, .needsSwitchingOn: return true
+        case .bestWith, .severalCards, .nothingPaying: return false
+        }
+    }
 }
 
 /// Things worth saying about a whole wallet rather than about one card.

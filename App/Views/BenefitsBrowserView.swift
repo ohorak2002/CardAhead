@@ -43,6 +43,13 @@ struct BenefitsBrowserView: View {
         WalletInsights.expiringSoon(in: store.cards)
     }
 
+    /// Built once per render rather than per tile: `expiringSoon` walks every
+    /// benefit of every card, and seven tiles asking it the same question is
+    /// seven times the work for one answer.
+    private var expiringIDs: Set<String> {
+        Set(expiring.map(\.id))
+    }
+
     private var visibleGroups: [BenefitGroupSummary] {
         switch filter {
         case .all: return groups
@@ -100,13 +107,27 @@ struct BenefitsBrowserView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Metric.roomy) {
-                Picker("Show", selection: $filter) {
-                    ForEach(Filter.allCases) { option in
-                        Text(option.displayName).tag(option)
+                // **Chips, not a segmented control.** The map filters with
+                // `CardWiseChip` and this screen filtered with a
+                // `.segmented` Picker — two filter languages in one app, for
+                // no reason anybody chose. The chip is the one that survived
+                // because it scales to more than three options and it is the
+                // control the rest of the app now speaks.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Metric.tight) {
+                        ForEach(Filter.allCases) { option in
+                            CardWiseChip(
+                                title: option.displayName,
+                                isOn: filter == option,
+                                tint: .cardWiseBlue
+                            ) {
+                                filter = option
+                            }
+                        }
                     }
+                    .padding(.horizontal, Metric.margin)
+                    .padding(.vertical, 2)
                 }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, Metric.margin)
                 .padding(.top, Metric.tight)
 
                 if visibleGroups.isEmpty {
@@ -122,7 +143,11 @@ struct BenefitsBrowserView: View {
                             Button {
                                 openGroup = summary.group
                             } label: {
-                                BenefitGroupTile(summary: summary, wallet: store.cards)
+                                BenefitGroupTile(
+                                    summary: summary,
+                                    wallet: store.cards,
+                                    lead: summary.lead(expiring: expiringIDs)
+                                )
                             }
                             .buttonStyle(.plain)
                         }
@@ -202,24 +227,37 @@ struct BenefitsBrowserView: View {
     }
 }
 
-/// One shelf, as a tile: the symbol, the name, and how much of it is actually
-/// paying right now.
+/// One shelf, as a tile: the symbol, the name, and the one line about it worth
+/// reading.
+///
+/// **The third line used to be a count and the badge used to be missing.**
+/// "2 paying now" is arithmetic, not information — it tells you the shelf is
+/// not empty, which the tile being on screen already told you. And the "up to
+/// 4x" badge appeared on two tiles out of seven, because five of them mix a
+/// points card with a cash back card and `bestRateText` correctly refuses to
+/// compare 4x with 3%. Five blank corners read as a rendering fault rather
+/// than as restraint.
+///
+/// So the number is still only drawn when it is honest, and the line under the
+/// name is now `BenefitGroupSummary.lead` — which always has something true to
+/// say, and says the most urgent of it first: what is about to lapse, then
+/// what needs switching on, then which card this shelf is really for.
 private struct BenefitGroupTile: View {
     let summary: BenefitGroupSummary
     /// Needed to know what units the cards on this shelf state their rates in.
     /// See `BenefitGroupSummary.bestRateText`.
     let wallet: [Card]
+    let lead: BenefitGroupSummary.Lead
 
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Metric.tight) {
+        VStack(alignment: .leading, spacing: 0) {
             // **The rate moves under the icon rather than beside it once the
             // text is large.** Sharing a row with a 38-point square leaves
-            // "up to 4x" about 100 points, which at the accessibility sizes it
-            // spends breaking itself into "up / to / 4x" — three lines of the
-            // loudest thing on the tile, taller than the shelf it is
-            // describing. Given the full width it stays on one line.
+            // "4x" about 100 points, which at the accessibility sizes it
+            // spends breaking itself into pieces — the loudest thing on the
+            // tile, taller than the shelf it is describing.
             if typeSize.isAccessibilitySize {
                 CategoryIcon(
                     symbolName: summary.group.symbolName,
@@ -228,7 +266,7 @@ private struct BenefitGroupTile: View {
                 )
                 rateText
             } else {
-                HStack(alignment: .top) {
+                HStack(alignment: .firstTextBaseline) {
                     CategoryIcon(
                         symbolName: summary.group.symbolName,
                         tint: summary.group.tint,
@@ -238,6 +276,9 @@ private struct BenefitGroupTile: View {
                     rateText
                 }
             }
+
+            Spacer(minLength: Metric.snug)
+
             // **No `lineLimit`.** This was `lineLimit(1)` with a 0.8 scale
             // floor, which is a quiet instruction to throw the word away when
             // it stops fitting: at the largest text size "Groceries" rendered
@@ -245,39 +286,37 @@ private struct BenefitGroupTile: View {
             // cannot be guessed from the rest of it.
             Text(summary.group.displayName)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.primary)
                 .fixedSize(horizontal: false, vertical: true)
-            Text(countText)
+
+            Text(lead.text)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                // Colour is never the only signal — "Ends soon" and "Needs
+                // switching on" say so in words for anybody who cannot tell
+                // the amber from the grey.
+                .foregroundStyle(lead.needsAttention ? Color.cardWiseWarning : Color.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 2)
         }
         // **`maxHeight` as well as `maxWidth`.** A `LazyVGrid` gives each item
         // its own height and centres the short one, so the moment two tiles in
-        // a row disagree — which happens as soon as one of them carries a rate
-        // and the other does not — they float at different heights against
-        // each other. Filling the row's height makes a row read as a row.
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        // a row disagree they float at different heights against each other.
+        // Filling the row's height makes a row read as a row.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(Metric.regular)
         .cardWisePanel(radius: Metric.tileRadius)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(summary.group.displayName), \(countText)")
+        .accessibilityLabel("\(summary.group.displayName). \(lead.text)")
     }
 
     @ViewBuilder
     private var rateText: some View {
         if let rate = summary.bestRateText(in: wallet) {
-            Text("up to \(rate)")
-                .font(.system(.subheadline, design: .rounded).weight(.bold))
+            Text(rate)
+                .font(.system(.title3, design: .rounded).weight(.bold))
                 .foregroundStyle(summary.group.tint)
                 .monospacedDigit()
         }
-    }
-
-    private var countText: String {
-        let active = summary.activeCount
-        if active == 0 { return "None paying now" }
-        return active == 1 ? "1 paying now" : "\(active) paying now"
     }
 }
 

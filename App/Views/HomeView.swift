@@ -46,19 +46,25 @@ struct HomeView: View {
 
     var body: some View {
         ScrollView {
-            // **The order is the argument.** This screen answers one question
-            // — *which card should I pull out?* — and it used to answer it
-            // last, after a permissions banner and a list of chores. The cards
-            // come first because they are the product, the recommendation
-            // second because it is the answer, and the housekeeping last
-            // because it is housekeeping.
+            // **The order is the argument, and the first attempt had it
+            // wrong.** The wallet led and the recommendation followed, which
+            // reads sensibly in a list and fails on a phone: the wallet strip
+            // is a third of the screen, so the one fact somebody opened the
+            // app for started below the fold. The screenshot also put the same
+            // Amex Gold on screen twice within an inch of itself — once in the
+            // strip and once as the hero — which reads as a rendering bug
+            // rather than as an answer.
+            //
+            // The answer leads. The wallet is still directly under it and
+            // still the product; what changed is that the screen now answers
+            // its own question before asking you to scroll.
             VStack(spacing: Metric.section) {
                 header
                 if store.cards.isEmpty {
                     firstCardPrompt
                 } else {
-                    walletPeek
                     bestCardNow
+                    walletPeek
                     opportunitySection
                     watchingBanner
                 }

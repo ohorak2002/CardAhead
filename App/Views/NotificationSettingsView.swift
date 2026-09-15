@@ -17,6 +17,7 @@ struct NotificationSettingsView: View {
 
     @Environment(NotificationPolicyStore.self) private var notifications
     @Environment(WalletStore.self) private var store
+    @Environment(ImpactStore.self) private var impact
 
     var body: some View {
         List {
@@ -38,7 +39,7 @@ struct NotificationSettingsView: View {
                 Button {
                     notifications.setIntensity(intensity)
                 } label: {
-                    HStack(alignment: .firstTextBaseline, spacing: Metric.gap) {
+                    HStack(alignment: .firstTextBaseline, spacing: Metric.snug) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(intensity.displayName)
                                 .foregroundStyle(Color.primary)
@@ -167,7 +168,14 @@ struct NotificationSettingsView: View {
     private func enabled(_ category: SpendingCategory) -> Binding<Bool> {
         Binding(
             get: { notifications.policy.allows(category: category) },
-            set: { notifications.setCategory(category, enabled: $0) }
+            set: { isOn in
+                notifications.setCategory(category, enabled: isOn)
+                // Only the switching-off. Turning something back on is not a
+                // complaint, and counting both would make the number mean
+                // "somebody touched this row".
+                guard !isOn else { return }
+                impact.recordSilenced(category: category)
+            }
         )
     }
 

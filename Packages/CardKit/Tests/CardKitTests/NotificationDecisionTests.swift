@@ -686,7 +686,7 @@ final class NotificationDecisionTests: XCTestCase {
     /// nothing.
     func testFeedbackForAForgottenRowIsHarmless() {
         var past = NotificationHistory()
-        past.note(.notUseful, forRecordID: UUID())
+        past.note(.notHere, forRecordID: UUID())
         XCTAssertTrue(past.records.isEmpty)
     }
 

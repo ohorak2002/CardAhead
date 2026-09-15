@@ -37,11 +37,10 @@ public enum ImpactEventKind: String, Codable, Sendable, CaseIterable {
     /// about *detection* rather than about advice: the app named a place they
     /// were not at, or had already left.
     case recommendationPlaceRejected
-    /// Somebody tapped "Not useful". They understood the suggestion and did
-    /// not want it. Stored, and so far only stored — nothing reads it back
-    /// into the policy yet, and inventing a rule from one tap would be worse
-    /// than waiting for a hundred.
-    case recommendationMarkedNotUseful
+    /// Somebody muted a place, or switched a whole category off. The
+    /// strongest signal this app gets, and the only one it acts on
+    /// immediately.
+    case recommendationsSilenced
 
     /// A spend was volunteered.
     case purchaseAmountEntered

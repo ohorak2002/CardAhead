@@ -88,8 +88,8 @@ struct NotificationLabView: View {
     private var badgeSection: some View {
         Section {
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 64), spacing: Metric.gap)],
-                spacing: Metric.gap
+                columns: [GridItem(.adaptive(minimum: 64), spacing: Metric.snug)],
+                spacing: Metric.snug
             ) {
                 ForEach(SpendingCategory.allCases, id: \.self) { category in
                     VStack(spacing: 4) {
@@ -101,7 +101,7 @@ struct NotificationLabView: View {
                     .accessibilityLabel(category.placePhrase)
                 }
             }
-            .padding(.vertical, Metric.gap)
+            .padding(.vertical, Metric.snug)
         } header: {
             Text("Notification badges").textCase(nil)
         } footer: {
@@ -118,7 +118,7 @@ private struct DecisionRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: Metric.gap) {
+            HStack(alignment: .firstTextBaseline, spacing: Metric.snug) {
                 Image(systemName: record.wasSent ? "bell.badge.fill" : "bell.slash")
                     .foregroundStyle(record.wasSent ? Color.cardWiseSuccess : Color.secondary)
                 VStack(alignment: .leading, spacing: 2) {

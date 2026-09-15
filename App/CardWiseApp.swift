@@ -72,7 +72,6 @@ struct CardWiseApp: App {
             switch feedback {
             case .usedIt: impact?.recordAnswer(.recommendationAccepted, for: id)
             case .notHere: impact?.recordAnswer(.recommendationPlaceRejected, for: id)
-            case .notUseful: impact?.recordAnswer(.recommendationMarkedNotUseful, for: id)
             }
         }
         monitor.walletCards = { store.cards }

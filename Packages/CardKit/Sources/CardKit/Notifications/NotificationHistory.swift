@@ -2,11 +2,20 @@ import Foundation
 
 /// What somebody did about a reminder, if anything.
 ///
-/// Three answers, not four, and they are deliberately about *different
-/// things*: whether the card got used, whether the app had the place right,
-/// and whether the reminder was wanted at all. Collapsing any two of them
-/// produces a signal that cannot be acted on — "no" to a suggestion you were
-/// glad to get is not the same complaint as "stop telling me about this".
+/// **Two answers, and they are about different things.** One says the advice
+/// landed; the other says the *detection* was wrong — the app named a place
+/// they were not at, or had already left. Those are different bugs with
+/// different fixes, and collapsing them produces a signal nobody can act on.
+///
+/// **There is deliberately no "not useful" case.** It was written and then
+/// deleted, for the reason CLAUDE.md gives about `ImpactEventKind`: nothing
+/// would have raised it. A lock screen has room for two buttons before it
+/// becomes a form, and both slots are better spent on the answers above —
+/// "stop telling me about this" is a *preference*, and it already has two
+/// real controls that a person can see the consequences of: the category
+/// switches in Settings, and muting a place on its own screen. A third,
+/// invisible version of the same intent would only have been a counter
+/// nobody could tell from a broken one.
 public enum NotificationFeedback: String, Codable, CaseIterable, Sendable, Hashable {
 
     /// "Used it." The card named was the card paid with.
@@ -14,14 +23,11 @@ public enum NotificationFeedback: String, Codable, CaseIterable, Sendable, Hasha
     /// "Not here." The app was wrong about where they were, or they had
     /// already left. A signal about *detection*, not about the advice.
     case notHere
-    /// "Not useful." The advice was understood and unwanted.
-    case notUseful
 
     public var displayName: String {
         switch self {
         case .usedIt: return "Used it"
         case .notHere: return "Not here"
-        case .notUseful: return "Not useful"
         }
     }
 }

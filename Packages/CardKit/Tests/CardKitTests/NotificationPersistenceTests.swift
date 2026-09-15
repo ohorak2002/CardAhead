@@ -127,7 +127,7 @@ final class NotificationPersistenceTests: XCTestCase {
           "cardID": "3F2504E0-4F89-11D3-9A0C-0305E82C3302",
           "cardName": "Amex Gold",
           "currencyName": "Membership Rewards",
-          "style": "points",
+          "style": "multiplier",
           "appliedRate": 4,
           "centsPerDollar": 4,
           "wasChosenForWelcomeBonus": false,
@@ -216,12 +216,20 @@ final class NotificationPersistenceTests: XCTestCase {
         XCTAssertEqual(after.records.first?.feedback, .notHere)
     }
 
-    /// Three answers about three different things. Collapsing any two would
-    /// produce a signal nobody can act on.
-    func testTheThreeAnswersStayDistinct() {
-        XCTAssertEqual(Set(NotificationFeedback.allCases.map(\.rawValue)).count, 3)
+    /// Two answers about two different things — did the advice land, and was
+    /// the app right about where you were. Collapsing them would produce a
+    /// signal nobody can act on.
+    ///
+    /// The last assertion is the load-bearing one: `NotificationFeedback` is
+    /// built straight from `response.actionIdentifier`, and iOS puts its own
+    /// identifiers in that field for an ordinary tap and for a dismissal. A
+    /// raw value that accidentally matched one would turn every tap into an
+    /// answer nobody gave.
+    func testTheTwoAnswersStayDistinct() {
+        XCTAssertEqual(Set(NotificationFeedback.allCases.map(\.rawValue)).count, 2)
         XCTAssertEqual(NotificationFeedback(rawValue: "usedIt"), .usedIt)
         XCTAssertEqual(NotificationFeedback(rawValue: "notHere"), .notHere)
         XCTAssertNil(NotificationFeedback(rawValue: "com.apple.UNNotificationDefaultActionIdentifier"))
+        XCTAssertNil(NotificationFeedback(rawValue: "com.apple.UNNotificationDismissActionIdentifier"))
     }
 }

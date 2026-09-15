@@ -142,13 +142,15 @@ jobs:
           # A card opened in the wallet. One tap deep, so `simctl`
           # cannot reach it either.
           shoot carddetail 13
+          # Step one of adding a card, behind the wallet's plus button.
+          shoot addcard 14
 
       # A palette that works on white paper is not automatically the one that
       # works at night, and nobody has ever seen this app at night.
       - name: Photograph it in the dark
         run: |
           xcrun simctl ui "$DEVICE" appearance dark
-          for TAB in home map wallet benefits impact watching cardphoto cardbenefits placecard carddetail; do
+          for TAB in home map wallet benefits impact watching cardphoto cardbenefits placecard carddetail addcard; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
             sleep 6

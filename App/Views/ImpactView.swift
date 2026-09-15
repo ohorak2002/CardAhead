@@ -86,40 +86,61 @@ struct ImpactView: View {
 
     // MARK: - Supporting evidence
 
+    /// **This was three tiles reading "4 Reminders", "4 You used", "4
+    /// Priced" and it had to go.** Three rounded rectangles of numbers is the
+    /// visual grammar of an analytics dashboard, which is the one thing this
+    /// screen must not be — and "Priced" is engine vocabulary that had leaked
+    /// onto a consumer screen. Worst of all, the hero directly above already
+    /// ends "...across 4 purchases", so a third of it was a restatement.
+    ///
+    /// The same three facts, as one sentence somebody can read.
     private var counts: some View {
-        HStack(spacing: Metric.snug) {
-            StatTile(value: "\(summary.shown)", label: "Reminders")
-            StatTile(value: "\(summary.accepted)", label: "You used")
-            StatTile(value: "\(summary.priced)", label: "Priced")
-        }
+        Text(countsSentence)
+            .font(.subheadline)
+            .foregroundStyle(Color.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var countsSentence: String {
+        let shown = summary.shown
+        let used = summary.accepted
+        guard shown > 0 else { return "No reminder has reached you yet." }
+
+        let reminders = shown == 1 ? "1 reminder" : "\(shown) reminders"
+        let opener = used == shown
+            ? "\(reminders) reached you, and you used every one."
+            : "\(reminders) reached you. You used \(used)."
+
+        // Only mentioned when it differs, because "and 4 of those 4 have a
+        // number on them" is a sentence about bookkeeping rather than money.
+        guard summary.priced < used else { return opener }
+        return opener + " \(summary.priced) of those has a spend on record."
     }
 
     private var byCategory: some View {
         VStack(alignment: .leading, spacing: Metric.snug) {
             SectionHeader("Where it came from")
 
-            VStack(spacing: Metric.snug) {
-                ForEach(summary.categoriesByValue, id: \.category) { entry in
-                    CategoryValueBar(
-                        category: entry.category,
-                        cents: entry.cents,
-                        fraction: fraction(of: entry.cents)
-                    )
+            // **No bars, and no panel around them.** A ranked list of three
+            // amounts does not need a chart to be read — the order already
+            // says which is biggest — and a bar chart inside a rounded card
+            // is exactly the dashboard this screen is trying not to be. Rows
+            // separated by a hairline, like everywhere else in the app now.
+            VStack(spacing: 0) {
+                let entries = summary.categoriesByValue
+                ForEach(Array(entries.enumerated()), id: \.element.category) { index, entry in
+                    CategoryValueRow(category: entry.category, cents: entry.cents)
+                    if index < entries.count - 1 { Hairline(inset: 28 + Metric.tight) }
                 }
             }
-            .padding(Metric.regular)
-            .cardWisePanel()
         }
     }
 
-    /// Relative to the biggest bar, not to a total — the bars are for
-    /// comparing categories with each other, and scaling them against a sum
-    /// makes every bar short as soon as somebody logs a fourth one.
-    private func fraction(of cents: Double) -> Double {
-        let largest = summary.categoriesByValue.map(\.cents).max() ?? 0
-        guard largest > 0 else { return 0 }
-        return max(0.04, min(1, cents / largest))
-    }
+    // The bar-width helper that used to live here went with the bars. It
+    // scaled each category against the largest rather than against a total,
+    // which was the right rule for a chart — and the chart itself was the
+    // thing that did not belong on this screen.
 
     private var quiet: some View {
         VStack(alignment: .leading, spacing: Metric.tight) {
@@ -135,9 +156,7 @@ struct ImpactView: View {
                 Spacer(minLength: 0)
             }
         }
-        .padding(Metric.regular)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .cardWisePanel()
         .accessibilityElement(children: .combine)
     }
 
@@ -188,34 +207,22 @@ struct ImpactView: View {
 
 /// One category's share, as a bar. Its own colour, so the same green means
 /// groceries here as it does on the Benefits grid.
-private struct CategoryValueBar: View {
+private struct CategoryValueRow: View {
     let category: SpendingCategory
     let cents: Double
-    let fraction: Double
 
     var body: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: Metric.tight) {
-                CategoryIcon(symbolName: category.symbolName, tint: category.tint, size: 28)
-                Text(category.displayName)
-                    .font(.subheadline)
-                    .lineLimit(1)
-                Spacer(minLength: Metric.tight)
-                Text(amount)
-                    .font(.subheadline.weight(.semibold))
-                    .monospacedDigit()
-            }
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(category.tint.opacity(0.14))
-                    Capsule()
-                        .fill(category.tint)
-                        .frame(width: max(6, proxy.size.width * fraction))
-                }
-            }
-            .frame(height: 6)
+        HStack(spacing: Metric.tight) {
+            CategoryIcon(symbolName: category.symbolName, tint: category.tint, size: 28)
+            Text(category.displayName)
+                .font(.subheadline)
+                .lineLimit(1)
+            Spacer(minLength: Metric.tight)
+            Text(amount)
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
         }
+        .padding(.vertical, 10)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(category.displayName), \(amount)")
     }

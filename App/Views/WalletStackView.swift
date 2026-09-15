@@ -239,6 +239,9 @@ struct WalletStackView: View {
                     if DemoSeed.requestedTab == "carddetail", expandedCardID == nil {
                         expandedCardID = store.cards.first?.id
                     }
+                    // The add-card sheet is behind the plus button, which
+                    // `simctl` cannot press either.
+                    if DemoSeed.requestedTab == "addcard" { isAddingCard = true }
                 }
             }
             .onAppear { cardWidth = outer.size.width - Metric.margin * 2 }

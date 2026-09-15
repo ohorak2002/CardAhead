@@ -53,7 +53,7 @@ struct RootTabView: View {
             // "placecard" selects a pin, and "placedetail" opens one. None of
             // the three is reachable by `simctl`, which cannot tap.
             case "watching", "placecard", "placedetail": return .map
-            case "cardphoto", "cardbenefits", "cardpreview", "carddetail": return .wallet
+            case "cardphoto", "cardbenefits", "cardpreview", "carddetail", "addcard": return .wallet
             default: return Tab(rawValue: raw) ?? .home
             }
         }
@@ -174,7 +174,7 @@ struct MoreView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-        ScreenHeader("More")
+        ScreenHeader("More", subtitle: "Everything that is not a card")
         List {
             // **The impact is a card, not a row.** This screen was three grey
             // rows and 386 points — 44% of the phone — of empty background
@@ -206,14 +206,18 @@ struct MoreView: View {
                 Text("How the ranking behind these reminders works, and everything else.")
             }
 
-            Section {
-                EmptyView()
-            } footer: {
-                appFooter
-            }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
+        // **Pinned to the bottom, not trailing the last section.** As a
+        // `Section` footer it sat wherever the list happened to end — which
+        // on this short screen was the middle, with a third of the phone
+        // empty underneath it. A version number belongs at the foot of the
+        // screen, which is where somebody asked for it goes looking.
+        .safeAreaInset(edge: .bottom) {
+            appFooter
+                .padding(.bottom, 90)
+        }
         }
         .background(Color(.systemGroupedBackground))
         .toolbar(.hidden, for: .navigationBar)
@@ -285,12 +289,14 @@ struct MoreView: View {
         VStack(spacing: 2) {
             Text("CardWise")
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.primary)
             Text("Smart cards. Better decisions.")
                 .font(.caption2)
+                .foregroundStyle(Color.secondary)
             Text(versionText)
                 .font(.caption2)
                 .monospacedDigit()
+                .foregroundStyle(Color.secondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, Metric.tight)

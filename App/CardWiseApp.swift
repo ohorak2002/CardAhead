@@ -9,6 +9,9 @@ struct CardWiseApp: App {
     @State private var monitor: RegionMonitor
     @State private var impact: ImpactStore
     @State private var nearby: NearbyPlacesStore
+    /// Not `@State`: it has no observable state to redraw on, and it outlives
+    /// every view that reads it. See `EnvironmentValues.placePhotos`.
+    private let photos: PlacePhotoLoader
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -38,12 +41,20 @@ struct CardWiseApp: App {
         // so it has nothing to be in place for at launch. It is built here
         // anyway because it needs the same wallet closure as the others, and
         // one place that wires everything together beats two.
+        // Hoisted out of the call below because two things need it now: the
+        // store asks it for places, and the photo loader asks it for the URL
+        // of a place's photograph. **The same instance, not two** — the
+        // request builder reads the same key, and one object means one place
+        // where "is there a provider at all" is decided.
+        let placeSource: PlaceSearchSource = seeded
+            ? StaticPlaceSearchSource(DemoSeed.places)
+            : PlacesProvider.makePlaceSearchSource()
+
         let nearby = NearbyPlacesStore(
-            source: seeded
-                ? StaticPlaceSearchSource(DemoSeed.places)
-                : PlacesProvider.makePlaceSearchSource(),
+            source: placeSource,
             initialCenter: seeded ? DemoSeed.center : nil
         )
+        let photos = PlacePhotoLoader(source: placeSource)
 
         reminders.walletCards = { store.cards }
         reminders.onOpened = { [weak impact] id in impact?.recordOpened(id) }
@@ -67,6 +78,7 @@ struct CardWiseApp: App {
         _monitor = State(initialValue: monitor)
         _impact = State(initialValue: impact)
         _nearby = State(initialValue: nearby)
+        self.photos = photos
     }
 
     var body: some Scene {
@@ -77,6 +89,7 @@ struct CardWiseApp: App {
                 .environment(monitor)
                 .environment(impact)
                 .environment(nearby)
+                .environment(\.placePhotos, photos)
                 .task { await reminders.refreshStatus() }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }

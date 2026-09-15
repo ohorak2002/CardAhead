@@ -36,6 +36,18 @@ public struct MapPlace: Identifiable, Codable, Hashable, Sendable {
     /// it is already localised.
     public var typeDescription: String?
 
+    /// A photograph of the actual shop, when the provider has one.
+    ///
+    /// **Arrives with the search, unlike everything under Detail below.** The
+    /// list is where the photograph does its work — it is what turns a column
+    /// of names into a column of places you recognise — and a photo that only
+    /// appeared after you had already tapped through would be showing you the
+    /// place you had by then identified from the name anyway.
+    ///
+    /// Still just a handle: nothing is downloaded until a view asks for a
+    /// specific size. See `PlacePhoto`.
+    public var photo: PlacePhoto?
+
     // MARK: - Detail
 
     /// Everything below arrives only from a place *details* lookup, which is a
@@ -63,6 +75,7 @@ public struct MapPlace: Identifiable, Codable, Hashable, Sendable {
         spendingCategory: SpendingCategory? = nil,
         confidence: MerchantConfidence? = nil,
         typeDescription: String? = nil,
+        photo: PlacePhoto? = nil,
         rating: Double? = nil,
         ratingCount: Int? = nil,
         address: String? = nil,
@@ -80,6 +93,7 @@ public struct MapPlace: Identifiable, Codable, Hashable, Sendable {
             ?? MerchantCategoryMap.category(forPlaceTypes: placeTypes, merchantName: name)
         self.confidence = confidence ?? MerchantCategoryMap.confidence(forPlaceTypes: placeTypes)
         self.typeDescription = typeDescription
+        self.photo = photo
         self.rating = rating
         self.ratingCount = ratingCount
         self.address = address
@@ -142,6 +156,9 @@ public struct MapPlace: Identifiable, Codable, Hashable, Sendable {
     public func merging(_ detail: MapPlace) -> MapPlace {
         var merged = self
         merged.typeDescription = detail.typeDescription ?? typeDescription
+        // The search's photo is kept when details returned none, so opening a
+        // place never *removes* the picture the row was already showing.
+        merged.photo = detail.photo ?? photo
         merged.rating = detail.rating ?? rating
         merged.ratingCount = detail.ratingCount ?? ratingCount
         merged.address = detail.address ?? address

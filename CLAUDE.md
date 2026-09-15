@@ -483,18 +483,44 @@ not go back there.
   than half the current radius from where the results were measured raises a
   "Search this area" button and waits. That half-the-reach rule is the same
   one `RegionPlanner.needsRefresh` uses, on purpose.
-- **The list rows and the place detail draw a category tile, not a
-  photograph.** The mockup has a picture of each shop. Google sells place
-  photos, but each is a separately billed request with its own attribution
-  requirement, it would be twenty per screen, and a shop front tells somebody
-  deciding which card to pull out nothing. The tile is free, legible, and the
-  same colour the pin was.
+- **The list rows and the place detail draw a photograph of the actual shop,
+  and the category tile is now the fallback.** This bullet used to say the
+  opposite, and the reasoning it gave was half right: a shop front does tell
+  somebody deciding which card to pull out nothing. But that is not the job.
+  This screen is twenty rows of names, and what a photograph does is make one
+  of them *the one you walked past this morning* — recognition, not
+  categorisation. Oren asked for it on 2026-09-15 after the reverse had been
+  argued twice.
+  The costs the old note listed are real and are handled rather than denied:
+  `PlacePhotoLoader` caches in memory, on disk for thirty days, and coalesces
+  concurrent requests for the same image, so a photograph is paid for by the
+  first person to look at it and nobody else. `PlacePhotoUse` is three size
+  buckets, not a free-form number, so a row thumbnail is 264px and not a
+  1170px hero scaled down twenty times. The attribution requirement is met on
+  the place detail, where a credit can be read.
+  **The fallback is not an apology and must not be treated as one.** Most
+  places have no photograph, and the seeded CI run has none at all — so the
+  category tile is what every screenshot shows and what most real rows show
+  too. It is drawn as a designed tile (a gradient in the place's own colour,
+  its glyph on top), not as a grey box waiting for something better.
+- **CI cannot photograph a place photograph.** The screenshot job seeds
+  `StaticPlaceSearchSource`, which has no photo handles and never calls
+  Google, so `placecard` and `placedetail` show the fallback by construction.
+  The photographic path is only visible on a build with a real Places key, on
+  a device. Do not "fix" a screenshot that shows a category tile.
 - **Adding a rating to the nearby-search field mask moved it from the
   Essentials SKU to Pro.** That is a real, deliberate bill — see
   `GooglePlaceSearchSource.searchFieldMask`. If it ever matters more than the
   stars do, drop `places.rating`/`places.userRatingCount` and the "Highest
   rated" sort with them. Hours, phone and website are *not* in that mask;
   they cost a details call, made for one place, only when somebody opens it.
+  **`places.photos` was added to that mask and costs nothing extra**, because
+  a field mask is billed by tier and the request is already at the tier the
+  rating puts it in. What *is* separately billed is fetching the image bytes,
+  once per photo per size bucket — which is why `PlacePhotoLoader` caches to
+  disk for thirty days and coalesces in-flight requests. If photos ever need
+  to be switched off, deleting `places.photos` from the mask does it: no
+  handle means no fetch and every screen draws the fallback it already has.
 - **An unrecognised `includedTypes` entry fails the whole Places request**
   with `INVALID_ARGUMENT` and returns nothing — not just its own results.
   `NearbyMapView` puts a lookup failure on the screen in words rather than

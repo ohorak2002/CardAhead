@@ -110,6 +110,9 @@ struct CardWiseSearchField: View {
     /// Called on the keyboard's Search key. Screens that filter as you type
     /// can leave it nil.
     var onSubmit: (() -> Void)?
+    /// What is behind it. See `ControlGround` — a field floating over a map
+    /// needs a different answer from one sitting on a page.
+    var ground: ControlGround = .page
 
     var body: some View {
         HStack(spacing: Metric.tight) {
@@ -135,12 +138,47 @@ struct CardWiseSearchField: View {
             }
         }
         .padding(.horizontal, Metric.snug)
-        .padding(.vertical, 10)
+        .padding(.vertical, 12)
         .background(
-            Color(.secondarySystemGroupedBackground),
+            ground.fill,
             in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
         )
+        .shadow(color: Color.cardWiseNavy.opacity(ground.shadowOpacity), radius: 14, y: 5)
         .animation(.snappy(duration: 0.2), value: text.isEmpty)
+    }
+}
+
+// MARK: - What a control is sitting on
+
+/// The two grounds a floating control can have in this app, and the only two.
+///
+/// **A control drawn for one and placed on the other disappears**, which this
+/// repo has now proved twice: `.background.secondary` vanished against the
+/// light grouped page, and a control filled with the grouped-page colour
+/// placed over the map reads as a solid card punched into the middle of it.
+/// Rather than a third hex value, a control says where it is standing and the
+/// answer comes from here.
+enum ControlGround {
+    /// Sitting on a grouped page, the ordinary case.
+    case page
+    /// Floating over a map or a photograph. Translucent, so the thing
+    /// underneath stays visible — which is the whole reason the control is
+    /// floating rather than in a bar — and lifted, because it genuinely is.
+    case floating
+
+    var fill: AnyShapeStyle {
+        switch self {
+        case .page: return AnyShapeStyle(Color(.secondarySystemGroupedBackground))
+        case .floating: return AnyShapeStyle(.regularMaterial)
+        }
+    }
+
+    /// A shadow means "above the page". Only one of these is.
+    var shadowOpacity: Double {
+        switch self {
+        case .page: return 0
+        case .floating: return 0.18
+        }
     }
 }
 
@@ -162,6 +200,9 @@ struct CardWiseChip: View {
     /// The colour of the *on* state. Defaults to the brand blue; a category
     /// chip passes its own so the filter and the pin agree.
     var tint: Color = .cardWiseBlue
+    /// What the *off* state sits on. Over the map this has to be translucent
+    /// or the chip row becomes a solid white band across the top of it.
+    var ground: ControlGround = .page
     var action: () -> Void
 
     var body: some View {
@@ -180,12 +221,8 @@ struct CardWiseChip: View {
             .foregroundStyle(isOn ? Color.white : Color.primary)
             .padding(.horizontal, Metric.snug)
             .padding(.vertical, 7)
-            .background(
-                isOn
-                    ? AnyShapeStyle(tint)
-                    : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
-                in: Capsule()
-            )
+            .background(isOn ? AnyShapeStyle(tint) : ground.fill, in: Capsule())
+            .shadow(color: Color.cardWiseNavy.opacity(ground.shadowOpacity), radius: 8, y: 3)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isOn ? [.isSelected] : [])

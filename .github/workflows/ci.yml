@@ -128,13 +128,24 @@ jobs:
           shoot cardbenefits 9
           # The Add Card preview, which is three taps inside a sheet.
           shoot cardpreview 10
+          # The map's two place surfaces. Both need a pin tapped, which
+          # `simctl` cannot do — see the note in NearbyMapView.
+          #
+          # **Neither shows a real photograph and that is expected.** The
+          # seeded run uses `StaticPlaceSearchSource`, which has no photo
+          # handles and never calls Google, so both of these photograph the
+          # *fallback* — which is the point of the fallback being designed
+          # rather than apologetic. The photographic path can only be seen on
+          # a build with a real Places key.
+          shoot placecard 11
+          shoot placedetail 12
 
       # A palette that works on white paper is not automatically the one that
       # works at night, and nobody has ever seen this app at night.
       - name: Photograph it in the dark
         run: |
           xcrun simctl ui "$DEVICE" appearance dark
-          for TAB in home map wallet benefits impact watching cardphoto cardbenefits; do
+          for TAB in home map wallet benefits impact watching cardphoto cardbenefits placecard; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
             sleep 6

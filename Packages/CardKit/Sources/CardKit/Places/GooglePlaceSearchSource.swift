@@ -42,7 +42,15 @@ public struct GooglePlaceSearchSource: PlaceSearchSource {
         "places.location",
         "places.primaryTypeDisplayName",
         "places.rating",
-        "places.userRatingCount"
+        "places.userRatingCount",
+        // **Costs nothing extra here, and that is worth knowing rather than
+        // assuming.** Field masks are billed by tier, not by field, and the
+        // whole request is already at the tier `places.rating` puts it in;
+        // `places.photos` sits below that. What *is* billed per use is
+        // fetching the image bytes, which is a separate SKU and a separate
+        // request the app only makes for a photo somebody is looking at.
+        // See `docs/places-api.md`.
+        "places.photos"
     ].joined(separator: ",")
 
     /// The detail screen's fields. No `places.` prefix: a details request
@@ -59,8 +67,13 @@ public struct GooglePlaceSearchSource: PlaceSearchSource {
         "userRatingCount",
         "nationalPhoneNumber",
         "websiteUri",
-        "regularOpeningHours"
+        "regularOpeningHours",
+        "photos"
     ].joined(separator: ",")
+
+    /// Where image bytes come from. The photo's own resource name is appended
+    /// to this, then `/media` — see `photoRequest(for:use:)`.
+    public static let photoEndpoint = URL(string: "https://places.googleapis.com/v1")!
 
     private let apiKey: String
     private let transport: HTTPTransport
@@ -202,6 +215,42 @@ public struct GooglePlaceSearchSource: PlaceSearchSource {
         return place
     }
 
+    // MARK: - Photos
+
+    /// Where to get this photograph's bytes, at the size this use needs.
+    ///
+    /// **A described request, not a fetch** — same seam as everything else in
+    /// this package, so the sizing and the URL are testable on Linux and no
+    /// `URLSession` comes anywhere near `CardKit`.
+    ///
+    /// Two things Google's endpoint does that are worth stating, because both
+    /// look like bugs from the outside. It answers with a **redirect** to the
+    /// real image host rather than the bytes, which `URLSession` follows on
+    /// its own — so the app does nothing special and gets image data. And
+    /// `maxWidthPx`/`maxHeightPx` are a *bounding box*: the image comes back
+    /// scaled to fit inside them with its own aspect ratio intact, never
+    /// cropped or stretched to the numbers given. Cropping is the view's job.
+    public func photoRequest(for photo: PlacePhoto, use: PlacePhotoUse) -> HTTPRequest? {
+        guard !apiKey.isEmpty, !photo.name.isEmpty else { return nil }
+        // The name's own slashes are path separators and stay that way;
+        // anything else in it gets encoded.
+        guard let path = photo.name.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              var components = URLComponents(
+                string: "\(Self.photoEndpoint.absoluteString)/\(path)/media"
+              )
+        else { return nil }
+
+        components.queryItems = [
+            URLQueryItem(name: "maxWidthPx", value: String(photo.pixelWidth(for: use))),
+            URLQueryItem(name: "maxHeightPx", value: String(photo.pixelHeight(for: use)))
+        ]
+        guard let url = components.url else { return nil }
+
+        // The key goes in the header rather than the query string, so it stays
+        // out of logs and out of any URL that might get shared.
+        return HTTPRequest(url: url, method: "GET", headers: ["X-Goog-Api-Key": apiKey])
+    }
+
     // MARK: - Sending
 
     private func send<Payload: Encodable>(
@@ -281,6 +330,15 @@ public struct GooglePlaceSearchSource: PlaceSearchSource {
             var openNow: Bool?
             var weekdayDescriptions: [String]?
         }
+        struct Photo: Decodable {
+            struct Attribution: Decodable {
+                var displayName: String?
+            }
+            var name: String
+            var widthPx: Int?
+            var heightPx: Int?
+            var authorAttributions: [Attribution]?
+        }
 
         var id: String
         var displayName: Text?
@@ -293,6 +351,7 @@ public struct GooglePlaceSearchSource: PlaceSearchSource {
         var nationalPhoneNumber: String?
         var websiteUri: String?
         var regularOpeningHours: OpeningHours?
+        var photos: [Photo]?
     }
 
     private struct SearchResult: Decodable {
@@ -336,6 +395,7 @@ public struct GooglePlaceSearchSource: PlaceSearchSource {
             ),
             placeTypes: raw.types ?? [],
             typeDescription: raw.primaryTypeDisplayName?.text,
+            photo: firstPhoto(in: raw.photos),
             rating: raw.rating,
             ratingCount: raw.userRatingCount,
             address: raw.formattedAddress,
@@ -343,6 +403,28 @@ public struct GooglePlaceSearchSource: PlaceSearchSource {
             hoursToday: todaysHours(in: raw.regularOpeningHours?.weekdayDescriptions, asOf: date),
             phone: raw.nationalPhoneNumber,
             website: raw.websiteUri
+        )
+    }
+
+    /// The first usable photo, and only the first.
+    ///
+    /// Google returns up to ten per place and the app draws one. Keeping the
+    /// other nine would mean carrying nine handles through every cache and
+    /// every model for a gallery that does not exist — and the first is the
+    /// one Google ranks highest, which is the one a gallery would open on.
+    ///
+    /// A photo with an empty `name` is dropped rather than carried: it is a
+    /// handle that cannot be fetched, and a nil photo draws the fallback
+    /// while a broken one would draw a spinner that never stops.
+    static func firstPhoto(in photos: [RawPlace.Photo]?) -> PlacePhoto? {
+        guard let raw = photos?.first(where: { !$0.name.isEmpty }) else { return nil }
+        return PlacePhoto(
+            name: raw.name,
+            widthPx: raw.widthPx,
+            heightPx: raw.heightPx,
+            attributions: (raw.authorAttributions ?? [])
+                .compactMap(\.displayName)
+                .filter { !$0.isEmpty }
         )
     }
 

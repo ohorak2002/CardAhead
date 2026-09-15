@@ -12,12 +12,18 @@ import CardKit
 /// It is the same answer, arrived at the same way; the only difference is that
 /// here you asked for it.
 ///
-/// **No photograph, deliberately.** The mockup opens on a picture of the
-/// restaurant. Google will sell place photos, but each is a separately billed
-/// request with its own attribution requirement, and a picture of a shop front
-/// tells somebody deciding which card to pull out precisely nothing. The navy
-/// header this app already wears does the same job of saying "you are
-/// somewhere new" for free.
+/// **It opens on a photograph of the place, where there is one.** An earlier
+/// note here argued the opposite — that a picture of a shop front tells
+/// somebody deciding which card to pull out nothing, and the navy header said
+/// "you are somewhere new" for free. The first half is true and the wrong
+/// test: this screen is reached by tapping one row out of twenty, and the
+/// first thing it has to establish is *that the right row was tapped*. A
+/// photograph does that in a glance and a name in a navy bar does not.
+///
+/// The navy header has not been deleted, because most places have no
+/// photograph and a screen with a grey rectangle where the picture should be
+/// is worse than one that never promised a picture. When there is no photo
+/// handle, the header this app wears everywhere else is what you get.
 struct PlaceDetailView: View {
 
     @Environment(NearbyPlacesStore.self) private var places
@@ -70,9 +76,117 @@ struct PlaceDetailView: View {
         }
     }
 
-    // MARK: - The navy top
+    // MARK: - The top
 
+    /// A photograph when the place has one, the navy header when it does not.
+    @ViewBuilder
     private var header: some View {
+        if place.photo != nil {
+            VStack(alignment: .leading, spacing: Metric.snug) {
+                photoHeader
+                // The rating, whether it is open and today's hours. On the
+                // navy header these are white on navy; here they are ordinary
+                // text on the page, because stacking four more pieces of
+                // white type over a photograph is where this stops being a
+                // photograph and starts being a poster.
+                factsStrip
+                    .padding(.horizontal, Metric.margin)
+            }
+        } else {
+            navyHeader
+        }
+    }
+
+    /// Rating, open state and today's hours, in whatever combination the
+    /// provider actually supplied. Each part is dropped when it is unknown
+    /// rather than drawn empty.
+    @ViewBuilder
+    private var factsStrip: some View {
+        HStack(spacing: Metric.snug) {
+            if let rating = place.rating {
+                Label {
+                    Text(String(format: "%.1f", rating)).monospacedDigit()
+                        + Text(place.ratingCount.map { " (\($0.formatted()))" } ?? "")
+                } icon: {
+                    Image(systemName: "star.fill")
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+            if let open = place.isOpenNow {
+                Text(open ? "Open" : "Closed")
+                    .font(.footnote.weight(.semibold))
+                    // Explicit `Color` on both branches — see the ternary
+                    // trap in CLAUDE.md.
+                    .foregroundStyle(open ? Color.cardWiseSuccess : Color.secondary)
+            }
+            if let hours = place.hoursToday {
+                Text(hours)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// The place, full width, with its name written across the bottom of it.
+    ///
+    /// **The scrim is not decoration and its numbers are not taste.** White
+    /// text over an arbitrary photograph is unreadable about a third of the
+    /// time — a bright sky, a white tablecloth, a snow-covered car park — and
+    /// no amount of shadow fixes it reliably. A gradient that reaches 78%
+    /// black at the bottom edge makes the band the text sits in dark whatever
+    /// is behind it, including the coloured fallback tile drawn while the
+    /// image is still arriving.
+    private var photoHeader: some View {
+        PlacePhotoView(place: place, use: .hero, cornerRadius: 0)
+            .frame(height: 260)
+            .frame(maxWidth: .infinity)
+            .overlay {
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black.opacity(0.12), location: 0.45),
+                        .init(color: .black.opacity(0.78), location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .overlay(alignment: .bottomLeading) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(place.name)
+                        .font(.system(.title, design: .rounded).weight(.bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                    Text(place.subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.85))
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, Metric.margin)
+                .padding(.bottom, Metric.regular)
+            }
+            // **Deliberately not `ignoresSafeArea`.** This screen is pushed,
+            // so it has a navigation bar with a back button and an inline
+            // title in it. A photograph run up under that bar puts the place's
+            // name in small black type on the picture, eight points above the
+            // same name in large white type — and on a light photograph the
+            // back chevron disappears entirely.
+            .overlay(alignment: .bottomTrailing) {
+                // The credit Google's terms require, on the one screen with
+                // room to read one. Quiet, and over the darkest part of the
+                // scrim so it is legible without being loud.
+                PlacePhotoCredit(photo: place.photo)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .padding(.horizontal, Metric.margin)
+                    .padding(.bottom, 4)
+            }
+    }
+
+    private var navyHeader: some View {
         VStack(alignment: .leading, spacing: Metric.snug) {
             HStack(spacing: Metric.snug) {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)

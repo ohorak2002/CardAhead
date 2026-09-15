@@ -49,7 +49,10 @@ struct RootTabView: View {
             guard let raw = DemoSeed.requestedTab else { return .home }
             switch raw {
             case "impact": return .more
-            case "watching": return .map
+            // All three are the Map tab: "watching" is a chip on it,
+            // "placecard" selects a pin, and "placedetail" opens one. None of
+            // the three is reachable by `simctl`, which cannot tap.
+            case "watching", "placecard", "placedetail": return .map
             case "cardphoto", "cardbenefits", "cardpreview": return .wallet
             default: return Tab(rawValue: raw) ?? .home
             }

@@ -38,9 +38,24 @@ public protocol PlaceSearchSource: Sendable {
     /// Called when somebody opens a place, never for a list.
     func details(forPlaceID id: String) async throws -> MapPlace
 
+    /// Where to get a photograph's bytes, at the size this use needs, or nil
+    /// when this source has no photographs to offer.
+    ///
+    /// **A default of nil, rather than a requirement.** Two of the three
+    /// sources here have no images by design and a third — whatever replaces
+    /// Google if that day comes — might not either. A screen that reads a nil
+    /// here draws its fallback, which is the same thing it does for a place
+    /// Google happens to have no photo of, so the path is exercised either
+    /// way rather than being a branch nobody has seen.
+    func photoRequest(for photo: PlacePhoto, use: PlacePhotoUse) -> HTTPRequest?
+
     /// Shown in the app's own diagnostics, so whether real data is wired up is
     /// answerable without a debugger.
     var sourceDescription: String { get }
+}
+
+public extension PlaceSearchSource {
+    func photoRequest(for photo: PlacePhoto, use: PlacePhotoUse) -> HTTPRequest? { nil }
 }
 
 /// Knows about no places at all.

@@ -126,6 +126,8 @@ jobs:
           # simulator has no camera, and `CameraPicker.isAvailable` hides it.
           shoot cardphoto 8
           shoot cardbenefits 9
+          # The Add Card preview, which is three taps inside a sheet.
+          shoot cardpreview 10
 
       # A palette that works on white paper is not automatically the one that
       # works at night, and nobody has ever seen this app at night.

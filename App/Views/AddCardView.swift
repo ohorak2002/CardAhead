@@ -109,10 +109,10 @@ struct AddCardView: View {
             Section {
                 ForEach(entries.filter { $0.card.issuer == issuer.name }) { entry in
                     NavigationLink {
-                        CardBenefitsView(
-                            mode: .confirming(entry),
+                        CardPreviewView(
+                            entry: entry,
                             replacing: replacing,
-                            presentation: .pushed,
+                            isAlreadyHeld: isAlreadyHeld(entry),
                             onFinish: { dismiss() }
                         )
                     } label: {
@@ -133,10 +133,10 @@ struct AddCardView: View {
         Section {
             ForEach(results) { entry in
                 NavigationLink {
-                    CardBenefitsView(
-                        mode: .confirming(entry),
+                    CardPreviewView(
+                        entry: entry,
                         replacing: replacing,
-                        presentation: .pushed,
+                        isAlreadyHeld: isAlreadyHeld(entry),
                         onFinish: { dismiss() }
                     )
                 } label: {
@@ -240,13 +240,7 @@ struct CardProductRow: View {
         return "\(network), \(money(entry.card.annualFeeDollars)) a year"
     }
 
-    private func money(_ amount: Money) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        formatter.maximumFractionDigits = 0
-        return formatter.string(from: NSDecimalNumber(decimal: amount)) ?? "$\(amount)"
-    }
+    private func money(_ amount: Money) -> String { CardWiseFormat.money(amount) }
 }
 
 #Preview {

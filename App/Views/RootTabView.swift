@@ -50,7 +50,7 @@ struct RootTabView: View {
             switch raw {
             case "impact": return .more
             case "watching": return .map
-            case "cardphoto", "cardbenefits": return .wallet
+            case "cardphoto", "cardbenefits", "cardpreview": return .wallet
             default: return Tab(rawValue: raw) ?? .home
             }
         }
@@ -112,14 +112,17 @@ private struct WalletTab: View {
 
     @State private var isShowingPhoto = false
     @State private var isShowingBenefits = false
+    @State private var isShowingPreview = false
 
     var body: some View {
         WalletStackView()
             .sheet(isPresented: $isShowingPhoto) { photoScreen }
             .navigationDestination(isPresented: $isShowingBenefits) { benefitsScreen }
+            .navigationDestination(isPresented: $isShowingPreview) { previewScreen }
             .onAppear {
                 isShowingPhoto = DemoSeed.requestedTab == "cardphoto"
                 isShowingBenefits = DemoSeed.requestedTab == "cardbenefits"
+                isShowingPreview = DemoSeed.requestedTab == "cardpreview"
             }
     }
 
@@ -127,6 +130,18 @@ private struct WalletTab: View {
     private var photoScreen: some View {
         if let card = store.cards.first {
             CardPhotoView(card: card) { _ in }
+        }
+    }
+
+    /// **Pushed straight onto the wallet, which is not where it really
+    /// lives.** The preview is three taps inside a sheet — add, pick a bank,
+    /// pick a product — and `simctl` cannot tap any of them. Photographing the
+    /// screen is the point; photographing the route to it is not something CI
+    /// can do either way.
+    @ViewBuilder
+    private var previewScreen: some View {
+        if let entry = CardCatalog.entries.first {
+            CardPreviewView(entry: entry, onFinish: {})
         }
     }
 

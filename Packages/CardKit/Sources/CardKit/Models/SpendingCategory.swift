@@ -69,6 +69,76 @@ public enum SpendingCategory: String, Codable, CaseIterable, Sendable, Hashable 
         }
     }
 
+    /// What kind of *place* this is, as the head of a lock-screen title:
+    /// "Gas station nearby", "Restaurant nearby".
+    ///
+    /// **Deliberately not `displayName`.** `displayName` names the bucket a
+    /// card pays on — "Dining", "Drugstores" — which is the right word on the
+    /// Benefits screen and the wrong one on a lock screen, where nobody is
+    /// standing outside a "Dining". This is the noun a person would use for
+    /// the building in front of them. Same two-axes discipline as
+    /// `MapCategory` vs `SpendingCategory`: what a shop *is* and what a card
+    /// *pays there* are not one word.
+    ///
+    /// The categories that have no building (`streaming`, `onlineShopping`,
+    /// `travelPortal`, `base`) still get an honest phrase rather than a
+    /// placeholder, because a geofence for one is not impossible, only odd.
+    public var placePhrase: String {
+        switch self {
+        case .base: return "Store"
+        case .dining: return "Restaurant"
+        case .groceries: return "Grocery store"
+        case .warehouseClub: return "Warehouse club"
+        case .gas: return "Gas station"
+        case .drugstores: return "Pharmacy"
+        case .travel: return "Travel"
+        case .travelPortal: return "Travel booking"
+        case .flights: return "Airport"
+        case .hotels: return "Hotel"
+        case .transit: return "Transit"
+        case .rideshare: return "Rideshare"
+        case .streaming: return "Streaming"
+        case .entertainment: return "Entertainment"
+        case .onlineShopping: return "Online shopping"
+        case .homeImprovement: return "Hardware store"
+        case .departmentStore: return "Department store"
+        }
+    }
+
+    /// One emoji, and never more than one, for the front of a notification
+    /// title.
+    ///
+    /// **A lock screen is a list of grey rectangles and the eye picks the
+    /// coloured thing first.** The app icon is already there but it is the
+    /// same icon on every reminder, so it says "CardWise" and nothing about
+    /// *this* one. The emoji says what kind of place before a single word is
+    /// read, which is the only job the first glance can do.
+    ///
+    /// Emoji, not an SF Symbol, because a title is text and text cannot hold
+    /// a symbol. The coloured badge on the trailing edge — see
+    /// `ReminderBadge` in the app — is where the symbol goes.
+    public var emoji: String {
+        switch self {
+        case .base: return "💳"
+        case .dining: return "🍽️"
+        case .groceries: return "🛒"
+        case .warehouseClub: return "📦"
+        case .gas: return "⛽️"
+        case .drugstores: return "💊"
+        case .travel: return "✈️"
+        case .travelPortal: return "🧳"
+        case .flights: return "🛫"
+        case .hotels: return "🏨"
+        case .transit: return "🚇"
+        case .rideshare: return "🚗"
+        case .streaming: return "📺"
+        case .entertainment: return "🎟️"
+        case .onlineShopping: return "🛍️"
+        case .homeImprovement: return "🔨"
+        case .departmentStore: return "🏬"
+        }
+    }
+
     /// Categories that only make sense while the user is away from home.
     public var isTravelRelated: Bool {
         switch self {

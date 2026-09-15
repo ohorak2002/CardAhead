@@ -127,6 +127,12 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
             Self.cardIDKey: reminder.cardID.uuidString,
             Self.recommendationIDKey: snapshot.id.uuidString
         ]
+        // The coloured chip on the trailing edge. Optional on purpose — see
+        // `ReminderBadge`: a picture that failed to draw is not a reason to
+        // withhold the sentence.
+        if let badge = ReminderBadge.attachment(for: reminder.category) {
+            content.attachments = [badge]
+        }
 
         // A trigger of zero is rejected, and an entry whose clock somehow
         // already ran out should still be shown rather than dropped.

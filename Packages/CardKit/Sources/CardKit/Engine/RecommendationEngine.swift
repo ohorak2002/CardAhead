@@ -197,20 +197,55 @@ public struct RecommendationEngine: Sendable {
         }
     }
 
+    /// The title: an emoji, and *where*. Nothing else.
+    ///
+    /// **It used to be where and which card and a full stop** — "Transit
+    /// nearby. Use Capital One Savor." — and iOS showed "Transit nearby. Use
+    /// Capital One S…", so the card it named was the part that got cut. A
+    /// notification title has room for about one short phrase. Spending it on
+    /// the place and leaving the card to the body means both survive, because
+    /// the body gets two full lines and the title gets a third of one.
+    ///
+    /// The place is the right thing to put in the small space for a second
+    /// reason: it is what makes the reminder *make sense*. "Use Capital One
+    /// Savor" arriving out of nowhere is a demand; "Restaurant nearby" is an
+    /// observation the reader can check against the building in front of them.
     private func headline(for best: CardScore, in context: PurchaseContext) -> String {
-        switch context.confidence {
-        case .exact:
-            return "Use \(best.card.displayName) here"
-        case .categoryOnly:
-            return "\(context.category.displayName) nearby. Use \(best.card.displayName)."
+        let emoji = context.category.emoji
+        if context.confidence == .exact, let merchant = context.merchantName, !merchant.isEmpty {
+            return "\(emoji) \(merchant)"
         }
+        return "\(emoji) \(context.category.placePhrase) nearby"
     }
 
+    /// The body: one instruction, in the shape somebody would say it out
+    /// loud. "Use Amex Gold for 4x at restaurants."
+    ///
+    /// The card name has to be here rather than the title because it is the
+    /// thing being asked for, and a truncated card name is a reminder that
+    /// failed. The merchant is deliberately *not* repeated — the title just
+    /// said it, and a notification that says the same thing twice has spent
+    /// its second line on nothing.
     private func detail(for best: CardScore, in context: PurchaseContext) -> String {
-        if context.confidence == .exact, let merchant = context.merchantName, !merchant.isEmpty {
-            return "\(best.reason) at \(merchant)"
+        "Use \(best.card.displayName) for \(rewardPhrase(for: best, in: context))."
+    }
+
+    /// The tail of that sentence: the rate, and what it is a rate *on*.
+    ///
+    /// Not `best.reason`, which is written to stand alone in a list of cards
+    /// ("4x dining") and reads like a fragment once "Use Amex Gold for" is in
+    /// front of it. `benefitPhrase` is the form that was already written to
+    /// be the tail of a sentence.
+    private func rewardPhrase(for best: CardScore, in context: PurchaseContext) -> String {
+        let rate = best.card.currency.formatted(rate: best.appliedRate)
+        switch best.source {
+        case .base:
+            return "\(rate) on everything"
+        case .permanent(let category):
+            return "\(rate) \(category.benefitPhrase)"
+        case .rotating:
+            return "\(rate) this quarter"
         }
-        return best.reason
     }
 
     /// If a rotating bonus would have won but sits unactivated, say so. This is
@@ -219,14 +254,16 @@ public struct RecommendationEngine: Sendable {
         beating best: CardScore,
         among cards: [Card],
         in context: PurchaseContext
-    ) -> String? {
+    ) -> ActivationNudge? {
         for card in cards where card.rotatingProgram != nil {
             let current = score(card, in: context)
             guard current.needsActivation else { continue }
             let activated = score(card, in: context, forcingRotatingActivation: true)
             if activated.total > best.total + tieTolerance {
-                let rate = card.currency.formatted(rate: activated.appliedRate)
-                return "Activate the quarterly bonus on \(card.displayName). It would pay \(rate) here."
+                return ActivationNudge(
+                    cardName: card.displayName,
+                    rateText: card.currency.formatted(rate: activated.appliedRate)
+                )
             }
         }
         return nil

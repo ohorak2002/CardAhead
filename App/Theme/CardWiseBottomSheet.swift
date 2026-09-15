@@ -44,17 +44,43 @@ struct CardWiseBottomSheet<Content: View>: View {
         }
         .frame(height: height, alignment: .top)
         .frame(maxWidth: .infinity)
-        // `.regularMaterial`, so the map stays faintly visible through it and
-        // the sheet reads as a layer over a place rather than a second screen.
-        .background(.regularMaterial)
-        .clipShape(
+        // Content is clipped to the sheet's own height; the *paint* below is
+        // not, which is what lets the background run to the bottom of the
+        // screen while the rows stop above the tab bar.
+        .clipped()
+        .background {
+            // **This was `.regularMaterial` and every piece of secondary text
+            // inside it was invisible.** Not faint — absent, in both
+            // appearances, measured at exactly the background's own luminance
+            // across the whole 77 points where the facts line, the divider
+            // and the section label should have been. A material applies
+            // vibrancy to hierarchical foreground styles, and over a broad
+            // uniform blur `.secondary` resolves to the material itself. The
+            // name (`.primary`) and the reward (an explicit `Color`) rendered
+            // fine, which is what made it look like a spacing bug.
+            //
+            // So: the role that already means "a surface sitting on a grouped
+            // page", the same one the panel fix landed on, and which this app
+            // has now been photographed with in both modes many times over.
+            // The map is covered by the sheet where the sheet is anyway; a
+            // blur that eats a third of the text is not worth a see-through
+            // edge.
+            //
+            // **`ignoresSafeArea` on the background shape alone** — the trick
+            // `ScreenHeader` uses at the top of the screen, for the same
+            // reason. Applied to the sheet itself it would drag the rows down
+            // under the tab bar; applied here only the paint extends, so the
+            // sheet reaches the bottom edge instead of floating with a strip
+            // of map visible beneath it.
             UnevenRoundedRectangle(
                 topLeadingRadius: Metric.cardRadius,
                 topTrailingRadius: Metric.cardRadius,
                 style: .continuous
             )
-        )
-        .shadow(color: Color.cardWiseNavy.opacity(0.18), radius: 20, y: -6)
+            .fill(Color(.secondarySystemGroupedBackground))
+            .shadow(color: Color.cardWiseNavy.opacity(0.18), radius: 20, y: -6)
+            .ignoresSafeArea(edges: .bottom)
+        }
         // Both branches spelled out as `Animation?`. A bare `nil` against a
         // leading-dot member in a ternary is exactly the shape that has failed
         // to type-check in this repo before — see the `Color`/`ShapeStyle`

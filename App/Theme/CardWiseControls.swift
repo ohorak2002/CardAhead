@@ -117,7 +117,7 @@ struct CardWiseSearchField: View {
     var body: some View {
         HStack(spacing: Metric.tight) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondary)
                 .accessibilityHidden(true)
 
             TextField(placeholder, text: $text)
@@ -131,7 +131,7 @@ struct CardWiseSearchField: View {
                     text = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color.secondary.opacity(0.55))
                 }
                 .accessibilityLabel("Clear search")
                 .transition(.opacity)
@@ -290,7 +290,7 @@ struct CardWiseEmptyState<Action: View>: View {
                     .multilineTextAlignment(.center)
                 Text(message)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }

@@ -1,6 +1,26 @@
 import SwiftUI
 import CardKit
 
+// MARK: - A rule that is actually visible
+
+/// A hairline, drawn from the palette rather than by `Divider`.
+///
+/// **`Divider` is a hierarchical style and vanished on the map sheet** — the
+/// same way `.secondary` text did, and for the same reason. `cardWiseHairline`
+/// is an asset-catalog colour with a light and a dark value, which resolves to
+/// a real colour on any ground. See `CardWiseBottomSheet`'s note.
+struct Hairline: View {
+    var inset: CGFloat = 0
+
+    var body: some View {
+        Rectangle()
+            .fill(Color.cardWiseHairline)
+            .frame(height: 1)
+            .padding(.leading, inset)
+            .accessibilityHidden(true)
+    }
+}
+
 // MARK: - A row
 
 /// One place in a list: a photograph of it, what it is, how far, and which
@@ -11,8 +31,8 @@ import CardKit
 /// competing objects — and the thing that was supposed to stand out, the
 /// reward line, was the fourth-loudest element in its own row. A photograph
 /// with type beside it needs no container: the picture *is* the edge. What
-/// separates one row from the next is a hairline and twelve points of air,
-/// which is what separates rows in every list Apple ships.
+/// separates one row from the next is a hairline and ten points of air, which
+/// is what separates rows in every list Apple ships.
 ///
 /// The photograph is doing a job no glyph could. A blue fork means
 /// "restaurant"; a picture of the place means "the one on the corner", and
@@ -25,17 +45,24 @@ struct MerchantRow: View {
     /// only the list knows which row is last.
     var showsSeparator: Bool = true
 
+    /// **68, down from 76.** At 76 with 12 points of air above and below, a
+    /// row was 100 points and the sheet showed three of them at its resting
+    /// height — a list you cannot see enough of to scan. 88 shows four and a
+    /// half, and the thumbnail is still comfortably bigger than the 44-point
+    /// minimum it also has to clear as a tap target.
+    private let photoSize: CGFloat = 68
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: Metric.snug) {
                 PlacePhotoView(place: result.place, use: .row)
-                    .frame(width: 76, height: 76)
+                    .frame(width: photoSize, height: photoSize)
 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
                         Text(result.place.name)
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(Color.primary)
                             .lineLimit(1)
                         if isWatched { WatchingMark() }
                     }
@@ -54,16 +81,15 @@ struct MerchantRow: View {
 
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color.secondary.opacity(0.5))
             }
-            .padding(.vertical, Metric.snug)
+            .padding(.vertical, 10)
 
             if showsSeparator {
-                Divider()
-                    // Inset to the text, not to the photo: a full-bleed rule
-                    // under a picture cuts the row in half rather than
-                    // separating it from the next one.
-                    .padding(.leading, 76 + Metric.snug)
+                // Inset to the text, not to the photo: a full-bleed rule under
+                // a picture cuts the row in half rather than separating it
+                // from the next one.
+                Hairline(inset: photoSize + Metric.snug)
             }
         }
         .contentShape(Rectangle())
@@ -77,6 +103,10 @@ struct MerchantRow: View {
 /// Each part is dropped rather than faked when it is unknown, and the
 /// separators go with it — a row reading "· 0.3 mi · ·" is what happens when
 /// a fixed format meets a place Google knows little about.
+///
+/// **Every colour here is an explicit `Color`.** `.secondary` is a
+/// hierarchical style, and this line is drawn on the map's sheet, where a
+/// hierarchical style rendered as nothing at all. See `CardWiseBottomSheet`.
 struct PlaceFactsLine: View {
     let result: MapPlaceResult
     var showsOpenState = false
@@ -108,7 +138,7 @@ struct PlaceFactsLine: View {
             }
         }
         .font(.caption)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Color.secondary)
         .lineLimit(1)
     }
 }
@@ -136,14 +166,19 @@ struct MerchantPlaceCard: View {
 
     @Environment(\.openURL) private var openURL
 
+    /// Whether this place has a photograph at all — known synchronously, and
+    /// it changes the whole top of the card.
+    private var hasPhoto: Bool { result.place.photo != nil }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            photo
+            if hasPhoto { photo }
             identity
             if result.recommendation != nil {
-                Divider().padding(.vertical, Metric.regular)
+                Hairline().padding(.vertical, Metric.regular)
                 recommendation
             } else {
+                Hairline().padding(.vertical, Metric.regular)
                 noRecommendation
             }
             actions
@@ -153,44 +188,74 @@ struct MerchantPlaceCard: View {
 
     // MARK: Photo
 
+    /// **Drawn only when the place actually has one.**
+    ///
+    /// The first version reserved 150 points for the picture whatever
+    /// happened, and the screenshots showed what that costs: a card whose top
+    /// third was an empty blue rectangle with a small bed in the middle of it,
+    /// on a place that simply has no photograph — which is most of them. A
+    /// space held open for something that is never coming is the blank
+    /// placeholder every design guide tells you not to ship.
+    ///
+    /// So a place with no photograph gets its category mark beside its name
+    /// instead, and the card starts on the thing it is about.
     private var photo: some View {
         PlacePhotoView(place: result.place, use: .card, cornerRadius: Metric.tileRadius)
             .frame(height: 150)
             .frame(maxWidth: .infinity)
             .overlay(alignment: .topTrailing) {
-                if let onDismiss {
-                    Button(action: onDismiss) {
-                        Image(systemName: "xmark")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.primary)
-                            .frame(width: 30, height: 30)
-                            .background(.regularMaterial, in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .padding(Metric.tight)
-                    .accessibilityLabel("Close")
-                }
+                if onDismiss != nil { closeButton }
             }
             .padding(.bottom, Metric.regular)
+    }
+
+    private var closeButton: some View {
+        Button { onDismiss?() } label: {
+            Image(systemName: "xmark")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Color.primary)
+                .frame(width: 30, height: 30)
+                .background(.regularMaterial, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .padding(Metric.tight)
+        .accessibilityLabel("Close")
     }
 
     // MARK: Who and where
 
     private var identity: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text(result.place.name)
-                    .font(.system(.title2, design: .rounded).weight(.bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                if isWatched { WatchingMark() }
+        HStack(alignment: .top, spacing: Metric.snug) {
+            if !hasPhoto {
+                CategoryIcon(
+                    symbolName: result.place.mapCategory.symbolName,
+                    tint: result.place.mapCategory.listTint,
+                    size: 46
+                )
             }
-            PlaceFactsLine(result: result, showsOpenState: true)
-                .font(.subheadline)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(result.place.name)
+                        .font(.system(.title2, design: .rounded).weight(.bold))
+                        .foregroundStyle(Color.primary)
+                        .lineLimit(2)
+                    if isWatched { WatchingMark() }
+                }
+                PlaceFactsLine(result: result, showsOpenState: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture { onOpen?() }
+
+            // With no photograph there is nowhere for the close button to sit
+            // over an image, so it joins the title row.
+            if !hasPhoto, onDismiss != nil {
+                closeButton
+                    .padding(.top, -Metric.tight)
+                    .padding(.trailing, -Metric.tight)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .onTapGesture { onOpen?() }
     }
 
     // MARK: The answer
@@ -201,12 +266,12 @@ struct MerchantPlaceCard: View {
                 .font(.caption2.weight(.semibold))
                 .textCase(.uppercase)
                 .kerning(0.6)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondary)
 
             if let best = result.recommendation?.best {
                 Text("Use \(best.card.displayName)")
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.primary)
                     .lineLimit(2)
 
                 Text(best.reason)
@@ -215,10 +280,13 @@ struct MerchantPlaceCard: View {
                     .lineLimit(2)
             }
 
+            // The one line here that says something the others do not — see
+            // `Recommendation.runnerUpLine`. Nil for a one-card wallet and for
+            // a tie, and nothing is drawn in its place.
             if let why = result.recommendation?.runnerUpLine {
                 Text(why)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -228,16 +296,13 @@ struct MerchantPlaceCard: View {
     /// Said plainly rather than hidden. A place where no card of yours does
     /// anything special is a real answer, and the most common one.
     private var noRecommendation: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Divider().padding(.vertical, Metric.regular)
-            Text(result.place.spendingCategory == nil
-                 ? "CardWise cannot tell what this place codes as, so it will not guess a card."
-                 : "No card in your wallet earns extra here. Any of them pays its usual rate.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        Text(result.place.spendingCategory == nil
+             ? "CardWise cannot tell what this place codes as, so it will not guess a card."
+             : "No card in your wallet earns extra here. Any of them pays its usual rate.")
+            .font(.footnote)
+            .foregroundStyle(Color.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: Actions

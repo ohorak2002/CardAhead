@@ -721,6 +721,25 @@ keeping:
   miniature caught the map's search field and filter chips**, which used
   `.background.secondary` — visible at night, invisible on the light grouped
   background. If a surface disappears in exactly one appearance, this is why.
+- **A hierarchical style on a material paints nothing.** The map's bottom
+  sheet was `.background(.regularMaterial)`, and every `.foregroundStyle(
+  .secondary)` inside it — the facts line under each place name, the
+  "CardWise recommendation" label, the runner-up sentence — plus every
+  `Divider()` rendered as **completely blank**. Not faint: measured at exactly
+  the background's own luminance across all 77 points where they should have
+  been, in light *and* dark. A material applies vibrancy to hierarchical
+  styles, and over a broad uniform blur `.secondary` resolves to the material
+  itself. `.primary` and explicit `Color`s were unaffected, which is what made
+  it read as a spacing bug rather than a painting one — the layout was
+  correct, the space was reserved, nothing was drawn in it.
+  **Two rules came out of it.** A large content surface uses
+  `secondarySystemGroupedBackground`, not a material — materials are for small
+  floating controls (the search field, the chips), where they work and look
+  right. And **anything drawn over a material or a photograph uses an explicit
+  `Color`**: `Color.secondary`, not `.secondary`; `Hairline`, not `Divider`.
+  This is the third variant of the same family of bug in this file, after
+  `.background` in dark mode and `.background.secondary` in light. **If
+  something is laid out but invisible, look at what it is drawn *on* first.**
 - **`Color` and `HierarchicalShapeStyle` don't unify in a ternary** passed to
   `.foregroundStyle(...)` — write `condition ? Color.x : Color.y` explicitly.
   **This one was hit a second time, by Claude, in the same file, after this

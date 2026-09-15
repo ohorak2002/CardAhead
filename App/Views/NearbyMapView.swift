@@ -249,7 +249,7 @@ struct NearbyMapView: View {
         return VStack(spacing: Metric.snug) {
             HStack(spacing: Metric.tight) {
                 CardWiseSearchField(
-                    placeholder: "Search places, stores, or categories",
+                    placeholder: "Search places or categories",
                     text: $places.searchText,
                     onSubmit: { places.runSearch() },
                     ground: .floating
@@ -435,7 +435,8 @@ struct NearbyMapView: View {
                     onOpen: { openPlace = selected.place },
                     onDismiss: { selectedID = nil }
                 )
-                .padding(.bottom, Metric.loose)
+                // Clears the floating tab bar the sheet now runs behind.
+                .padding(.bottom, 90)
             }
             .scrollBounceBehavior(.basedOnSize)
         } else {
@@ -526,7 +527,7 @@ struct NearbyMapView: View {
                 HStack(spacing: Metric.snug) {
                     RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
                         .fill(Color.cardWiseHairline.opacity(0.6))
-                        .frame(width: 76, height: 76)
+                        .frame(width: 68, height: 68)
                     VStack(alignment: .leading, spacing: 8) {
                         Capsule().fill(Color.cardWiseHairline.opacity(0.6)).frame(width: 150, height: 12)
                         Capsule().fill(Color.cardWiseHairline.opacity(0.45)).frame(width: 100, height: 10)
@@ -536,7 +537,7 @@ struct NearbyMapView: View {
                 }
                 .padding(.vertical, Metric.snug)
                 if index < 2 {
-                    Divider().padding(.leading, 76 + Metric.snug)
+                    Hairline(inset: 68 + Metric.snug)
                 }
             }
         }

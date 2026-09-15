@@ -322,11 +322,8 @@ struct HomeView: View {
                 isAddingCard = true
             } label: {
                 Text("Add a card")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, Metric.snug)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.cardWisePrimary)
             .padding(.top, Metric.tight)
         }
         .padding(Metric.roomy)

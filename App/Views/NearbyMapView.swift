@@ -176,7 +176,7 @@ struct NearbyMapView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Metric.tight) {
-                    FilterChip(
+                    CardWiseChip(
                         title: "All",
                         isOn: !places.isShowingWatchedOnly && places.filter.isShowingEverything,
                         tint: .cardWiseBlue
@@ -190,7 +190,7 @@ struct NearbyMapView: View {
                     // answer somebody comes to this chip for when no reminder
                     // has arrived. Hiding the chip would hide the diagnosis
                     // along with the diagnostic.
-                    FilterChip(
+                    CardWiseChip(
                         title: places.watchedCount > 0 ? "Watching \(places.watchedCount)" : "Watching",
                         symbolName: "bell.fill",
                         isOn: places.isShowingWatchedOnly,
@@ -203,7 +203,7 @@ struct NearbyMapView: View {
                         }
                     }
                     ForEach(MapCategory.quickFilters, id: \.self) { category in
-                        FilterChip(
+                        CardWiseChip(
                             title: category.shortName,
                             isOn: !places.isShowingWatchedOnly
                                 && !places.filter.isShowingEverything
@@ -608,7 +608,7 @@ struct NearbyMapView: View {
                 detail: "Geofences are registered once there is a card with a bonus category in your wallet, Always location is granted, and CardWise has had a location fix. More › Settings › Reminder activity says which of those is missing."
             ) {
                 Button("Show everywhere") { places.showEverywhere() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.cardWiseSecondary)
             }
         } else if places.activeQuery != nil {
             message(
@@ -643,7 +643,7 @@ struct NearbyMapView: View {
             Button("Widen to \(wider.displayName)") {
                 places.filter.distance = wider
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.cardWiseSecondary)
         }
     }
 
@@ -767,39 +767,6 @@ private struct MapPin: View {
     }
 }
 
-/// A filter chip: on is filled, off is a plain capsule.
-private struct FilterChip: View {
-    let title: String
-    /// Only the Watching chip has one. A row of chips that all carry a symbol
-    /// reads as a toolbar; one that carries a symbol among plain ones reads as
-    /// the odd one out, which is exactly what it is.
-    var symbolName: String?
-    let isOn: Bool
-    var tint: Color = .cardWiseBlue
-    var action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 5) {
-                if let symbolName {
-                    Image(systemName: symbolName)
-                        .font(.caption2.weight(.semibold))
-                }
-                Text(title)
-            }
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(isOn ? Color.white : Color.primary)
-            .padding(.horizontal, Metric.snug)
-            .padding(.vertical, 7)
-            .background(
-                isOn ? AnyShapeStyle(tint) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
-                in: Capsule()
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isOn ? [.isSelected] : [])
-    }
-}
 
 /// The card that slides up over the map when a pin is tapped.
 private struct SelectedPlaceCard: View {

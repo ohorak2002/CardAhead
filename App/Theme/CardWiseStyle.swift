@@ -11,20 +11,52 @@ import CardKit
 /// exactly two surfaces. Scattering those values across a dozen views is how
 /// they drift.
 enum Metric {
-    /// Everything is a multiple of 4, most things a multiple of 8.
+    /// The whole scale: 8, 12, 16, 20, 24, 32, 40. Seven steps, no others.
+    /// A padding value that is not one of these is a value somebody picked by
+    /// eye, and by the tenth screen nothing lines up with anything.
     static let tight: CGFloat = 8
     static let snug: CGFloat = 12
     static let regular: CGFloat = 16
+    /// Also the screen's own left and right margin — one number, used
+    /// everywhere, so nothing sits a few points off from the thing above it.
+    static let wide: CGFloat = 20
     static let roomy: CGFloat = 24
     static let loose: CGFloat = 32
+    /// The gap that separates *subjects* rather than elements. Between the
+    /// last row of one section and the heading of the next, where the reader
+    /// should feel a change of topic.
+    static let section: CGFloat = 40
 
-    /// The screen's own left and right margin. One number, used everywhere,
-    /// so nothing sits a few points off from the thing above it.
+    /// The screen margin. Same number as `wide`, named for its job, because
+    /// "the page margin" and "a wide gap" change for different reasons.
     static let margin: CGFloat = 20
 
+    // MARK: - Corners
+    //
+    // Three radii, in a deliberate order. A card is the most rounded thing on
+    // screen because it is standing in for a physical object; a row is barely
+    // rounded because it is a piece of paper. Everything at the same radius
+    // is what makes an interface read as a set of coloured boxes.
+
+    /// A card face, and panels that hold one.
     static let cardRadius: CGFloat = 20
+    /// A tile or a grouped row — the common case.
     static let tileRadius: CGFloat = 16
+    /// A small control: a badge, a chip's corner when it is not a capsule.
     static let pillRadius: CGFloat = 10
+
+    // MARK: - Elevation
+    //
+    // **Two levels, and most things are at neither.** A shadow means "this
+    // is above the page"; if everything has one, nothing is. Both are navy
+    // rather than grey — a grey shadow on a coloured ground is the single
+    // most common tell of an interface nobody looked at twice.
+
+    /// A panel resting on the page. Barely there on purpose.
+    static let restingShadow: (radius: CGFloat, y: CGFloat, opacity: Double) = (12, 4, 0.07)
+    /// Something genuinely lifted: a card under a finger, a sheet over
+    /// content. Used in a handful of places, never as decoration.
+    static let liftedShadow: (radius: CGFloat, y: CGFloat, opacity: Double) = (22, 10, 0.16)
 }
 
 extension Color {
@@ -46,6 +78,33 @@ extension Color {
     /// exists because of. Light Blue is 5.51:1 at the same spot and reads as
     /// the same idea — a name picked out from the words around it.
     static let cardWiseLightBlue = Color(red: 0.902, green: 0.949, blue: 1.0)
+
+    // MARK: - The neutrals, at last, and only where the system has no opinion
+    //
+    // **These were deliberately absent and the reason still stands**, so read
+    // it before reaching for one. `.primary`, `.secondary` and the system
+    // background roles already mean "body text", "supporting text" and "the
+    // page", and they adapt to Dark Mode on their own. Hardcoding the palette
+    // sheet's Charcoal as body text would look right once, in daylight, on the
+    // day it was written, and read as low-contrast grey the first time
+    // somebody opened the app at night.
+    //
+    // So the rule is unchanged: **text and backgrounds keep using the system
+    // roles.** What these are for is the handful of places with no system
+    // equivalent — a border that must be visible against a white card, the
+    // ground behind a card face, a divider inside a panel. Each is an asset
+    // catalog entry with a light and a dark value, like the status colours,
+    // never a single hex baked into Swift.
+
+    /// Light Gray by day, a lifted charcoal by night. Hairlines, dividers
+    /// inside a panel, and the border on an unselected control — the places
+    /// `.separator` is too faint because the surface is already white.
+    static let cardWiseHairline = Color("CardWiseHairline", bundle: .main)
+
+    /// Off White by day, true charcoal by night. The ground a card face sits
+    /// on when it needs to be distinguishable from the page *and* from a
+    /// panel — the card preview on Add Card, mainly.
+    static let cardWiseCanvas = Color("CardWiseCanvas", bundle: .main)
 }
 
 extension ShapeStyle where Self == LinearGradient {

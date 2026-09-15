@@ -37,10 +37,9 @@ struct EmptyStateView: View {
 
             Button(action: onAddCard) {
                 Text("Add your first card")
-                    .frame(maxWidth: 240)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(.cardWisePrimary)
+            .frame(maxWidth: 320)
             .padding(.top, 6)
 
             Spacer(minLength: 0)

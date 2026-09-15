@@ -232,6 +232,13 @@ struct WalletStackView: View {
                 }
                 .onAppear {
                     openCardFromReminder(reminders.cardToOpen, using: proxy)
+                    // The expanded card is a tap away, and `simctl` cannot
+                    // tap — so without this the card detail would be the one
+                    // screen in the app nobody had ever seen. Same arrangement
+                    // as the map's two place surfaces. Nil in any real build.
+                    if DemoSeed.requestedTab == "carddetail", expandedCardID == nil {
+                        expandedCardID = store.cards.first?.id
+                    }
                 }
             }
             .onAppear { cardWidth = outer.size.width - Metric.margin * 2 }

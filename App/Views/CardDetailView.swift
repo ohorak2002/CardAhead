@@ -1,9 +1,35 @@
 import SwiftUI
 import CardKit
 
-/// What appears underneath a card once it is expanded: this quarter's rotating
-/// status, everything the card is good for in plain English, how much of each
-/// cap is left, and the coding quirks worth knowing.
+/// What appears underneath a card once it is expanded.
+///
+/// The question this screen exists to answer is **"why do I carry this, and
+/// when do I reach for it?"** — not "list everything the model knows". Those
+/// are different screens, and the second one is a spreadsheet.
+///
+/// So it opens on the single most useful sentence anybody could read about a
+/// card they already own — what it wins at *in this wallet* — and everything
+/// below it is in descending order of how often somebody needs it: this
+/// quarter's rotating bonus (the only thing here that earns money by being
+/// tapped), what it pays for and where, the coding quirks worth knowing, then
+/// the fee, then the three things you might do to the card itself.
+///
+/// **Three things it deliberately does not do.**
+///
+/// It does not repeat the rates. The card face and `RewardSummary` are
+/// directly above this, always, and the summary already prints the top three
+/// earning rules — so the old three-tile row here ("4x Dining", "4x
+/// Groceries", "$325 Annual fee") was two-thirds a restatement of the line
+/// four points above it. Only the fee was new, so only the fee survived, and
+/// it is a line of text rather than a tile.
+///
+/// It does not use tiles at all. Three rounded rectangles with numbers in them
+/// is the visual language of an analytics dashboard, and this is a wallet.
+/// Hairlines and whitespace separate the sections instead.
+///
+/// And it does not make "Remove" look like a feature. The three actions were
+/// three identical bordered buttons in one row, which gave deleting the card
+/// the same weight as reading its benefits.
 ///
 /// The benefit list is `CardBenefit`, the same one `CardBenefitsView` renders,
 /// so the card describes itself the same way wherever it is read.
@@ -17,10 +43,11 @@ struct CardDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metric.roomy) {
-            statsRow
+            bestForLine
             rotatingSection
             benefitsSection
             notesSection
+            factsSection
             actionsSection
         }
         .padding(.horizontal, 4)
@@ -31,16 +58,33 @@ struct CardDetailView: View {
         .sensoryFeedback(.success, trigger: activated)
     }
 
-    // MARK: - The three facts
+    // MARK: - When to reach for it
 
-    /// What the card is for and what it costs, before any of the detail. The
-    /// two questions anybody actually opens a card to answer — see
-    /// `Card.headlineStats`.
-    private var statsRow: some View {
-        HStack(spacing: Metric.snug) {
-            ForEach(card.headlineStats()) { stat in
-                StatTile(value: stat.value, label: stat.label, tint: art.accent)
+    /// "Best for Dining" — and it has to be true of *this* wallet.
+    ///
+    /// `WalletInsights.bestCategory` ranks the whole wallet and only returns a
+    /// category this card actually wins, so a 3x dining card sitting beside a
+    /// 4x dining card gets no dining label. A small lie told on every scroll
+    /// is still a lie, and being right about which card to reach for is the
+    /// entire product.
+    ///
+    /// Nil is ordinary — a card that wins nothing in this wallet gets no line
+    /// rather than a consolation one.
+    @ViewBuilder
+    private var bestForLine: some View {
+        if let category = WalletInsights.bestCategory(for: card, in: store.cards) {
+            HStack(spacing: Metric.snug) {
+                CategoryIcon(symbolName: category.symbolName, tint: category.tint, size: 34)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Best for \(category.displayName)")
+                        .font(.headline)
+                    Text("Nothing else in your wallet pays more here.")
+                        .font(.caption)
+                        .foregroundStyle(Color.secondary)
+                }
+                Spacer(minLength: 0)
             }
+            .accessibilityElement(children: .combine)
         }
     }
 
@@ -62,7 +106,7 @@ struct CardDetailView: View {
                 case .none:
                     Text("Nothing extra on this card this quarter.")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.secondary)
                 }
             }
             .sheet(isPresented: $isEnteringQuarter) {
@@ -159,33 +203,35 @@ struct CardDetailView: View {
     }
 
     private var benefitsSection: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: Metric.roomy) {
             ForEach(benefitGroups, id: \.self) { group in
                 VStack(alignment: .leading, spacing: 10) {
                     sectionTitle(group.displayName)
                     ForEach(benefits.filter { $0.group == group }) { benefit in
                         HStack(alignment: .top, spacing: Metric.snug) {
-                        // The shelf's own colour and symbol, so a benefit is
-                        // recognisable here as the same thing it is on the
-                        // Benefits tab before its label is read.
-                        CategoryIcon(
-                            symbolName: group.symbolName,
-                            tint: benefit.isActive ? group.tint : Color.secondary,
-                            size: 32
-                        )
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(benefit.title)
-                                .font(.subheadline)
-                            if let detail = benefit.detail {
-                                Text(detail)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                            // The shelf's own colour and symbol, so a benefit
+                            // is recognisable here as the same thing it is on
+                            // the Benefits tab before its label is read.
+                            CategoryIcon(
+                                symbolName: group.symbolName,
+                                tint: benefit.isActive ? group.tint : Color.secondary,
+                                size: 32
+                            )
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(benefit.title)
+                                    .font(.subheadline)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                if let detail = benefit.detail {
+                                    Text(detail)
+                                        .font(.caption)
+                                        .foregroundStyle(Color.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                if let cap = benefit.cap, benefit.isActive || cap.isExhausted {
+                                    capBar(cap, label: benefit.title)
+                                }
                             }
-                            if let cap = benefit.cap, benefit.isActive || cap.isExhausted {
-                                capBar(cap, label: benefit.title)
-                            }
-                        }
-                        Spacer(minLength: 0)
+                            Spacer(minLength: 0)
                         }
                     }
                 }
@@ -204,11 +250,55 @@ struct CardDetailView: View {
                             .font(.caption.weight(.semibold))
                         Text(note.text)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
         }
+    }
+
+    // MARK: - What it costs
+
+    /// The fee and the floor rate, as two lines of text between two hairlines.
+    ///
+    /// **This is all that is left of the old three-tile row.** The other two
+    /// tiles said what `RewardSummary` says four points above this view, in
+    /// larger type, with an icon. The fee is the one fact on that row that
+    /// appears nowhere else — and a fee is not a statistic to be celebrated in
+    /// a rounded tile, it is a number you want to be able to find.
+    private var factsSection: some View {
+        VStack(spacing: 0) {
+            Hairline()
+            factRow("Annual fee", RecommendationEngine.dollars(card.annualFeeDollars))
+            Hairline()
+            factRow(
+                "Everything else",
+                "\(card.currency.formatted(rate: card.baseRate)) \(card.currency.unitNoun)"
+            )
+            if card.foreignTransactionFeePercent > 0 {
+                Hairline()
+                factRow(
+                    "Abroad",
+                    String(format: "%.0f%% foreign fee", card.foreignTransactionFeePercent)
+                )
+            }
+            Hairline()
+        }
+    }
+
+    private func factRow(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(Color.secondary)
+            Spacer(minLength: Metric.snug)
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
+        }
+        .padding(.vertical, 10)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Actions
@@ -223,62 +313,72 @@ struct CardDetailView: View {
     @State private var activated = Pulse()
     @State private var isReviewingBenefits = false
 
+    /// **Two quiet actions and one destructive one, on separate rows.**
+    ///
+    /// This was three `.bordered` buttons sharing a line — "Benefits",
+    /// "Prefer", "Remove" — at identical visual weight, which meant deleting
+    /// the card read as the third feature of the screen. Removing a card is
+    /// not a peer of reading its benefits; it goes underneath, in words rather
+    /// than in a control, and it stays undoable for six seconds either way.
     private var actionsSection: some View {
-        HStack(spacing: 12) {
-            Button {
-                isReviewingBenefits = true
-            } label: {
-                Label("Benefits", systemImage: "list.bullet")
-            }
-            .buttonStyle(.bordered)
-            .sheet(isPresented: $isReviewingBenefits) {
-                // The live card, not the copy this view was handed — reopening
-                // this after a save should show what was just saved. Changing
-                // the card, or correcting it by hand, both live inside there;
-                // neither is the thing a tap on a card should lead with.
-                NavigationStack {
-                    CardBenefitsView(mode: .reviewing(store.card(withID: card.id) ?? card))
+        VStack(spacing: Metric.snug) {
+            HStack(spacing: Metric.snug) {
+                Button {
+                    isReviewingBenefits = true
+                } label: {
+                    Label("Benefits", systemImage: "list.bullet")
                 }
-            }
+                .buttonStyle(CardWiseSecondaryButtonStyle())
+                .sheet(isPresented: $isReviewingBenefits) {
+                    // The live card, not the copy this view was handed —
+                    // reopening this after a save should show what was just
+                    // saved. Changing the card, or correcting it by hand, both
+                    // live inside there; neither is the thing a tap on a card
+                    // should lead with.
+                    NavigationStack {
+                        CardBenefitsView(mode: .reviewing(store.card(withID: card.id) ?? card))
+                    }
+                }
 
-            Button {
-                if card.isPinned {
-                    // Turning it off is a plain undo — no need to explain that again.
-                    pinned.fire()
-                    store.togglePin(card)
-                } else {
-                    isShowingPreferExplainer = true
+                Button {
+                    if card.isPinned {
+                        // Turning it off is a plain undo — no need to explain
+                        // that again.
+                        pinned.fire()
+                        store.togglePin(card)
+                    } else {
+                        isShowingPreferExplainer = true
+                    }
+                } label: {
+                    Label(
+                        card.isPinned ? "Preferred" : "Prefer",
+                        systemImage: card.isPinned ? "star.fill" : "star"
+                    )
                 }
-            } label: {
-                // Short, because the alert does the explaining now and three
-                // buttons have to share one row.
-                Label(
-                    card.isPinned ? "Preferred" : "Prefer",
-                    systemImage: card.isPinned ? "star.fill" : "star"
-                )
-            }
-            .buttonStyle(.bordered)
-            .alert("Prefer this card?", isPresented: $isShowingPreferExplainer) {
-                Button("Cancel", role: .cancel) {}
-                Button("Prefer This Card") {
-                    pinned.fire()
-                    store.togglePin(card)
+                .buttonStyle(CardWiseSecondaryButtonStyle())
+                .alert("Prefer this card?", isPresented: $isShowingPreferExplainer) {
+                    Button("Cancel", role: .cancel) {}
+                    Button("Prefer This Card") {
+                        pinned.fire()
+                        store.togglePin(card)
+                    }
+                } message: {
+                    Text("Used only when two cards would earn the exact same amount. If one card earns more, that card still wins.")
                 }
-            } message: {
-                Text("Used only when two cards would earn the exact same amount. If one card earns more, that card still wins.")
             }
-
-            Spacer(minLength: 8)
 
             Button(role: .destructive) {
                 removed.fire()
                 store.remove(card)
             } label: {
-                Label("Remove", systemImage: "trash")
+                Text("Remove this card")
+                    .font(.subheadline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Metric.snug)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.cardWiseError)
         }
-        .font(.subheadline)
     }
 
     // MARK: - Pieces
@@ -288,7 +388,7 @@ struct CardDetailView: View {
     private func sectionTitle(_ text: String) -> some View {
         Text(text)
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.secondary)
     }
 
     private func capBar(_ cap: EarnCap, label: String) -> some View {

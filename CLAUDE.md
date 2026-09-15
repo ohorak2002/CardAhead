@@ -240,6 +240,36 @@ not go back there.
   a material finish (matte/glossy/metal/frosted), a CSS/Shape-drawn EMV chip,
   and a contactless mark — all industry-standard components, not anyone's
   branding, so they're safe to draw. Do not draw issuer logos.
+- **Three things make the drawn face read as an object rather than a coloured
+  tile, and all three are easy to delete by accident.** A **bevel** — a
+  hairline bright along the top edge and dark along the bottom, because light
+  comes from above; without it a card is a rectangle printed on the page. **Two
+  shadows** — a tight contact one *plus* a wide ambient one; a single soft
+  shadow reads as a sticker. And a **surface pattern** (`CardPattern`,
+  `CardPatternLayer`), one per palette colour, drawn at single-digit opacity.
+  The moment a pattern is legible *as* a pattern it stops looking like a card
+  and starts looking like wallpaper.
+- **The patterns are CardWise's own and must stay abstract.** Hairlines, a fine
+  grid, turned arcs, a soft bloom, vertical ribs. **Never draw one from an
+  issuer's card** — a recoloured near-miss of a bank's pattern is worse than
+  copying the file outright, because it is the same infringement plus a claim
+  that it isn't. The pattern is derived from `artKey` rather than being its own
+  user-picked field, so it costs no new `Card` property, no wallet migration
+  and no extra decision — and it earns its place functionally, since two dark
+  cards in the stack are then told apart by texture as well as hue.
+- **`CardFinish` carries two numbers, not one, and `CardFinishTests` pins their
+  order.** `sheenOpacity` is how bright the highlight is; **`sheenSpread` is how
+  wide** — a gloss reflects the light source almost intact so its band is
+  narrow, a matte surface scatters it wide and faint. Vary only the brightness
+  and every card looks like the same plastic at a different exposure, which is
+  what the app looked like before. Same reasoning as `BrandTint`: these live in
+  CardKit as plain doubles precisely so a Linux test can catch someone
+  inverting them, instead of a macOS runner and a human squinting at a PNG.
+- **`CardThumbnail` is not a shrunken `CardFaceView` and must not become one.**
+  It deliberately omits the surface pattern *and* uses no absolute type: the
+  patterns are spaced for a card ~350pt wide, and at 62pt that spacing is four
+  lines across the whole thumbnail — stripes, not texture. It keeps the
+  material and the bevel, which are the parts that survive the size.
 - **Copy is plain and second-person-adjacent**, never system jargon: "Switch
   it on" not "Activate", "You've used the whole $6,000 yearly bonus" not "cap
   exhausted". Keep new strings consistent with this register.

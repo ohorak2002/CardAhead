@@ -391,10 +391,19 @@ struct CardDetailView: View {
             .foregroundStyle(Color.secondary)
     }
 
+    /// **The bar only appears once there is something to show.**
+    ///
+    /// A cap nobody has spent against draws a full-width empty track under
+    /// every benefit — a progress bar at zero percent, which is a graphic
+    /// saying nothing while occupying the width of the screen. The sentence
+    /// under it already carries the number, and the moment a pound is spent
+    /// the bar earns its place and appears.
     private func capBar(_ cap: EarnCap, label: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            ProgressView(value: cap.fractionUsed)
-                .tint(cap.isExhausted ? Color.cardWiseWarning : art.accent)
+            if cap.fractionUsed > 0 {
+                ProgressView(value: cap.fractionUsed)
+                    .tint(cap.isExhausted ? Color.cardWiseWarning : art.accent)
+            }
             Text(capText(cap))
                 .font(.caption2)
                 .foregroundStyle(cap.isExhausted ? Color.cardWiseWarning : Color.secondary)

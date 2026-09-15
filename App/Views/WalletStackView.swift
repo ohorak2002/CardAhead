@@ -276,10 +276,15 @@ struct WalletStackView: View {
                 .onTapGesture { toggle(card) }
                 .gesture(dragGesture(for: card, at: index))
 
-            RewardSummary(card: card)
-                .padding(.top, Metric.snug)
-
-            if isExpanded {
+            // **The summary is what a *closed* card says.** Open, it was the
+            // same three rules printed twice a hundred points apart — once
+            // here with icons, once under "Dining" and "Groceries" in the
+            // detail's own list. The detail supersedes it rather than
+            // repeating it.
+            if !isExpanded {
+                RewardSummary(card: card)
+                    .padding(.top, Metric.snug)
+            } else {
                 CardDetailView(card: card)
                     .transition(.opacity)
             }

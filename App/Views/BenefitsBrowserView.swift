@@ -277,7 +277,13 @@ private struct BenefitGroupTile: View {
                 }
             }
 
-            Spacer(minLength: Metric.snug)
+            // **A fixed gap, not a `Spacer`.** The grid gives every tile in
+            // a row the height of the tallest, and a `Spacer` in a stretched
+            // tile pushes its name and lead to the bottom — so "Dining" sat
+            // sixty points below "Groceries" in the same row, with nothing in
+            // between. The panel still fills the row; its contents stay put
+            // at the top where the eye expects them.
+            Color.clear.frame(height: Metric.snug)
 
             // **No `lineLimit`.** This was `lineLimit(1)` with a 0.8 scale
             // floor, which is a quiet instruction to throw the word away when

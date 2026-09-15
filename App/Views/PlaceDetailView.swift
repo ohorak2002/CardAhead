@@ -331,10 +331,25 @@ struct PlaceDetailView: View {
                         }
                         Spacer(minLength: 0)
                     }
-                    Text(recommendation.detail)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    // **This was `recommendation.detail`, and it said the same
+                    // thing twice.** `detail` is `"\(best.reason) at
+                    // \(merchant)"` — so the screen read "2% on everything"
+                    // in blue and then "2% on everything at Piedmont House
+                    // Hotel" in grey twenty points underneath, on a screen
+                    // whose title is already the name of the place.
+                    //
+                    // What belongs in that slot is the *why*: the comparison
+                    // the ranking just made and discarded. See
+                    // `Recommendation.runnerUpLine`, which is the same
+                    // sentence the map's place card and Home's hero use, and
+                    // which is nil rather than filler when there is nothing
+                    // to compare against.
+                    if let why = recommendation.runnerUpLine {
+                        Text(why)
+                            .font(.footnote)
+                            .foregroundStyle(Color.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
 
                     if let nudge = recommendation.activationNudge {
                         Label(nudge, systemImage: "exclamationmark.circle.fill")

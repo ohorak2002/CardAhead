@@ -54,6 +54,17 @@ public struct RecommendationSnapshot: Identifiable, Codable, Hashable, Sendable 
     public var category: SpendingCategory
     public var confidence: MerchantConfidence
 
+    /// Whether the suggestion carried "switch this quarter's bonus on".
+    ///
+    /// Optional so a ledger written before this was recorded still decodes —
+    /// the same pattern as `Card.finish`, and for the same reason. Read it
+    /// through `hadActivationNudge`, never directly.
+    public var activationNudge: Bool?
+
+    /// A missing value in an old file means nobody knows, and nobody knowing
+    /// is not the same as it having been there. The safe reading is no.
+    public var hadActivationNudge: Bool { activationNudge ?? false }
+
     public init(
         id: UUID = UUID(),
         date: Date,
@@ -68,7 +79,8 @@ public struct RecommendationSnapshot: Identifiable, Codable, Hashable, Sendable 
         alternateCentsPerDollar: Double? = nil,
         wasChosenForWelcomeBonus: Bool = false,
         category: SpendingCategory,
-        confidence: MerchantConfidence
+        confidence: MerchantConfidence,
+        activationNudge: Bool? = nil
     ) {
         self.id = id
         self.date = date
@@ -84,6 +96,7 @@ public struct RecommendationSnapshot: Identifiable, Codable, Hashable, Sendable 
         self.wasChosenForWelcomeBonus = wasChosenForWelcomeBonus
         self.category = category
         self.confidence = confidence
+        self.activationNudge = activationNudge
     }
 
     /// Freezes a recommendation the engine has just produced.
@@ -114,7 +127,8 @@ public struct RecommendationSnapshot: Identifiable, Codable, Hashable, Sendable 
             wasChosenForWelcomeBonus: best.welcomeBonusBoostCentsPerDollar > 0
                 && (alternate?.effectiveCentsPerDollar ?? 0) > best.effectiveCentsPerDollar,
             category: context.category,
-            confidence: context.confidence
+            confidence: context.confidence,
+            activationNudge: recommendation.activationNudge != nil
         )
     }
 

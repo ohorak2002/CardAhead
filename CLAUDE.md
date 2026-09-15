@@ -305,6 +305,30 @@ not go back there.
   `ArrivalNotifier` returns whether it actually scheduled something, so the
   throttle is only ever charged for a reminder that stood a chance of
   arriving.
+- **A reminder is an emoji and a place, then a card and a rate, and nothing
+  else.** The title is `<emoji> <shop>` or `<emoji> <kind of place> nearby`;
+  the body is "Use <card> for <rate> <where it applies>." It used to be
+  "Transit nearby. Use Capital One S…" over three lines of body, and the
+  ellipsis was iOS cutting off **the card**, which is the one thing the
+  reminder exists to say. A notification title holds roughly forty characters;
+  spend them on the place, because the place is what lets somebody check the
+  reminder against the building in front of them, and put the card in the body
+  where there is room for it. Two tests pin the length and the split, and
+  `SpendingCategory.placePhrase` exists because nobody is standing outside a
+  "Dining" — it is a third axis alongside `displayName` (what a card pays on)
+  and `MapCategory` (what kind of shop it is).
+- **The coloured square on a reminder is a real PNG, drawn at scheduling
+  time** (`App/Notifications/ReminderBadge.swift`). There is no API for "put a
+  chip on my notification"; `UNNotificationAttachment` renders an image in
+  exactly that trailing slot, which is the same mechanism behind Snapchat's
+  red square. Two things about it are load-bearing: it uses **`pinTint`, not
+  `tint`**, because a baked image cannot follow the interface style and
+  `pinTint` is the value chosen to hold a white glyph in both modes; and **iOS
+  moves the file it is handed**, so each call writes into a freshly-made
+  temporary directory rather than reusing one cached image per category — a
+  cached file would work exactly once. It returns nil on any failure and the
+  reminder goes out without it: a picture that failed to draw is not a reason
+  to leave somebody standing at a till.
 - **`RegionMonitor.walletDidChange()` re-renders every still-dwelling
   arrival's notification, not just the region plan.** `ReminderCenter.schedule`
   writes content once, at entry, because nothing runs at delivery to write it

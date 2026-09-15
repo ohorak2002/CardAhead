@@ -149,7 +149,9 @@ final class RecommendationEngineTests: XCTestCase {
 
         XCTAssertEqual(recommendation?.best.card.displayName, "Capital One Savor")
         XCTAssertNotNil(recommendation?.activationNudge)
-        XCTAssertTrue(recommendation?.activationNudge?.contains("Chase Freedom Flex") ?? false)
+        XCTAssertEqual(recommendation?.activationNudge?.cardName, "Chase Freedom Flex")
+        XCTAssertTrue(recommendation?.activationNudge?.sentence.contains("Chase Freedom Flex") ?? false)
+        XCTAssertTrue(recommendation?.activationNudge?.shortSentence.contains("Chase Freedom Flex") ?? false)
     }
 
     func testNoActivationNudgeWhenTheBonusWouldNotHaveWon() {
@@ -276,8 +278,34 @@ final class RecommendationEngineTests: XCTestCase {
             from: [CardCatalog.amexGold],
             in: context(.dining, merchant: "ABC Restaurant")
         )
-        XCTAssertEqual(recommendation?.headline, "Use Amex Gold here")
-        XCTAssertEqual(recommendation?.detail, "4x dining at ABC Restaurant")
+        XCTAssertEqual(recommendation?.headline, "🍽️ ABC Restaurant")
+        XCTAssertEqual(recommendation?.detail, "Use Amex Gold for 4x at restaurants.")
+    }
+
+    /// The two lines must not both spend themselves on the same fact. The
+    /// title says where; the body says which card. Neither repeats the other.
+    func testTheTitleAndBodySayDifferentThings() throws {
+        let recommendation = try XCTUnwrap(engine.recommend(
+            from: [CardCatalog.amexGold],
+            in: context(.dining, merchant: "ABC Restaurant")
+        ))
+        XCTAssertFalse(recommendation.headline.contains("Amex Gold"), recommendation.headline)
+        XCTAssertFalse(recommendation.detail.contains("ABC Restaurant"), recommendation.detail)
+    }
+
+    /// A title iOS truncates has thrown away the end of itself, and the end
+    /// is where the meaning was. Roughly forty characters is what a lock
+    /// screen shows before the ellipsis.
+    func testEveryTitleFitsOnALockScreen() {
+        for category in SpendingCategory.allCases {
+            let recommendation = engine.recommend(
+                from: [CardCatalog.citiDoubleCash],
+                in: context(category, confidence: .categoryOnly)
+            )
+            let headline = recommendation?.headline ?? ""
+            XCTAssertLessThanOrEqual(headline.count, 40, headline)
+            XCTAssertTrue(headline.hasPrefix(category.emoji), headline)
+        }
     }
 
     /// Indoor GPS cannot resolve one unit in a mall, so never name the wrong business.
@@ -286,9 +314,9 @@ final class RecommendationEngineTests: XCTestCase {
             from: [CardCatalog.amexGold],
             in: context(.dining, merchant: "ABC Restaurant", confidence: .categoryOnly)
         )
-        XCTAssertEqual(recommendation?.headline, "Dining nearby. Use Amex Gold.")
-        XCTAssertEqual(recommendation?.detail, "4x dining")
-        XCTAssertFalse(recommendation?.detail.contains("ABC Restaurant") ?? true)
+        XCTAssertEqual(recommendation?.headline, "🍽️ Restaurant nearby")
+        XCTAssertEqual(recommendation?.detail, "Use Amex Gold for 4x at restaurants.")
+        XCTAssertFalse(recommendation?.headline.contains("ABC Restaurant") ?? true)
     }
 
     func testCashBackReadsAsPercentAndPointsAsMultiplier() {

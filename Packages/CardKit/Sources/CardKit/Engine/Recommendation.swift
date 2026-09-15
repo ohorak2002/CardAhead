@@ -1,5 +1,39 @@
 import Foundation
 
+/// A rotating bonus sitting switched off that would have won here.
+///
+/// **It is two facts and not a sentence, because it is read in two places
+/// with very different amounts of room.** A card detail screen can afford the
+/// whole explanation; a lock screen gets about forty characters before iOS
+/// truncates, and the half it throws away is always the end — which is where
+/// the rate was. Storing the sentence meant the short place had to cut up the
+/// long place's prose, so the pieces live here and each surface writes its
+/// own line.
+public struct ActivationNudge: Sendable, Hashable {
+
+    /// The card whose bonus is switched off.
+    public var cardName: String
+    /// What it would pay here, already formatted in the card's own currency —
+    /// "5%" or "5x". Never compared against the winner's rate: a percent and
+    /// a multiplier are not the same unit.
+    public var rateText: String
+
+    public init(cardName: String, rateText: String) {
+        self.cardName = cardName
+        self.rateText = rateText
+    }
+
+    /// For a screen with room to explain itself.
+    public var sentence: String {
+        "Activate the quarterly bonus on \(cardName). It would pay \(rateText) here."
+    }
+
+    /// For a lock screen, where it is the second line at most.
+    public var shortSentence: String {
+        "Activate \(cardName) for \(rateText)."
+    }
+}
+
 /// The finished answer. The notification shows `headline` and `detail` and
 /// names exactly one card; everything else appears only after a tap.
 public struct Recommendation: Sendable, Hashable {
@@ -8,7 +42,7 @@ public struct Recommendation: Sendable, Hashable {
     public var headline: String
     public var detail: String
     /// Set when a rotating bonus the user has not activated would have won.
-    public var activationNudge: String?
+    public var activationNudge: ActivationNudge?
     public var travelPerkSummary: String?
 
     public var caveats: [String] { best.caveats }

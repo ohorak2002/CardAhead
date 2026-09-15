@@ -116,10 +116,14 @@ extension RecommendationEngine {
 
     /// One sentence for what to do, and at most one more for what would
     /// otherwise be lost. A lock screen is not the place for a list.
+    ///
+    /// The nudge is the *short* form here. On a card screen it explains
+    /// itself in full; on a lock screen the full version ran to a third line
+    /// and pushed the instruction it was qualifying out of sight.
     private func body(for recommendation: Recommendation) -> String {
         var sentences = [recommendation.detail]
         if let nudge = recommendation.activationNudge {
-            sentences.append(nudge)
+            sentences.append(nudge.shortSentence)
         } else if let caveat = recommendation.best.caveats.first {
             sentences.append(caveat)
         }

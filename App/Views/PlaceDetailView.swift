@@ -352,7 +352,7 @@ struct PlaceDetailView: View {
                     }
 
                     if let nudge = recommendation.activationNudge {
-                        Label(nudge, systemImage: "exclamationmark.circle.fill")
+                        Label(nudge.sentence, systemImage: "exclamationmark.circle.fill")
                             .font(.footnote)
                             .foregroundStyle(Color.cardWiseWarning)
                             .fixedSize(horizontal: false, vertical: true)

@@ -90,7 +90,7 @@ struct WhyThisCardView: View {
             }
 
             if let nudge = recommendation.activationNudge {
-                Label(nudge, systemImage: "exclamationmark.triangle.fill")
+                Label(nudge.sentence, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(Color.cardWiseWarning)
             }

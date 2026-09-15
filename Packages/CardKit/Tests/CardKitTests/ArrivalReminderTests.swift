@@ -38,8 +38,10 @@ final class ArrivalReminderTests: XCTestCase {
             asOf: Fixture.inQ3
         ))
 
-        XCTAssertTrue(reminder.title.contains("Amex Gold"), reminder.title)
-        XCTAssertTrue(reminder.body.contains("Corner Bistro"), reminder.body)
+        // The shop is the title and the card is the body. Both fit; neither
+        // is repeated. See `headline(for:in:)` for why that way round.
+        XCTAssertTrue(reminder.title.contains("Corner Bistro"), reminder.title)
+        XCTAssertTrue(reminder.body.contains("Amex Gold"), reminder.body)
         XCTAssertEqual(reminder.cardID, wallet[1].id)
         XCTAssertEqual(reminder.merchantName, "Corner Bistro")
         XCTAssertEqual(reminder.category, .dining)
@@ -66,8 +68,46 @@ final class ArrivalReminderTests: XCTestCase {
             asOf: Fixture.inQ3
         ))
         XCTAssertNil(reminder.merchantName)
+        XCTAssertFalse(reminder.title.contains("Corner Bistro"), reminder.title)
         XCTAssertFalse(reminder.body.contains("Corner Bistro"), reminder.body)
-        XCTAssertTrue(reminder.title.contains("Dining"), reminder.title)
+        // The kind of place, not the spending bucket: nobody is standing
+        // outside a "Dining".
+        XCTAssertTrue(reminder.title.contains("Restaurant nearby"), reminder.title)
+    }
+
+    // MARK: - Short enough to read at a glance
+
+    /// The failure this replaced: "Transit nearby. Use Capital One S…" — the
+    /// title spent its whole budget on the place *and* the card, so iOS cut
+    /// off the card, which is the one thing the reminder exists to say.
+    func testTheTitleIsShortEnoughNotToBeTruncated() throws {
+        let reminder = try XCTUnwrap(engine.reminder(
+            for: arrival(at: bistro, confidence: .categoryOnly),
+            cards: [CardCatalog.amexGold],
+            asOf: Fixture.inQ3
+        ))
+        XCTAssertLessThanOrEqual(reminder.title.count, 40, reminder.title)
+    }
+
+    /// A category's emoji leads the title, so the kind of place registers
+    /// before a word of it is read.
+    func testTheTitleLeadsWithTheCategoryEmoji() throws {
+        let reminder = try XCTUnwrap(engine.reminder(
+            for: arrival(at: market),
+            cards: [CardCatalog.amexBlueCashPreferred, CardCatalog.citiDoubleCash],
+            asOf: Fixture.inQ3
+        ))
+        XCTAssertTrue(reminder.title.hasPrefix(SpendingCategory.groceries.emoji), reminder.title)
+    }
+
+    /// One instruction, in the shape somebody would say it out loud.
+    func testTheBodyIsOneInstruction() throws {
+        let reminder = try XCTUnwrap(engine.reminder(
+            for: arrival(at: bistro),
+            cards: [CardCatalog.amexGold],
+            asOf: Fixture.inQ3
+        ))
+        XCTAssertEqual(reminder.body, "Use Amex Gold for 4x at restaurants.")
     }
 
     // MARK: - Saying nothing
@@ -140,7 +180,7 @@ final class ArrivalReminderTests: XCTestCase {
             asOf: Fixture.inQ3
         )
         let snapshot = try XCTUnwrap(decision.snapshot)
-        XCTAssertTrue(decision.reminder?.body.contains("Corner Bistro") ?? false)
+        XCTAssertTrue(decision.reminder?.title.contains("Corner Bistro") ?? false)
         XCTAssertFalse(snapshot.followUpDescription.contains("Corner Bistro"))
 
         let json = try XCTUnwrap(String(data: JSONEncoder().encode(snapshot), encoding: .utf8))
@@ -170,7 +210,7 @@ final class ArrivalReminderTests: XCTestCase {
     func testARealEdgeStillNotifies() throws {
         let wallet = [flatCard("Clear Winner", rate: 3), flatCard("Runner Up", rate: 2)]
         let reminder = try XCTUnwrap(engine.reminder(for: arrival(at: bistro), cards: wallet, asOf: Fixture.inQ3))
-        XCTAssertTrue(reminder.title.contains("Clear Winner"), reminder.title)
+        XCTAssertTrue(reminder.body.contains("Clear Winner"), reminder.body)
     }
 
     /// One card in the wallet has nothing to be trivial *next to*. The edge
@@ -181,7 +221,7 @@ final class ArrivalReminderTests: XCTestCase {
             cards: [flatCard("Only Card", rate: 2.1)],
             asOf: Fixture.inQ3
         ))
-        XCTAssertTrue(reminder.title.contains("Only Card"), reminder.title)
+        XCTAssertTrue(reminder.body.contains("Only Card"), reminder.body)
     }
 
     /// An activation nudge survives a trivial edge: it is advice to switch a
@@ -226,7 +266,7 @@ final class ArrivalReminderTests: XCTestCase {
             cards: [rotatingCard(activated: true), CardCatalog.citiDoubleCash],
             asOf: Fixture.inQ3
         ))
-        XCTAssertTrue(reminder.title.contains("Rotator"), reminder.title)
+        XCTAssertTrue(reminder.body.contains("Rotator"), reminder.body)
         XCTAssertFalse(reminder.body.contains("Activate"), reminder.body)
     }
 

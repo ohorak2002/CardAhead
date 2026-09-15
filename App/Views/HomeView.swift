@@ -46,14 +46,21 @@ struct HomeView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: Metric.roomy) {
+            // **The order is the argument.** This screen answers one question
+            // — *which card should I pull out?* — and it used to answer it
+            // last, after a permissions banner and a list of chores. The cards
+            // come first because they are the product, the recommendation
+            // second because it is the answer, and the housekeeping last
+            // because it is housekeeping.
+            VStack(spacing: Metric.section) {
                 header
                 if store.cards.isEmpty {
                     firstCardPrompt
                 } else {
-                    watchingBanner
-                    opportunitySection
                     walletPeek
+                    bestCardNow
+                    opportunitySection
+                    watchingBanner
                 }
             }
             .padding(.bottom, 90)
@@ -62,6 +69,105 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $isAddingCard) { AddCardView() }
+    }
+
+    // MARK: - The answer
+
+    /// The nearest place where a card in this wallet beats the everyday one.
+    ///
+    /// **The nearest, not the richest.** A 5x card four miles away is not a
+    /// recommendation, it is a suggestion to drive somewhere — and this screen
+    /// is read standing on a pavement deciding what to pull out of a pocket.
+    /// `results` is already ranked by whatever the map's sort says, which is
+    /// the user's business and not this screen's, so the distance comparison
+    /// happens here rather than being inherited.
+    private var nearestOpportunity: MapPlaceResult? {
+        nearby.results
+            .filter(\.isOpportunity)
+            .min { $0.distanceMeters < $1.distanceMeters }
+    }
+
+    /// The card, the reward, the reason — in that order, and nothing else.
+    ///
+    /// **This screen had no answer on it at all.** It carried a count of
+    /// opportunities, a permissions banner and a list of chores, and the one
+    /// thing a person opens this app to find out — *which card* — was never
+    /// on it. The recommendation existed; it lived three taps away inside the
+    /// map.
+    ///
+    /// Everything shown here is derived, never asserted: the place and the
+    /// card come from `MapPlaceResult`, the rate from `rewardLine`, and the
+    /// reason from the engine's own `headline`. When there is no fix, no
+    /// lookup or no bonus anywhere nearby, this says so plainly instead of
+    /// inventing something — the rule the rest of this screen already follows.
+    @ViewBuilder
+    private var bestCardNow: some View {
+        VStack(alignment: .leading, spacing: Metric.snug) {
+            SectionHeader("Use this card nearby")
+                .padding(.horizontal, Metric.margin)
+
+            if let result = nearestOpportunity,
+               let recommendation = result.recommendation,
+               let card = store.card(withID: recommendation.best.card.id) {
+                RecommendationHero(
+                    card: card,
+                    photo: store.photo(for: card),
+                    placeName: result.place.name,
+                    distance: result.distanceText,
+                    rewardLine: result.rewardLine,
+                    reason: recommendation.headline
+                ) {
+                    goTo(.map)
+                }
+                .padding(.horizontal, Metric.margin)
+            } else {
+                allSetPanel
+                    .padding(.horizontal, Metric.margin)
+            }
+        }
+    }
+
+    /// The calm empty state. Three different reasons there is nothing to say,
+    /// and each one says which it is — "nothing nearby pays more" and "the map
+    /// has not looked yet" are very different facts about the app, and a
+    /// single cheerful "You're all set" for both is the kind of empty state
+    /// that reads as an apology.
+    private var allSetPanel: some View {
+        HStack(spacing: Metric.snug) {
+            Image(systemName: allSetSymbol)
+                .font(.title3)
+                .foregroundStyle(Color.cardWiseBlue)
+                .frame(width: 38, height: 38)
+                .background(Color.cardWiseBlue.opacity(0.12), in: Circle())
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(allSetTitle)
+                    .font(.subheadline.weight(.semibold))
+                Text(allSetDetail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(Metric.regular)
+        .cardWisePanel()
+        .accessibilityElement(children: .combine)
+    }
+
+    private var allSetSymbol: String {
+        nearby.results.isEmpty ? "location.magnifyingglass" : "checkmark.circle"
+    }
+
+    private var allSetTitle: String {
+        nearby.results.isEmpty ? "Nothing looked up yet" : "You're all set"
+    }
+
+    private var allSetDetail: String {
+        nearby.results.isEmpty
+            ? "Open the map and CardWise will check what is around you."
+            : "Nothing within reach pays more than the card you would have reached for anyway."
     }
 
     // MARK: - The navy top

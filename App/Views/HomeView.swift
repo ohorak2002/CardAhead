@@ -122,9 +122,19 @@ struct HomeView: View {
                     card: card,
                     photo: store.photo(for: card),
                     placeName: result.place.name,
+                    placeSubtitle: result.place.subtitle,
+                    placePhoto: result.place.photo,
+                    placeSymbol: result.place.mapCategory.symbolName,
+                    placeTint: result.place.mapCategory.listTint,
                     distance: result.distanceText,
                     rewardLine: result.rewardLine,
-                    reason: recommendation.best.reason
+                    // **The runner-up, not the category, and the doc comment
+                    // above records why `headline` lost this slot first.**
+                    // "4x points with Amex Gold" over "4x dining" is the same
+                    // number twice; the fact actually missing is what the card
+                    // you would otherwise have reached for pays. Falls back to
+                    // the category line for a wallet with nothing to compare.
+                    reason: recommendation.runnerUpLine ?? recommendation.best.reason
                 ) {
                     goTo(.map)
                 }

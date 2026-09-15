@@ -26,6 +26,14 @@ struct RecommendationHero: View {
     /// Loaded by the caller, like every other card face in the app.
     var photo: Image?
     let placeName: String
+    /// What kind of place it is — "Steakhouse". Sits beside the distance on
+    /// the identity line, and is dropped rather than faked when unknown.
+    var placeSubtitle: String?
+    /// The photograph of the *place* (not the card). Small and contextual
+    /// here: enough to recognise where this is about, not a hero image.
+    var placePhoto: PlacePhoto?
+    var placeSymbol: String = "mappin.and.ellipse"
+    var placeTint: Color = .cardWiseBlue
     let distance: String
     /// "4x points with American Express Gold". Nil when the engine can name a
     /// card but not a rate, which is ordinary.
@@ -41,6 +49,7 @@ struct RecommendationHero: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            place
             face
             details
         }
@@ -75,16 +84,68 @@ struct RecommendationHero: View {
         .accessibilityAddTraits(.isButton)
     }
 
+    // MARK: - Where
+
+    /// **The place goes first now, and it did not before.**
+    ///
+    /// The old order was card, reward, place, reason — which reads as "here is
+    /// a card, and by the way it is about somewhere". A recommendation is
+    /// about a *place*: the first question is "where do you mean?", and only
+    /// once that is settled does "which card?" mean anything. Somebody who
+    /// does not recognise the place has no use for the answer at all.
+    ///
+    /// Small, though. This is context, not the subject — a 56-point square
+    /// and two lines, which is about as much room as recognising a shop needs.
+    private var place: some View {
+        HStack(spacing: Metric.snug) {
+            PlacePhotoView(
+                photo: placePhoto,
+                symbolName: placeSymbol,
+                tint: placeTint,
+                use: .row,
+                cornerRadius: 14
+            )
+            .frame(width: 56, height: 56)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(placeName)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(subtitleLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, Metric.regular)
+        .padding(.top, Metric.regular)
+        .padding(.bottom, Metric.snug)
+    }
+
+    private var subtitleLine: String {
+        guard let placeSubtitle, !placeSubtitle.isEmpty else { return distance }
+        return "\(placeSubtitle) · \(distance)"
+    }
+
     // MARK: - The card
 
     /// Sat on its own ground rather than on the panel, so the art has an edge
     /// even when the card itself is pale — a white card on a white panel is a
     /// floating rectangle of text.
+    ///
+    /// **Smaller than it was, and the screenshots are why.** At 260 points
+    /// wide with 24 points of air above and below, the face alone was 450
+    /// points of an 874-point screen — so the wallet, the thing directly under
+    /// it, never appeared above the fold on any phone. The art still has to be
+    /// recognisable from across a table, which is what makes "the gold one" a
+    /// usable instruction; 210 points is still that, and gives back a hundred.
     private var face: some View {
         CardFaceView(card: card, photo: photo)
-            .frame(maxWidth: 260)
+            .frame(maxWidth: 210)
             .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.vertical, Metric.roomy)
+            .padding(.vertical, Metric.regular)
             .padding(.horizontal, Metric.regular)
             .background(Color.cardWiseCanvas)
     }
@@ -106,16 +167,10 @@ struct RecommendationHero: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Label {
-                Text("\(placeName) · \(distance)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            } icon: {
-                Image(systemName: "mappin.and.ellipse")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+            // **The place used to be repeated here** — name and distance, in
+            // grey, under the reward. It is the first thing on the panel now,
+            // with a photograph beside it, so saying it again was the same
+            // fact twice on one card.
 
             Text(reason)
                 .font(.footnote)
@@ -134,8 +189,10 @@ struct RecommendationHero: View {
     /// element, so the order here is the order it is spoken in, and it has to
     /// make sense as speech.
     private var voiceOverLabel: String {
-        var parts = [rewardLine ?? card.displayName]
-        parts.append("at \(placeName), \(distance) away")
+        // Spoken in the order the panel is now read in: where, then what to
+        // pay with, then why.
+        var parts = ["\(placeName), \(distance) away"]
+        parts.append(rewardLine ?? card.displayName)
         parts.append(reason)
         return parts.joined(separator: ". ")
     }

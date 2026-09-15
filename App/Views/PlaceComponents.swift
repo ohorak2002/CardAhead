@@ -215,7 +215,7 @@ struct MerchantPlaceCard: View {
                     .lineLimit(2)
             }
 
-            if let why = runnerUpSentence {
+            if let why = result.recommendation?.runnerUpLine {
                 Text(why)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -223,27 +223,6 @@ struct MerchantPlaceCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// What the next best card in the wallet would have paid here.
-    ///
-    /// **The one line on this card that says something the others do not.**
-    /// "Use Amex Gold — 4x points on dining" is already two facts about Amex
-    /// Gold; a third sentence repeating either of them is furniture. What is
-    /// genuinely missing is the comparison the ranking just made and threw
-    /// away: 4x is worth reading a notification for only if the card you would
-    /// otherwise have pulled out pays less.
-    ///
-    /// Nil when there is nothing to compare against — a wallet of one card, or
-    /// a tie — rather than inventing a sentence to fill the space.
-    private var runnerUpSentence: String? {
-        guard let recommendation = result.recommendation,
-              let runnerUp = recommendation.alternates.first
-        else { return nil }
-        let rate = runnerUp.card.currency.formatted(rate: runnerUp.appliedRate)
-        guard rate != recommendation.best.card.currency.formatted(rate: recommendation.best.appliedRate)
-        else { return nil }
-        return "Your next best card here is \(runnerUp.card.displayName), at \(rate)."
     }
 
     /// Said plainly rather than hidden. A place where no card of yours does

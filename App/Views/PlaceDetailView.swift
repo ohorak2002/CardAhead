@@ -301,7 +301,7 @@ struct PlaceDetailView: View {
             VStack(alignment: .leading, spacing: Metric.snug) {
                 SectionHeader("Reminders here")
                 if isMuted {
-                    HStack(alignment: .firstTextBaseline, spacing: Metric.gap) {
+                    HStack(alignment: .firstTextBaseline, spacing: Metric.snug) {
                         Label("Muted", systemImage: "bell.slash.fill")
                             .font(.subheadline)
                             .foregroundStyle(Color.secondary)
@@ -317,7 +317,7 @@ struct PlaceDetailView: View {
                             Button(duration.displayName) { mute(for: duration) }
                         }
                     } label: {
-                        HStack(spacing: Metric.gap) {
+                        HStack(spacing: Metric.snug) {
                             Image(systemName: "bell.slash")
                             Text("Mute reminders here")
                             Spacer(minLength: 0)

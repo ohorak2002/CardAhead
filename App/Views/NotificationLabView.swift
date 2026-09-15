@@ -178,7 +178,7 @@ private struct BadgePreview: View {
             .fill(category.pinTint)
             .frame(width: 50, height: 50)
             .overlay {
-                Image(systemName: category.symbolName)
+                Image(systemName: category.badgeSymbolName)
                     .font(.system(size: 23, weight: .semibold))
                     .foregroundStyle(.white)
             }

@@ -159,7 +159,7 @@ jobs:
       - name: Photograph it in the dark
         run: |
           xcrun simctl ui "$DEVICE" appearance dark
-          for TAB in home map wallet benefits impact watching cardphoto cardbenefits placecard carddetail addcard; do
+          for TAB in home map wallet benefits impact watching cardphoto cardbenefits placecard carddetail addcard notifications notificationlab; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
             sleep 6

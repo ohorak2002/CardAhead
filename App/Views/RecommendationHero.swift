@@ -131,23 +131,29 @@ struct RecommendationHero: View {
 
     // MARK: - The card
 
-    /// Sat on its own ground rather than on the panel, so the art has an edge
-    /// even when the card itself is pale — a white card on a white panel is a
-    /// floating rectangle of text.
+    /// **Smaller than it was, and no longer on a ground of its own.**
     ///
-    /// **Smaller than it was, and the screenshots are why.** At 260 points
-    /// wide with 24 points of air above and below, the face alone was 450
-    /// points of an 874-point screen — so the wallet, the thing directly under
-    /// it, never appeared above the fold on any phone. The art still has to be
-    /// recognisable from across a table, which is what makes "the gold one" a
-    /// usable instruction; 210 points is still that, and gives back a hundred.
+    /// Two things the screenshots settled. At 260 points wide with 24 points
+    /// of air above and below, the face alone was 450 points of an 874-point
+    /// screen, so the wallet — the thing directly under it — never appeared
+    /// above the fold on any phone. The art still has to be recognisable from
+    /// across a table, which is what makes "the gold one" a usable
+    /// instruction; 210 points is still that.
+    ///
+    /// And it used to sit on a `cardWiseCanvas` band, on the argument that a
+    /// pale card on a white panel would have no edge. On screen that read as
+    /// exactly what it was — **a rounded rectangle inside a rounded
+    /// rectangle**, which is the tell this redesign is supposed to be removing
+    /// rather than adding. The argument was also wrong on its own terms:
+    /// `CardFaceView` draws its own shadow and its own hairline border, which
+    /// is why the wallet has always shown these straight onto the page and
+    /// never needed a ground. Same treatment here.
     private var face: some View {
         CardFaceView(card: card, photo: photo)
             .frame(maxWidth: 210)
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.vertical, Metric.regular)
             .padding(.horizontal, Metric.regular)
-            .background(Color.cardWiseCanvas)
     }
 
     // MARK: - The words

@@ -150,7 +150,7 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
     /// later. The cancel below is what makes that work when the *new* answer
     /// is silence: the first call had nothing to cancel, but a refresh does.
     @discardableResult
-    func schedule(_ arrival: PendingArrival, decision: NotificationDecision? = nil) -> ArrivalDecision {
+    func schedule(_ arrival: PendingArrival, decision policy: NotificationDecision? = nil) -> ArrivalDecision {
         let decision = engine.decide(
             for: arrival,
             cards: walletCards(),
@@ -178,7 +178,7 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
         //
         // Nil means this is a re-render of a reminder already scheduled, so
         // it keeps the ordinary treatment rather than inventing a new one.
-        switch decision?.interruption ?? .active {
+        switch policy?.interruption ?? .active {
         case .passive:
             content.interruptionLevel = .passive
             content.sound = nil
@@ -189,7 +189,7 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
 
         // What iOS uses to sort a notification summary. The same deterministic
         // score out of a hundred — see `NotificationScore.relevance`.
-        if let relevance = decision?.relevance {
+        if let relevance = policy?.relevance {
             content.relevanceScore = relevance
         }
         content.userInfo = [

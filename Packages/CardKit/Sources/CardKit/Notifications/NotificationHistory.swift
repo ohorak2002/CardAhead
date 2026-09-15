@@ -160,6 +160,16 @@ public struct NotificationHistory: Codable, Hashable, Sendable {
         records.last { $0.recommendationID == id }
     }
 
+    /// Takes a row back out of the budget.
+    ///
+    /// Not a deletion: the row stays, so the debug screen can still show that
+    /// something was considered, and it stops counting as sent.
+    public mutating func markNotSent(recordID id: UUID, reason: SuppressionReason) {
+        guard let index = records.firstIndex(where: { $0.id == id }) else { return }
+        records[index].wasSent = false
+        records[index].suppression = reason
+    }
+
     public mutating func prune(asOf date: Date) {
         let cutoff = date.addingTimeInterval(-Self.retention)
         records.removeAll { $0.date < cutoff }

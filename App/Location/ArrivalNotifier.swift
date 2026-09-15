@@ -25,12 +25,24 @@ protocol ArrivalNotifier: AnyObject {
     /// is what remembers arrivals across a launch: pricing a suggestion later
     /// needs the numbers as they were at the till, and by then the wallet has
     /// moved on. See `RecommendationSnapshot`.
+    /// `decision` is nil when this is a *re-render* of something already
+    /// scheduled rather than a new reminder — a wallet edit during the dwell
+    /// window. The policy has already had its say about that one, and asking
+    /// again would suppress it as a duplicate of itself.
     @discardableResult
-    func schedule(_ arrival: PendingArrival) -> ArrivalDecision
+    func schedule(_ arrival: PendingArrival, decision: NotificationDecision?) -> ArrivalDecision
 
     /// The user left before the clock ran out, or the region was dropped from
     /// the plan. Nothing should reach them.
     func cancel(regionID: String)
+}
+
+extension ArrivalNotifier {
+    /// The re-render case, named so a call site reads as one.
+    @discardableResult
+    func schedule(_ arrival: PendingArrival) -> ArrivalDecision {
+        schedule(arrival, decision: nil)
+    }
 }
 
 /// Writes the arrival to the log and does nothing else.
@@ -45,7 +57,7 @@ final class LoggingArrivalNotifier: ArrivalNotifier {
     private let log = Logger(subsystem: AppLog.subsystem, category: "arrivals")
 
     @discardableResult
-    func schedule(_ arrival: PendingArrival) -> ArrivalDecision {
+    func schedule(_ arrival: PendingArrival, decision: NotificationDecision?) -> ArrivalDecision {
         log.notice("""
             would schedule \(arrival.regionID, privacy: .public) \
             confirm in \(Int(arrival.confirmAt.timeIntervalSince(arrival.enteredAt)), privacy: .public)s

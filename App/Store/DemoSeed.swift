@@ -67,6 +67,7 @@ enum DemoSeed {
     static func walletURL() -> URL { directory().appendingPathComponent("wallet.json") }
     static func impactURL() -> URL { directory().appendingPathComponent("impact.json") }
     static func regionsURL() -> URL { directory().appendingPathComponent("regions.json") }
+    static func notificationsURL() -> URL { directory().appendingPathComponent("notifications.json") }
 
     /// Three cards that between them show every shape the UI has to handle: a
     /// points card with a cap, a rotating-quarter card with the bonus not

@@ -221,10 +221,23 @@ final class NotificationDecisionTests: XCTestCase {
     /// The engine runs several times per suggestion — on entry, on a wallet
     /// edit, on a location fix. Object identity cannot tell those apart.
     func testTheSameRecommendationRecalculatedIsNotANewOne() throws {
-        let first = try XCTUnwrap(candidate(at: bistro, on: at(9)))
-        let again = try XCTUnwrap(candidate(at: bistro, on: at(9, 30)))
+        // The same wallet both times, deliberately: `Card.id` is the wallet's
+        // own row id, so a card removed and re-added genuinely *is* a
+        // different card and ought to produce a different identity. What must
+        // not change is an unchanged wallet ranked twice.
+        let held = contestedWallet
+        let first = try XCTUnwrap(candidate(at: bistro, cards: held, on: at(9)))
+        let again = try XCTUnwrap(candidate(at: bistro, cards: held, on: at(9, 30)))
         XCTAssertEqual(first.identity, again.identity)
         XCTAssertNotEqual(first.snapshot.id, again.snapshot.id, "a fresh snapshot each run")
+    }
+
+    /// And the other half of that: a different card in the winning slot is a
+    /// different thing to say.
+    func testARemovedAndReaddedCardIsNotTheSameRecommendation() throws {
+        let first = try XCTUnwrap(candidate(at: bistro, cards: contestedWallet))
+        let second = try XCTUnwrap(candidate(at: bistro, cards: contestedWallet))
+        XCTAssertNotEqual(first.identity, second.identity)
     }
 
     func testADuplicateIsSuppressedWithItsOwnReason() throws {
@@ -237,13 +250,18 @@ final class NotificationDecisionTests: XCTestCase {
         XCTAssertEqual(decision.suppression, .duplicate)
     }
 
-    /// Change the card, and there is genuinely something new to say.
-    func testADifferentCardIsADifferentRecommendation() throws {
-        let gold = try XCTUnwrap(candidate(at: bistro))
-        let savorOnly = try XCTUnwrap(
-            candidate(at: bistro, cards: [CardCatalog.capitalOneSavor, CardCatalog.citiDoubleCash])
-        )
-        XCTAssertNotEqual(gold.identity, savorOnly.identity)
+    /// The same card at a different rate is something new to say — a cap
+    /// filling up, or a quarter being switched on, changes the advice even
+    /// though every other part of the situation is identical.
+    func testTheSameCardAtADifferentRateIsANewRecommendation() throws {
+        var held = contestedWallet
+        let before = try XCTUnwrap(candidate(at: bistro, cards: held))
+
+        held[0].rules[0].rate = 6
+        let after = try XCTUnwrap(candidate(at: bistro, cards: held))
+
+        XCTAssertEqual(before.reminder.cardID, after.reminder.cardID, "still the same card")
+        XCTAssertNotEqual(before.identity, after.identity)
     }
 
     /// Floating-point noise must not defeat the whole mechanism.

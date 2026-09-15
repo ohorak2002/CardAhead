@@ -478,34 +478,64 @@ private struct HeroBanner: View {
     let detail: String
     var action: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// **It stacks once the text is large, and the screenshots are why.**
+    ///
+    /// Sharing a row with a 38-point square *and* a chevron leaves the words
+    /// about 220 points, which at the accessibility sizes is not enough for
+    /// "opportunities" — the largest-text screenshot rendered it hyphenated
+    /// across three lines as "5 / opportu- / nities / nearby", the loudest
+    /// thing on Home broken into pieces. Given the full width it stays whole.
+    ///
+    /// Same reasoning, and the same fix, as `BenefitGroupTile`'s rate.
     var body: some View {
         Button(action: action) {
-            HStack(spacing: Metric.snug) {
-                Image(systemName: symbolName)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 38, height: 38)
-                    .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                    Text(detail)
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.75))
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+            Group {
+                if typeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: Metric.tight) {
+                        icon
+                        words
+                    }
+                } else {
+                    HStack(spacing: Metric.snug) {
+                        icon
+                        words
+                        Spacer(minLength: Metric.tight)
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.6))
+                    }
                 }
-                Spacer(minLength: Metric.tight)
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.6))
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Metric.snug)
             .background(.white.opacity(0.15), in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
+    }
+
+    private var icon: some View {
+        Image(systemName: symbolName)
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 38, height: 38)
+            .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+    }
+
+    private var words: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.75))
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 

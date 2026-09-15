@@ -216,7 +216,12 @@ struct MoreView: View {
         // screen, which is where somebody asked for it goes looking.
         .safeAreaInset(edge: .bottom) {
             appFooter
-                .padding(.bottom, 90)
+                // Just clear of the floating tab bar. **Not 90** — that is
+                // the figure a *ScrollView* needs, because its content runs
+                // under the bar; a `safeAreaInset` is already placed at the
+                // bottom, so 90 on top of it left the version number stranded
+                // ninety points up the screen.
+                .padding(.bottom, Metric.regular)
         }
         }
         .background(Color(.systemGroupedBackground))

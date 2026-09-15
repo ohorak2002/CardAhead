@@ -297,6 +297,13 @@ private struct BenefitGroupTile: View {
 
             Text(lead.text)
                 .font(.caption)
+                // **Two lines, reserved whether or not they are used.** The
+                // grid gives a row the height of its tallest tile, so
+                // "Best with Chase Freedom Flex" wrapping to two lines left
+                // the tile beside it with ninety points of slack underneath.
+                // Reserving the space everywhere costs one line on the short
+                // tiles and makes every row the same height.
+                .lineLimit(2, reservesSpace: !typeSize.isAccessibilitySize)
                 // Colour is never the only signal — "Ends soon" and "Needs
                 // switching on" say so in words for anybody who cannot tell
                 // the amber from the grey.

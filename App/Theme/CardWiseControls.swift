@@ -63,7 +63,7 @@ struct CardWiseSecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
-            .foregroundStyle(isEnabled ? Color.cardWiseBlue : Color.secondary)
+            .foregroundStyle(isEnabled ? Color.cardWiseActionInk : Color.secondary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, Metric.regular)
             .padding(.horizontal, Metric.roomy)

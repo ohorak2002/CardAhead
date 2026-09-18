@@ -30,6 +30,7 @@ enum Metric {
     /// The screen margin. Same number as `wide`, named for its job, because
     /// "the page margin" and "a wide gap" change for different reasons.
     static let margin: CGFloat = 20
+    static let minimumTarget: CGFloat = 44
 
     // MARK: - Corners
     //
@@ -67,6 +68,12 @@ extension Color {
     /// a literal too, because a gradient needs a colour rather than a
     /// semantic tint that a parent view might have overridden.
     static let cardWiseBlue = Color(red: 0.118, green: 0.337, blue: 0.839)
+    /// Text and controls on semantic surfaces; fixed brand blue stays in fills.
+    static let cardWiseActionInk = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.56, green: 0.73, blue: 1.0, alpha: 1)
+            : UIColor(red: 0.08, green: 0.27, blue: 0.70, alpha: 1)
+    })
     /// Accent Blue. The bottom of the lighter gradient.
     static let cardWiseAccent = Color(red: 0.231, green: 0.510, blue: 0.965)
     /// Light Blue. The only palette colour that can tint text **on** the
@@ -490,22 +497,22 @@ struct ScreenHeader<Trailing: View>: View {
     let title: String
     var subtitle: String?
     @ViewBuilder var trailing: Trailing
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .firstTextBaseline, spacing: Metric.tight) {
                 Text(title)
-                    .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                    .font(.system(typeSize.isAccessibilitySize ? .title2 : .largeTitle, design: .rounded).weight(.bold))
                     .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: Metric.tight)
                 trailing
             }
             if let subtitle {
                 Text(subtitle)
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.75))
+                    .foregroundStyle(.white)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -548,6 +555,8 @@ struct HeaderButton: View {
                 .foregroundStyle(.white)
                 .frame(width: 36, height: 36)
                 .background(.white.opacity(0.18), in: Circle())
+                .frame(width: Metric.minimumTarget, height: Metric.minimumTarget)
+                .contentShape(Rectangle())
         }
         .accessibilityLabel(label)
     }

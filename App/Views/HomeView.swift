@@ -58,7 +58,7 @@ struct HomeView: View {
             // The answer leads. The wallet is still directly under it and
             // still the product; what changed is that the screen now answers
             // its own question before asking you to scroll.
-            VStack(spacing: Metric.section) {
+            VStack(spacing: Metric.roomy) {
                 header
                 if store.cards.isEmpty {
                     firstCardPrompt
@@ -93,28 +93,11 @@ struct HomeView: View {
             .min { $0.distanceMeters < $1.distanceMeters }
     }
 
-    /// The card, the reward, the reason — in that order, and nothing else.
-    ///
-    /// **This screen had no answer on it at all.** It carried a count of
-    /// opportunities, a permissions banner and a list of chores, and the one
-    /// thing a person opens this app to find out — *which card* — was never
-    /// on it. The recommendation existed; it lived three taps away inside the
-    /// map.
-    ///
-    /// Everything shown here is derived, never asserted: the place and the
-    /// card come from `MapPlaceResult`, the rate from `rewardLine`, and the
-    /// reason from the engine's own `best.reason` — which names the *category*
-    /// ("4x at restaurants") rather than repeating the card. `headline` was
-    /// tried first and read "Use Amex Gold here", directly under a line
-    /// already saying "4x points with Amex Gold". When there is no fix, no
-    /// lookup or no bonus anywhere nearby, this says so plainly instead of
-    /// inventing something — the rule the rest of this screen already follows.
+    /// Name the nearest opportunity's winner without recomputing its ranking.
+    /// Reward wording uses the score's applied rate, never a catalog headline.
     @ViewBuilder
     private var bestCardNow: some View {
         VStack(alignment: .leading, spacing: Metric.snug) {
-            SectionHeader("Use this card nearby")
-                .padding(.horizontal, Metric.margin)
-
             if let result = nearestOpportunity,
                let recommendation = result.recommendation,
                let card = store.card(withID: recommendation.best.card.id) {
@@ -123,24 +106,18 @@ struct HomeView: View {
                     photo: store.photo(for: card),
                     placeName: result.place.name,
                     placeSubtitle: result.place.subtitle,
-                    placePhoto: result.place.photo,
-                    placeSymbol: result.place.mapCategory.symbolName,
-                    placeTint: result.place.mapCategory.listTint,
                     distance: result.distanceText,
-                    rewardLine: result.rewardLine,
-                    // **The runner-up, not the category, and the doc comment
-                    // above records why `headline` lost this slot first.**
-                    // "4x points with Amex Gold" over "4x dining" is the same
-                    // number twice; the fact actually missing is what the card
-                    // you would otherwise have reached for pays. Falls back to
-                    // the category line for a wallet with nothing to compare.
+                    rewardLine: "\(recommendation.best.card.currency.formatted(rate: recommendation.best.appliedRate)) \(recommendation.best.card.currency.unitNoun) here",
+                    // Comparison stays secondary to the winning identity.
                     reason: recommendation.runnerUpLine ?? recommendation.best.reason
                 ) {
                     goTo(.map)
                 }
                 .padding(.horizontal, Metric.margin)
             } else {
-                allSetPanel
+                Button { goTo(.map) } label: { allSetPanel }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens the nearby map")
                     .padding(.horizontal, Metric.margin)
             }
         }
@@ -155,7 +132,7 @@ struct HomeView: View {
         HStack(spacing: Metric.snug) {
             Image(systemName: allSetSymbol)
                 .font(.title3)
-                .foregroundStyle(Color.cardWiseBlue)
+                .foregroundStyle(Color.cardWiseActionInk)
                 .frame(width: 38, height: 38)
                 .background(Color.cardWiseBlue.opacity(0.12), in: Circle())
                 .accessibilityHidden(true)
@@ -186,53 +163,27 @@ struct HomeView: View {
     private var allSetDetail: String {
         nearby.results.isEmpty
             ? "Open the map and CardWise will check what is around you."
-            : "Nothing within reach pays more than the card you would have reached for anyway."
+            : "None of the places shown has a bonus category for your wallet."
     }
 
     // MARK: - The navy top
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Metric.tight) {
-            HStack {
-                Text("CardWise")
-                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.85))
-                Spacer()
-            }
-            .padding(.top, Metric.tight)
-
+            Text("CardWise")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
             greetingText
-                .font(.system(.largeTitle, design: .rounded).weight(.bold))
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-
-            Text("The right card. Right when you need it.")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.75))
-
-            // **The mockup's one real piece of layering.** What is nearby sat
-            // below the navy as another white card in a column of white
-            // cards, which is why the header read as a coloured strip rather
-            // than as a place. Inside it, on a translucent panel, it is the
-            // thing the screen opens *with* — and the hero stops being three
-            // lines of text with nothing in it.
-            if !store.cards.isEmpty {
-                nearbyBanner
-                    .padding(.top, Metric.tight)
-            }
+                .font(.system(.title2, design: .rounded).weight(.bold))
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Metric.margin)
-        .padding(.top, Metric.roomy)
-        .padding(.bottom, Metric.roomy)
-        // **The gradient reaches under the status bar; the text does not.**
-        // `ignoresSafeArea` applied to the header itself moves the whole
-        // thing up, and the title lands on top of the clock. Applied to the
-        // background shape alone, only the paint extends.
+        .padding(.vertical, Metric.regular)
         .background {
             UnevenRoundedRectangle(
-                bottomLeadingRadius: 28,
-                bottomTrailingRadius: 28,
+                bottomLeadingRadius: Metric.roomy,
+                bottomTrailingRadius: Metric.roomy,
                 style: .continuous
             )
             .fill(.cardWiseHeader)
@@ -260,47 +211,6 @@ struct HomeView: View {
         }
         return Text("\(timeOfDay), ").foregroundColor(.white)
             + Text(name).foregroundColor(.cardWiseLightBlue)
-    }
-
-    // MARK: - What is around you
-
-    /// The one line the mockup opens on: "You have 3 opportunities nearby."
-    ///
-    /// **It says a number only when it has counted one.** The map is the only
-    /// thing in the app that knows what is nearby, and it knows nothing until
-    /// somebody has opened it and it has had a fix and a lookup — so most of
-    /// the time on a fresh launch this is an invitation to look rather than a
-    /// count, and it says so. An opening screen that greets everybody with
-    /// "3 opportunities nearby" before it has looked anywhere is the exact lie
-    /// this screen's doc comment exists to prevent.
-    ///
-    /// "Opportunity" means something precise here and is counted in one place,
-    /// `MapPlaceResult.isOpportunity`: a nearby place where a card in this
-    /// wallet pays **more than its everyday rate**. A wallet of flat-rate
-    /// cards produces zero of them however busy the high street is, which is
-    /// the correct answer rather than a bug.
-    @ViewBuilder
-    private var nearbyBanner: some View {
-        let count = nearby.opportunityCount
-        if count > 0 {
-            HeroBanner(
-                symbolName: "mappin.and.ellipse",
-                title: count == 1 ? "1 opportunity nearby" : "\(count) opportunities nearby",
-                detail: "Places within \(nearby.filter.distance.displayName) where one of your cards pays more than usual."
-            ) { goTo(.map) }
-        } else if !nearby.results.isEmpty {
-            HeroBanner(
-                symbolName: "map",
-                title: "\(nearby.results.count) places nearby",
-                detail: "None of them pays more than the card you would have reached for anyway."
-            ) { goTo(.map) }
-        } else {
-            HeroBanner(
-                symbolName: "map",
-                title: "See what is around you",
-                detail: "The map shows nearby shops and which of your cards wins at each."
-            ) { goTo(.map) }
-        }
     }
 
     // MARK: - What it is doing right now
@@ -392,6 +302,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: Metric.snug) {
             SectionHeader(title: "Your wallet") {
                 Button("See all") { goTo(.wallet) }
+                    .frame(minHeight: Metric.minimumTarget)
             }
             .padding(.horizontal, Metric.margin)
 
@@ -401,12 +312,21 @@ struct HomeView: View {
                         Button {
                             goTo(.wallet)
                         } label: {
-                            CardFaceView(
-                                card: card,
-                                highlight: bestFor(card),
-                                photo: store.photo(for: card)
-                            )
-                            .frame(width: 260)
+                            VStack(alignment: .leading, spacing: Metric.tight) {
+                                CardFaceView(card: card, photo: store.photo(for: card))
+                                    .frame(width: 260)
+                                Text(card.displayName)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                if let best = bestFor(card) {
+                                    Text(best)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                            .frame(width: 260, alignment: .leading)
                         }
                         .buttonStyle(.plain)
                     }
@@ -436,7 +356,7 @@ struct HomeView: View {
         VStack(spacing: Metric.regular) {
             Image(systemName: "creditcard.fill")
                 .font(.system(size: 42))
-                .foregroundStyle(Color.cardWiseBlue)
+                .foregroundStyle(Color.cardWiseActionInk)
             Text("Add your first card")
                 .font(.title3.weight(.semibold))
             Text("Tell CardWise which cards you carry, once. It works out the rest — and tells you which one to reach for when you get somewhere.")
@@ -457,88 +377,6 @@ struct HomeView: View {
     }
 }
 
-/// The status line under the header. One symbol, two lines, a chevron.
-/// A `HomeBanner` that lives **inside** the navy header rather than under it.
-///
-/// Same row, different ground, and the difference is the whole point: on the
-/// page it would be one more white card in a column of white cards, and in the
-/// header it is what the header is *about*. The mockup does this once, on this
-/// one banner, which is why the hero in it reads as a place and the app's read
-/// as a strip of paint.
-///
-/// **Every colour here is white at an opacity, never a palette colour.** The
-/// ground is a gradient from `#0B1F44` to `#1E56D6`, so anything drawn on it
-/// has to survive both ends — and the palette's own blues do not: Accent Blue
-/// measures 1.70:1 against the lighter end. White at 15% gives a panel that is
-/// 10.3:1 against the navy end and 4.6:1 against the blue one, with white text
-/// legible on both.
-private struct HeroBanner: View {
-    let symbolName: String
-    let title: String
-    let detail: String
-    var action: () -> Void
-
-    @Environment(\.dynamicTypeSize) private var typeSize
-
-    /// **It stacks once the text is large, and the screenshots are why.**
-    ///
-    /// Sharing a row with a 38-point square *and* a chevron leaves the words
-    /// about 220 points, which at the accessibility sizes is not enough for
-    /// "opportunities" — the largest-text screenshot rendered it hyphenated
-    /// across three lines as "5 / opportu- / nities / nearby", the loudest
-    /// thing on Home broken into pieces. Given the full width it stays whole.
-    ///
-    /// Same reasoning, and the same fix, as `BenefitGroupTile`'s rate.
-    var body: some View {
-        Button(action: action) {
-            Group {
-                if typeSize.isAccessibilitySize {
-                    VStack(alignment: .leading, spacing: Metric.tight) {
-                        icon
-                        words
-                    }
-                } else {
-                    HStack(spacing: Metric.snug) {
-                        icon
-                        words
-                        Spacer(minLength: Metric.tight)
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.6))
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(Metric.snug)
-            .background(.white.opacity(0.15), in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var icon: some View {
-        Image(systemName: symbolName)
-            .font(.system(size: 17, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 38, height: 38)
-            .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-    }
-
-    private var words: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
-                .fixedSize(horizontal: false, vertical: true)
-            Text(detail)
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.75))
-                .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
-
 private struct HomeBanner: View {
     let symbolName: String
     let tint: Color
@@ -546,9 +384,17 @@ private struct HomeBanner: View {
     let detail: String
     var action: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var layout: AnyLayout {
+        typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: Metric.snug))
+            : AnyLayout(HStackLayout(spacing: Metric.snug))
+    }
+
     var body: some View {
         Button(action: action) {
-            HStack(spacing: Metric.snug) {
+            layout {
                 CategoryIcon(symbolName: symbolName, tint: tint, size: 38)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
@@ -557,9 +403,9 @@ private struct HomeBanner: View {
                     Text(detail)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer(minLength: Metric.tight)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: Metric.tight) }
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
@@ -577,8 +423,16 @@ private struct HomeBanner: View {
 private struct OpportunityRow: View {
     let opportunity: Opportunity
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var layout: AnyLayout {
+        typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: Metric.snug))
+            : AnyLayout(HStackLayout(spacing: Metric.snug))
+    }
+
     var body: some View {
-        HStack(spacing: Metric.snug) {
+        layout {
             CategoryIcon(
                 symbolName: opportunity.category?.symbolName ?? "gift.fill",
                 tint: opportunity.category?.tint ?? Color.cardWiseWarning,
@@ -588,13 +442,13 @@ private struct OpportunityRow: View {
                 Text(opportunity.title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
-                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(opportunity.detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer(minLength: Metric.tight)
+            if !typeSize.isAccessibilitySize { Spacer(minLength: Metric.tight) }
             if let days = daysLeft {
                 TagPill(text: days, tint: .cardWiseWarning)
             }

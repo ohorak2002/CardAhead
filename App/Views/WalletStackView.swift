@@ -2,13 +2,8 @@ import SwiftUI
 import UIKit
 import CardKit
 
-/// The home screen, and deliberately the only thing on it: the cards, and a way
-/// to add one. Cards overlap so only the top strip of each shows, tapping one
-/// expands it in place, and dragging one moves it in the stack.
-///
-/// Everything that is not a card — what each card would earn, the reasoning,
-/// the caveats — is one tap away on `WhyThisCardView`. A phone screen holding
-/// two subjects at once is a phone screen nobody reads.
+/// Whole card faces with explicit expansion. Reordering lives in a native
+/// list so a scroll on the wallet never accidentally changes its order.
 struct WalletStackView: View {
 
     @Environment(WalletStore.self) private var store
@@ -17,19 +12,11 @@ struct WalletStackView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var expandedCardID: UUID?
-    @State private var draggingCardID: UUID?
-    @State private var dragTranslation: CGFloat = 0
-    /// A card leaving the stack under your thumb, and landing again. These are
-    /// the two moments in the app where something physical happens and your
-    /// own hand is covering it — which is the whole argument for a haptic.
-    @State private var lifted = Pulse()
-    @State private var dropped = Pulse()
-    /// Getting a card back. `.success` rather than an impact, because an undo
-    /// is a recovery and that is what the success pattern means.
     @State private var undone = Pulse()
     @State private var isAddingCard = false
+    @State private var isReordering = false
     /// Measured, because a card cannot be sized any other way here. See
-    /// `row(for:at:)`.
+    /// `row(for:)`.
     @State private var cardWidth: CGFloat = 0
     /// Set when somebody says yes to the follow-up, which is the only route to
     /// the one screen in this app that asks for a number.
@@ -46,31 +33,18 @@ struct WalletStackView: View {
     /// a permission sheet that reappears on every launch is how apps get deleted.
     @AppStorage("hasOfferedLocationPrimer") private var hasOfferedLocationPrimer = false
 
-    /// The peek has to clear the issuer, the card name *and* the highlight line.
-    /// 344pt wide at the real card ratio — the fallback height before the
-    /// first layout has measured the screen.
-    @ScaledMetric(relativeTo: .title3) private var cardHeight: CGFloat = 216
-    /// Roughly how tall one whole row is: the card face at its real ratio,
-    /// its reward summary, and the gap to the next one.
-    ///
-    /// **Only the drag gesture uses this, and only to count slots.** It is
-    /// deliberately approximate: `move(id:to:)` clamps to the ends of the
-    /// wallet, and the result is rounded, so being a few points out moves a
-    /// card by the same number of places it would have anyway. Measuring it
-    /// exactly would mean a `GeometryReader` per row to make a rounding
-    /// operation marginally more precise.
-    private var rowPitch: CGFloat {
-        let face = cardWidth > 0 ? cardWidth / 1.586 : cardHeight
-        return face + summaryHeight + Metric.roomy
-    }
-    /// The reward line under a card. One line of footnote plus its padding.
-    @ScaledMetric(relativeTo: .footnote) private var summaryHeight: CGFloat = 40
-
     var body: some View {
         VStack(spacing: 0) {
             ScreenHeader(title: "Wallet", subtitle: walletSubtitle) {
-                HeaderButton(symbolName: "plus", label: "Add a card") {
-                    isAddingCard = true
+                HStack(spacing: Metric.tight) {
+                    if store.cards.count > 1 {
+                        HeaderButton(symbolName: "arrow.up.arrow.down", label: "Reorder cards") {
+                            isReordering = true
+                        }
+                    }
+                    HeaderButton(symbolName: "plus", label: "Add a card") {
+                        isAddingCard = true
+                    }
                 }
             }
             Group {
@@ -107,6 +81,7 @@ struct WalletStackView: View {
                     .animation(motion, value: store.lastRemoved)
                 }
             }
+            .sheet(isPresented: $isReordering) { WalletReorderView() }
             .sheet(isPresented: $isAddingCard, onDismiss: offerPrimerIfDue) {
                 AddCardView()
             }
@@ -130,11 +105,11 @@ struct WalletStackView: View {
                 else { return }
                 shouldOfferPrimer = true
             }
-            // Light on the way up, firmer on the way down — the weight of a
-            // thing being picked up and then set down. Same pairing the system
-            // uses for its own drag-to-reorder.
-            .sensoryFeedback(.impact(weight: .light), trigger: lifted)
-            .sensoryFeedback(.impact(weight: .medium), trigger: dropped)
+            .onChange(of: store.cards.map(\.id)) { _, ids in
+                if let expandedCardID, !ids.contains(expandedCardID) {
+                    self.expandedCardID = nil
+                }
+            }
             .sensoryFeedback(.success, trigger: undone)
     }
 
@@ -203,19 +178,15 @@ struct WalletStackView: View {
                 // it meant you could not actually look at your cards, which
                 // is the one thing a wallet is for. Each card is now whole,
                 // with what it earns underneath it.
-                VStack(spacing: Metric.roomy) {
-                    if remindersAreOff { locationRow }
+                VStack(spacing: Metric.loose) {
 
-                    ForEach(Array(store.cards.enumerated()), id: \.element.id) { index, card in
-                        row(for: card, at: index)
+                    ForEach(store.cards) { card in
+                        row(for: card)
                             .id(card.id)
-                            .zIndex(zIndex(for: card, at: index))
+                            .zIndex(expandedCardID == card.id ? 1 : 0)
                     }
 
-                    Text("Tap a card to open it. Drag one to move it.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, Metric.tight)
+                    if remindersAreOff { locationRow }
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, Metric.margin)
@@ -242,6 +213,7 @@ struct WalletStackView: View {
                     // The add-card sheet is behind the plus button, which
                     // `simctl` cannot press either.
                     if DemoSeed.requestedTab == "addcard" { isAddingCard = true }
+                    if DemoSeed.requestedTab == "reorder" { isReordering = true }
                 }
             }
             .onAppear { cardWidth = outer.size.width - Metric.margin * 2 }
@@ -251,55 +223,52 @@ struct WalletStackView: View {
         }
     }
 
-    private func row(for card: Card, at index: Int) -> some View {
+    private func row(for card: Card) -> some View {
         let isExpanded = expandedCardID == card.id
-        let isDragging = draggingCardID == card.id
-
-        return VStack(spacing: 0) {
-            // **Explicitly sized, and it still has to be even without the
-            // stack.** `CardFaceView` sizes itself with
-            // `aspectRatio(1.586, contentMode: .fit)`, which answers a short
-            // height proposal by shrinking its *width* — that is how every
-            // card once rendered at a third of the screen with its own name
-            // truncated, invisible until CI started taking screenshots. An
-            // explicit frame ignores the proposal, so the card keeps its full
-            // width. The row no longer advances by a peek, but the reason the
-            // frame exists is unchanged and it must not be removed
-            // the layout by the peek — which is what makes the stack overlap.
-            CardFaceView(
-                card: card,
-                highlight: highlight(for: card),
-                photo: store.photo(for: card)
-            )
-                .frame(
-                    width: cardWidth > 0 ? cardWidth : nil,
-                    height: cardWidth > 0 ? cardWidth / 1.586 : nil
-                )
+        return VStack(alignment: .leading, spacing: Metric.snug) {
+            Button { toggle(card) } label: {
+                VStack(alignment: .leading, spacing: Metric.tight) {
+                    CardFaceView(card: card, photo: store.photo(for: card))
+                        .frame(
+                            width: cardWidth > 0 ? cardWidth : nil,
+                            height: cardWidth > 0 ? cardWidth / 1.586 : nil
+                        )
+                    HStack(alignment: .top, spacing: Metric.snug) {
+                        Text(card.displayName)
+                            .font(.headline)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Color.cardWiseActionInk)
+                    }
+                    .foregroundStyle(.primary)
+                    .frame(minHeight: Metric.minimumTarget, alignment: .center)
+                    .accessibilityHidden(true)
+                }
                 .contentShape(Rectangle())
-                .onTapGesture { toggle(card) }
-                .gesture(dragGesture(for: card, at: index))
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+            .accessibilityHint(isExpanded ? "Double tap to hide details" : "Double tap to show details")
 
-            // **The summary is what a *closed* card says.** Open, it was the
-            // same three rules printed twice a hundred points apart — once
-            // here with icons, once under "Dining" and "Groceries" in the
-            // detail's own list. The detail supersedes it rather than
-            // repeating it.
-            if !isExpanded {
-                RewardSummary(card: card)
-                    .padding(.top, Metric.snug)
-            } else {
+            if let status = highlight(for: card) {
+                Text(status)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if isExpanded {
                 CardDetailView(card: card)
+                    .padding(.horizontal, Metric.regular)
+                    .background(Color(.secondarySystemGroupedBackground),
+                                in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous))
                     .transition(.opacity)
+            } else {
+                RewardSummary(card: card)
             }
         }
-        .offset(y: isDragging ? dragTranslation : 0)
-        .scaleEffect(isDragging ? 1.04 : 1.0)
-        // A dragged card tilts the way a real one would if you picked it out of
-        // a stack. Small, capped, and only while a finger is on it.
-        .rotationEffect(.degrees(isDragging ? tilt : 0))
         .animation(motion, value: expandedCardID)
-        .animation(motion, value: store.cards.map(\.id))
-        .animation(lift, value: isDragging)
     }
 
     /// Shown only while the app cannot actually do its job. It is the one thing
@@ -353,92 +322,35 @@ struct WalletStackView: View {
                 .accessibilityHidden(true)
             Text("Removed \(removed.card.displayName)")
                 .font(.subheadline)
-                .lineLimit(1)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 8)
             Button("Undo") {
                 undone.fire()
                 withAnimation(motion) { store.undoRemove() }
             }
             .font(.subheadline.weight(.semibold))
+            .frame(minWidth: Metric.minimumTarget, minHeight: Metric.minimumTarget)
         }
         .padding(13)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous))
         .padding(.horizontal, 20)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .transition(.opacity)
         .accessibilityElement(children: .combine)
     }
 
-    private func zIndex(for card: Card, at index: Int) -> Double {
-        if draggingCardID == card.id { return 10_000 }
-        if expandedCardID == card.id { return 9_000 }
-        // Later cards sit on top of earlier ones, which is what makes the overlap read.
-        return Double(index)
-    }
-
-    // MARK: - Gestures
-
     private func toggle(_ card: Card) {
         withAnimation(motion) {
-            expandedCardID = (expandedCardID == card.id) ? nil : card.id
+            expandedCardID = expandedCardID == card.id ? nil : card.id
         }
     }
 
-    private func dragGesture(for card: Card, at index: Int) -> some Gesture {
-        DragGesture(minimumDistance: 14)
-            .onChanged { value in
-                guard expandedCardID == nil else { return }
-                // The first frame of a drag is the card coming off the stack.
-                // Firing here rather than in `updating` keeps it to once per
-                // drag: `onChanged` runs on every frame, and this is the only
-                // frame where nothing was being dragged a moment ago.
-                if draggingCardID != card.id { lifted.fire() }
-                draggingCardID = card.id
-                dragTranslation = value.translation.height
-            }
-            .onEnded { value in
-                guard draggingCardID == card.id else { return }
-                // **`predictedEndTranslation`, not `translation`.** Where the
-                // finger stopped is not where the card should go: a flick has
-                // momentum, and a stack that ignored it made a quick throw and
-                // a slow shove of the same length do the same thing, which is
-                // the single clearest way an iOS gesture can feel dead.
-                // `predictedEndTranslation` is where the drag would have come
-                // to rest given the speed it ended at, which is the same
-                // number the system's own scroll views settle on.
-                //
-                // Overshoot costs nothing here: `WalletStore.move(id:to:)`
-                // clamps to the ends of the wallet, so the worst a hard flick
-                // can do is send the card to the top or the bottom — which is
-                // exactly what a hard flick should do.
-                let slots = Int((value.predictedEndTranslation.height / rowPitch).rounded())
-                dropped.fire()
-                withAnimation(motion) {
-                    store.move(id: card.id, to: index + slots)
-                    draggingCardID = nil
-                    dragTranslation = 0
-                }
-            }
-    }
-
-    /// Capped so a long drag does not spin the card.
-    private var tilt: Double {
-        max(-2.5, min(2.5, dragTranslation / 42))
-    }
-
-    /// Motion only in response to a user action, and none at all when the
-    /// system asks for less.
     private var motion: Animation? {
-        reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.78)
-    }
-
-    /// Picking a card up and putting it down wants to be snappier than a reorder.
-    private var lift: Animation? {
-        reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.7)
+        reduceMotion ? nil : .easeInOut(duration: 0.22)
     }
 
     // MARK: - Copy
 
-    /// The one thing this card is best at, shown on the visible top strip.
+    /// Quarter status is scalable text below the face, including on photos.
     private func highlight(for card: Card) -> String? {
         if let program = card.rotatingProgram {
             let rate = card.currency.formatted(rate: program.rate)
@@ -469,6 +381,63 @@ struct WalletStackView: View {
         // summary deliberately leaves out: a quarter nobody has switched on is
         // a *status*, not a rate, and it belongs where the card is.
         return nil
+    }
+}
+
+/// System reordering supplies autoscroll and drag cancellation. The menu and
+/// VoiceOver actions use the same store operation for people who do not drag.
+private struct WalletReorderView: View {
+    @Environment(WalletStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(Array(store.cards.enumerated()), id: \.element.id) { index, card in
+                        HStack(spacing: Metric.snug) {
+                            CardThumbnail(card: card, photo: store.photo(for: card), use: .walletDisplay)
+                            Text(card.displayName)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 0)
+                            Menu {
+                                moveActions(card, at: index)
+                            } label: {
+                                Image(systemName: "arrow.up.arrow.down")
+                                    .frame(width: Metric.minimumTarget, height: Metric.minimumTarget)
+                            }
+                            .accessibilityLabel("Move \(card.displayName)")
+                        }
+                        .accessibilityElement(children: .contain)
+                        .accessibilityValue("Position \(index + 1) of \(store.cards.count)")
+                        .accessibilityActions { moveActions(card, at: index) }
+                    }
+                    .onMove { source, destination in
+                        store.move(from: source, to: destination)
+                    }
+                } footer: {
+                    Text("Drag a handle to reorder. You can also use the arrows to move a card one place at a time. Changes are saved as you go.")
+                }
+            }
+            .environment(\.editMode, .constant(.active))
+            .navigationTitle("Reorder cards")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func moveActions(_ card: Card, at index: Int) -> some View {
+        if index > 0 {
+            Button("Move up") { store.move(id: card.id, to: index - 1) }
+        }
+        if index < store.cards.count - 1 {
+            Button("Move down") { store.move(id: card.id, to: index + 1) }
+        }
     }
 }
 

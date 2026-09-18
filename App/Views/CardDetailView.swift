@@ -37,8 +37,8 @@ struct CardDetailView: View {
     let card: Card
 
     @Environment(WalletStore.self) private var store
+    @Environment(\.dynamicTypeSize) private var typeSize
 
-    private var art: CardArt { CardArt.art(for: card.artKey) }
     private var currentQuarter: Quarter { Quarter.containing(Date()) }
 
     var body: some View {
@@ -120,7 +120,7 @@ struct CardDetailView: View {
 
     @ViewBuilder
     private func publishedQuarter(_ quarter: RotatingQuarter, in program: RotatingProgram) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        adaptiveRow {
             VStack(alignment: .leading, spacing: 4) {
                 // The issuer's own wording when we have it: a quarter is often
                 // wider than the categories this app can act on, and showing
@@ -131,7 +131,7 @@ struct CardDetailView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Spacer(minLength: 8)
+            if !typeSize.isAccessibilitySize { Spacer(minLength: Metric.tight) }
             Button(quarter.isActivated ? "Activated" : "Activate") {
                 // Only the on direction. Switching a bonus off is somebody
                 // correcting a mistake, and a success chime for that would be
@@ -140,8 +140,7 @@ struct CardDetailView: View {
                 if !quarter.isActivated { activated.fire() }
                 store.setActivated(!quarter.isActivated, cardID: card.id, quarter: quarter.quarter)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(quarter.isActivated ? Color.secondary : art.accent)
+            .buttonStyle(.cardWiseSecondary)
             .disabled(quarter.isActivated)
         }
 
@@ -157,6 +156,7 @@ struct CardDetailView: View {
         if quarter.enteredByUser {
             Button("You added these. Change them") { isEnteringQuarter = true }
                 .font(.caption)
+                .frame(minHeight: Metric.minimumTarget)
         }
 
         if let cap = program.cap {
@@ -176,12 +176,12 @@ struct CardDetailView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
 
-        HStack(spacing: 12) {
+        adaptiveRow {
             Button("Add this quarter") { isEnteringQuarter = true }
-                .buttonStyle(.borderedProminent)
-                .tint(art.accent)
+                .buttonStyle(.cardWiseSecondary)
             if let source = program.sourceURL, let url = URL(string: source) {
                 Link("Look it up", destination: url)
+                    .frame(minHeight: Metric.minimumTarget)
             }
         }
         .font(.subheadline)
@@ -288,11 +288,11 @@ struct CardDetailView: View {
     }
 
     private func factRow(_ label: String, _ value: String) -> some View {
-        HStack {
+        adaptiveRow {
             Text(label)
                 .font(.subheadline)
                 .foregroundStyle(Color.secondary)
-            Spacer(minLength: Metric.snug)
+            if !typeSize.isAccessibilitySize { Spacer(minLength: Metric.snug) }
             Text(value)
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
@@ -322,7 +322,7 @@ struct CardDetailView: View {
     /// than in a control, and it stays undoable for six seconds either way.
     private var actionsSection: some View {
         VStack(spacing: Metric.snug) {
-            HStack(spacing: Metric.snug) {
+            adaptiveRow {
                 Button {
                     isReviewingBenefits = true
                 } label: {
@@ -375,10 +375,17 @@ struct CardDetailView: View {
                     .font(.subheadline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Metric.snug)
+                    .frame(minHeight: Metric.minimumTarget)
             }
             .buttonStyle(.plain)
             .foregroundStyle(Color.cardWiseError)
         }
+    }
+
+    private var adaptiveRow: AnyLayout {
+        typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: Metric.snug))
+            : AnyLayout(HStackLayout(spacing: Metric.snug))
     }
 
     // MARK: - Pieces
@@ -402,7 +409,7 @@ struct CardDetailView: View {
         VStack(alignment: .leading, spacing: 4) {
             if cap.fractionUsed > 0 {
                 ProgressView(value: cap.fractionUsed)
-                    .tint(cap.isExhausted ? Color.cardWiseWarning : art.accent)
+                    .tint(cap.isExhausted ? Color.cardWiseWarning : Color.cardWiseActionInk)
             }
             Text(capText(cap))
                 .font(.caption2)

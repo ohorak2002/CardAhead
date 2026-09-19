@@ -155,13 +155,14 @@ jobs:
           shoot notifications 15
           shoot notificationlab 16
           shoot reorder 17
+          shoot mapfilters 18
 
       # A palette that works on white paper is not automatically the one that
       # works at night, and nobody has ever seen this app at night.
       - name: Photograph it in the dark
         run: |
           xcrun simctl ui "$DEVICE" appearance dark
-          for TAB in home map wallet benefits impact watching cardphoto cardbenefits placecard carddetail addcard notifications notificationlab reorder; do
+          for TAB in home map wallet benefits impact watching cardphoto cardbenefits placecard carddetail addcard notifications notificationlab reorder mapfilters; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
             sleep 6
@@ -188,7 +189,7 @@ jobs:
           # `content_size`, with an underscore — unlike `appearance` above.
           # simctl prints its whole usage page and exits 117 for the hyphen.
           xcrun simctl ui "$DEVICE" content_size accessibility-extra-extra-extra-large
-          for TAB in home wallet benefits more carddetail reorder; do
+          for TAB in home wallet benefits more carddetail reorder addcard mapfilters; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
             sleep 6

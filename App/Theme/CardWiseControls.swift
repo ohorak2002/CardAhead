@@ -121,6 +121,8 @@ struct CardWiseSearchField: View {
                 .accessibilityHidden(true)
 
             TextField(placeholder, text: $text)
+                .accessibilityLabel(placeholder)
+                .frame(minHeight: Metric.minimumTarget)
                 .submitLabel(.search)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
@@ -132,13 +134,15 @@ struct CardWiseSearchField: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(Color.secondary.opacity(0.55))
+                        .frame(width: Metric.minimumTarget, height: Metric.minimumTarget)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Clear search")
                 .transition(.opacity)
             }
         }
         .padding(.horizontal, Metric.snug)
-        .padding(.vertical, 12)
+        .padding(.vertical, 2)
         .background(
             ground.fill,
             in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
@@ -227,6 +231,8 @@ struct CardWiseChip: View {
             .padding(.vertical, 7)
             .background(isOn ? AnyShapeStyle(tint) : ground.fill, in: Capsule())
             .shadow(color: Color.cardWiseNavy.opacity(ground.shadowOpacity), radius: 8, y: 3)
+            .frame(minHeight: Metric.minimumTarget)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isOn ? [.isSelected] : [])

@@ -105,6 +105,7 @@ struct NearbyMapView: View {
             PlaceDetailView(place: place)
         }
         .onAppear {
+            if DemoSeed.requestedTab == "mapfilters" { isFiltering = true }
             // CI photographs one screen per launch because `simctl` cannot
             // tap, so the watched view has to be reachable from a launch
             // argument. Same arrangement as `MoreView.startOnImpact`.

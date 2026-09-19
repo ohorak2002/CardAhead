@@ -56,7 +56,7 @@ struct RootTabView: View {
             // All three are the Map tab: "watching" is a chip on it,
             // "placecard" selects a pin, and "placedetail" opens one. None of
             // the three is reachable by `simctl`, which cannot tap.
-            case "watching", "placecard", "placedetail": return .map
+            case "watching", "placecard", "placedetail", "mapfilters": return .map
             case "cardphoto", "cardbenefits", "cardpreview", "carddetail", "addcard", "reorder": return .wallet
             default: return Tab(rawValue: raw) ?? .home
             }

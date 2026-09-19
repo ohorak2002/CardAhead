@@ -489,7 +489,6 @@ struct ScreenHeader<Trailing: View>: View {
     let title: String
     var subtitle: String?
     @ViewBuilder var trailing: Trailing
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -511,7 +510,7 @@ struct ScreenHeader<Trailing: View>: View {
         .padding(.horizontal, Metric.margin)
         .padding(.top, Metric.snug)
         .padding(.bottom, Metric.regular)
-        // **The gradient reaches under the status bar; the text does not.**
+        // The surface reaches under the status bar; the text does not.
         // `ignoresSafeArea` applied to the header itself moves the whole
         // thing up, and the title lands on top of the clock. Applied to the
         // background shape alone, only the paint extends.
@@ -537,7 +536,7 @@ struct HeaderButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbolName)
-                .font(.headline)
+                .font(.system(size: Metric.wide, weight: .semibold))
                 .foregroundStyle(InterfacePalette.blue)
                 .frame(width: 36, height: 36)
                 .background(InterfacePalette.wash, in: Circle())

@@ -28,7 +28,7 @@ targets:
         # which fails the install with a message about the bundle identifier
         # rather than anything to do with this app.
         PRODUCT_BUNDLE_IDENTIFIER: com.ohorak.cardrewards
-        MARKETING_VERSION: "0.1"
+        MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1"
@@ -47,6 +47,8 @@ targets:
       path: Supporting/Info.plist
       properties:
         CFBundleDisplayName: CardWise
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         GooglePlacesAPIKey: $(GOOGLE_PLACES_API_KEY)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:

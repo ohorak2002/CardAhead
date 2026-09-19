@@ -266,7 +266,7 @@ private struct BenefitGroupTile: View {
                 )
                 rateText
             } else {
-                HStack(alignment: .firstTextBaseline) {
+                HStack(alignment: .center) {
                     CategoryIcon(
                         symbolName: summary.group.symbolName,
                         tint: summary.group.tint,

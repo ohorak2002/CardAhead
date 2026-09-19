@@ -173,7 +173,7 @@ struct HomeView: View {
     // MARK: - The navy top
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: Metric.roomy) {
+        VStack(alignment: .leading, spacing: Metric.regular) {
             HStack {
                 (Text("Card").foregroundColor(.white)
                  + Text("Wise").foregroundColor(InterfacePalette.cyan))
@@ -181,7 +181,7 @@ struct HomeView: View {
                 Spacer()
                 Button { goTo(.more) } label: {
                     Image(systemName: "person.crop.circle")
-                        .font(.title2)
+                        .font(.system(size: Metric.roomy))
                         .foregroundStyle(.white)
                         .frame(width: Metric.minimumTarget, height: Metric.minimumTarget)
                 }
@@ -189,7 +189,7 @@ struct HomeView: View {
             }
             VStack(alignment: .leading, spacing: Metric.tight) {
                 greetingText
-                    .font(.system(.title).weight(.bold))
+                    .font(.system(.title2).weight(.bold))
                     .fixedSize(horizontal: false, vertical: true)
                 Text("The right card. Right when you need it.")
                     .font(.footnote)
@@ -389,7 +389,7 @@ struct HomeView: View {
 
             Button { goTo(.wallet) } label: {
                 GeometryReader { geometry in
-                    let width = min(geometry.size.width - Metric.loose, 280)
+                    let width = max(1, min(geometry.size.width - Metric.loose, 250))
                     ZStack(alignment: .top) {
                         ForEach(Array(store.cards.prefix(3).enumerated().reversed()), id: \.element.id) { index, card in
                             CardFaceView(card: card, photo: store.photo(for: card))
@@ -401,7 +401,7 @@ struct HomeView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
-                .frame(height: 200)
+                .frame(height: 180)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

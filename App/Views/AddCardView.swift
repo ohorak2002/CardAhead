@@ -62,8 +62,9 @@ struct AddCardView: View {
                 VStack(alignment: .leading, spacing: Metric.roomy) {
                     title
                     CardWiseSearchField(
-                        placeholder: "Bank, card name or nickname",
-                        text: $query
+                        placeholder: "Search banks or cards",
+                        text: $query,
+                        ground: .tinted
                     )
                     .padding(.horizontal, Metric.margin)
 
@@ -80,11 +81,14 @@ struct AddCardView: View {
                 .padding(.top, Metric.snug)
                 .padding(.bottom, Metric.section)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(InterfacePalette.page)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .principal) {
+                    AddCardProgress(step: 1)
                 }
             }
             .sheet(isPresented: $isAddingByHand) {
@@ -101,9 +105,10 @@ struct AddCardView: View {
     private var title: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(replacing == nil ? "Add a card" : "Change card")
-                .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                .font(.title.weight(.bold))
+                .foregroundStyle(InterfacePalette.ink)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Pick your bank, then the exact card. CardWise already knows what each one earns.")
+            Text("Which bank is your card from?")
                 .font(.subheadline)
                 .foregroundStyle(Color.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -116,35 +121,29 @@ struct AddCardView: View {
 
     private var issuerSection: some View {
         VStack(alignment: .leading, spacing: Metric.snug) {
-            sectionLabel("Which bank is it from?")
-
-            VStack(spacing: 0) {
-                ForEach(Array(issuers.enumerated()), id: \.element.id) { index, issuer in
+            VStack(spacing: Metric.tight) {
+                ForEach(issuers) { issuer in
                     NavigationLink {
                         productList(for: issuer)
                     } label: {
                         HStack(spacing: Metric.snug) {
-                            IssuerMonogram(name: issuer.fullName, size: 44)
+                            IssuerLogo(name: issuer.fullName, size: 40)
                             Text(issuer.fullName)
-                                .font(.body.weight(.medium))
-                                .foregroundStyle(Color.primary)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(InterfacePalette.ink)
                                 .multilineTextAlignment(.leading)
                             Spacer(minLength: Metric.tight)
-                            Text("\(issuer.cardCount)")
-                                .font(.subheadline.monospacedDigit())
-                                .foregroundStyle(Color.secondary)
                             Image(systemName: "chevron.right")
                                 .font(.caption.weight(.semibold))
-                                .foregroundStyle(Color.secondary.opacity(0.5))
+                                .foregroundStyle(InterfacePalette.blue)
                         }
                         .padding(.vertical, Metric.snug)
+                        .padding(.horizontal, Metric.snug)
+                        .interfacePanel()
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
 
-                    if index < issuers.count - 1 {
-                        Hairline(inset: 44 + Metric.snug)
-                    }
                 }
             }
             .padding(.horizontal, Metric.margin)
@@ -172,9 +171,12 @@ struct AddCardView: View {
             }
             .padding(.bottom, Metric.section)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(InterfacePalette.page)
         .navigationTitle(issuer.fullName)
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .principal) { AddCardProgress(step: 2) }
+        }
     }
 
     /// Shared by the bank's list and the search results, so a card looks the

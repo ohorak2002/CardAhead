@@ -165,11 +165,14 @@ enum ControlGround {
     /// underneath stays visible — which is the whole reason the control is
     /// floating rather than in a bar — and lifted, because it genuinely is.
     case floating
+    /// Blue wash used by the redesigned bank picker and map header.
+    case tinted
 
     var fill: AnyShapeStyle {
         switch self {
         case .page: return AnyShapeStyle(Color(.secondarySystemGroupedBackground))
         case .floating: return AnyShapeStyle(.regularMaterial)
+        case .tinted: return AnyShapeStyle(InterfacePalette.wash)
         }
     }
 
@@ -178,6 +181,7 @@ enum ControlGround {
         switch self {
         case .page: return 0
         case .floating: return 0.18
+        case .tinted: return 0
         }
     }
 }

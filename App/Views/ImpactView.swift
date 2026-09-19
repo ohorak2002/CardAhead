@@ -43,8 +43,8 @@ struct ImpactView: View {
             // scroll view rather than shortening it.
             .padding(.bottom, 90)
         }
-        .background(Color(.systemGroupedBackground))
-        .navigationTitle("Your impact")
+        .background(InterfacePalette.page)
+        .navigationTitle("CardWise impact")
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -54,7 +54,7 @@ struct ImpactView: View {
         VStack(alignment: .leading, spacing: Metric.tight) {
             HStack(alignment: .top) {
                 Text(dollars(summary.estimatedIncrementalValueCents))
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .font(.system(.largeTitle).weight(.bold))
                     .monospacedDigit()
                     .minimumScaleFactor(0.6)
                     .lineLimit(1)
@@ -62,6 +62,8 @@ struct ImpactView: View {
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.75))
+                    .frame(width: Metric.minimumTarget, height: Metric.minimumTarget)
+                    .background(.white.opacity(0.14), in: Circle())
                     .accessibilityHidden(true)
             }
             Text(heroCaption)
@@ -72,7 +74,11 @@ struct ImpactView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Metric.roomy)
         .background(.cardWiseAccentGradient, in: RoundedRectangle(cornerRadius: Metric.cardRadius, style: .continuous))
-        .shadow(color: Color.cardWiseBlue.opacity(0.28), radius: 14, x: 0, y: 6)
+        .overlay {
+            RoundedRectangle(cornerRadius: Metric.cardRadius)
+                .strokeBorder(.white.opacity(0.22), lineWidth: 1)
+        }
+        .shadow(color: Color.cardWiseBlue.opacity(0.16), radius: 14, x: 0, y: 6)
         .accessibilityElement(children: .combine)
     }
 

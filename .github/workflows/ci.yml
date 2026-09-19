@@ -46,6 +46,7 @@ jobs:
             -project CardWise.xcodeproj \
             -scheme CardWise \
             -destination 'generic/platform=iOS Simulator' \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             CODE_SIGNING_ALLOWED=NO
 
   # Pictures of the app, from a machine that cannot run it.
@@ -75,7 +76,7 @@ jobs:
 
       - name: Build for the simulator
         run: |
-          xcodebuild build             -project CardWise.xcodeproj             -scheme CardWise             -configuration Debug             -destination 'generic/platform=iOS Simulator'             -derivedDataPath build/dd             CODE_SIGNING_ALLOWED=NO
+          xcodebuild build             -project CardWise.xcodeproj             -scheme CardWise             -configuration Debug             -destination 'generic/platform=iOS Simulator'             -derivedDataPath build/dd             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"             CODE_SIGNING_ALLOWED=NO
 
       - name: Boot a phone
         run: |
@@ -243,6 +244,7 @@ jobs:
             -scheme CardWise \
             -destination 'generic/platform=iOS' \
             -archivePath "$PWD/build/CardWise.xcarchive" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             GOOGLE_PLACES_API_KEY="$PLACES_KEY" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \

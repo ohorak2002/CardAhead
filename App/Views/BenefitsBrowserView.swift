@@ -88,7 +88,7 @@ struct BenefitsBrowserView: View {
                 }
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(InterfacePalette.page)
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(item: $openGroup) { group in
             BenefitGroupDetailView(
@@ -101,7 +101,7 @@ struct BenefitsBrowserView: View {
     private var headerSubtitle: String? {
         guard !store.cards.isEmpty else { return nil }
         let active = WalletInsights.activeBenefitCount(in: store.cards)
-        return active == 1 ? "1 paying right now" : "\(active) paying right now"
+        return active == 1 ? "1 active benefit in your wallet" : "\(active) active benefits in your wallet"
     }
 
     private var content: some View {
@@ -317,7 +317,7 @@ private struct BenefitGroupTile: View {
         // Filling the row's height makes a row read as a row.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(Metric.regular)
-        .cardWisePanel(radius: Metric.tileRadius)
+        .interfacePanel(tinted: true)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(summary.group.displayName). \(lead.text)")
     }

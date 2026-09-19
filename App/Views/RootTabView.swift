@@ -180,7 +180,7 @@ struct MoreView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-        ScreenHeader("More", subtitle: "Everything that is not a card")
+        ScreenHeader("More", subtitle: "Your impact and app settings")
         List {
             // **The impact is a card, not a row.** This screen was three grey
             // rows and 386 points — 44% of the phone — of empty background
@@ -230,7 +230,7 @@ struct MoreView: View {
                 .padding(.bottom, Metric.regular)
         }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(InterfacePalette.page)
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(isPresented: $isShowingImpact) { ImpactView() }
         .navigationDestination(isPresented: $isShowingNotifications) {

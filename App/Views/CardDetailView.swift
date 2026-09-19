@@ -84,6 +84,8 @@ struct CardDetailView: View {
                 }
                 Spacer(minLength: 0)
             }
+            .padding(Metric.snug)
+            .interfacePanel(tinted: true)
             .accessibilityElement(children: .combine)
         }
     }

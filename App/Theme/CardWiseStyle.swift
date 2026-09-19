@@ -483,16 +483,8 @@ struct IssuerMonogram: View {
     }
 }
 
-/// The navy top the whole app wears.
-///
-/// Home had this and the other tabs had a plain system title on a black
-/// ground, which made Home look like a different app's front door rather than
-/// this app's. One header, used everywhere, is most of what makes a set of
-/// screens read as one product.
-///
-/// It replaces the navigation bar rather than sitting under it — the tab roots
-/// have nothing to navigate back to, so the bar was only ever holding a title
-/// and, on the wallet, a plus. Both live here now.
+/// Compact titles on light, adaptive surfaces leave more room for the task.
+/// Home has its own navy header; the other tab roots share this quieter one.
 struct ScreenHeader<Trailing: View>: View {
     let title: String
     var subtitle: String?
@@ -503,33 +495,28 @@ struct ScreenHeader<Trailing: View>: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: Metric.tight) {
                 Text(title)
-                    .font(.system(typeSize.isAccessibilitySize ? .title2 : .largeTitle, design: .rounded).weight(.bold))
-                    .foregroundStyle(.white)
+                    .font(.system(.title2).weight(.bold))
+                    .foregroundStyle(InterfacePalette.ink)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: Metric.tight)
                 trailing
             }
             if let subtitle {
                 Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.white)
+                    .font(.footnote)
+                    .foregroundStyle(InterfacePalette.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Metric.margin)
-        .padding(.top, Metric.roomy)
-        .padding(.bottom, Metric.roomy)
+        .padding(.top, Metric.snug)
+        .padding(.bottom, Metric.regular)
         // **The gradient reaches under the status bar; the text does not.**
         // `ignoresSafeArea` applied to the header itself moves the whole
         // thing up, and the title lands on top of the clock. Applied to the
         // background shape alone, only the paint extends.
         .background {
-            UnevenRoundedRectangle(
-                bottomLeadingRadius: 28,
-                bottomTrailingRadius: 28,
-                style: .continuous
-            )
-            .fill(.cardWiseHeader)
+            InterfacePalette.page
             .ignoresSafeArea(edges: .top)
         }
     }
@@ -541,8 +528,7 @@ extension ScreenHeader where Trailing == EmptyView {
     }
 }
 
-/// The circular button that sits in a `ScreenHeader` — white on navy, which
-/// the system toolbar button is not.
+/// A blue control on a softly tinted circle, with a full 44-point tap target.
 struct HeaderButton: View {
     let symbolName: String
     let label: String
@@ -552,9 +538,9 @@ struct HeaderButton: View {
         Button(action: action) {
             Image(systemName: symbolName)
                 .font(.headline)
-                .foregroundStyle(.white)
+                .foregroundStyle(InterfacePalette.blue)
                 .frame(width: 36, height: 36)
-                .background(.white.opacity(0.18), in: Circle())
+                .background(InterfacePalette.wash, in: Circle())
                 .frame(width: Metric.minimumTarget, height: Metric.minimumTarget)
                 .contentShape(Rectangle())
         }

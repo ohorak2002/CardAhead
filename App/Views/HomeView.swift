@@ -46,32 +46,20 @@ struct HomeView: View {
 
     var body: some View {
         ScrollView {
-            // **The order is the argument, and the first attempt had it
-            // wrong.** The wallet led and the recommendation followed, which
-            // reads sensibly in a list and fails on a phone: the wallet strip
-            // is a third of the screen, so the one fact somebody opened the
-            // app for started below the fold. The screenshot also put the same
-            // Amex Gold on screen twice within an inch of itself — once in the
-            // strip and once as the hero — which reads as a rendering bug
-            // rather than as an answer.
-            //
-            // The answer leads. The wallet is still directly under it and
-            // still the product; what changed is that the screen now answers
-            // its own question before asking you to scroll.
-            VStack(spacing: Metric.roomy) {
+            VStack(spacing: Metric.regular) {
                 header
                 if store.cards.isEmpty {
                     firstCardPrompt
                 } else {
                     bestCardNow
-                    walletPeek
+                    quickLinks
                     opportunitySection
                     watchingBanner
                 }
             }
             .padding(.bottom, 90)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(InterfacePalette.page)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $isAddingCard) { AddCardView() }
@@ -101,18 +89,34 @@ struct HomeView: View {
             if let result = nearestOpportunity,
                let recommendation = result.recommendation,
                let card = store.card(withID: recommendation.best.card.id) {
-                RecommendationHero(
-                    card: card,
-                    photo: store.photo(for: card),
-                    placeName: result.place.name,
-                    placeSubtitle: result.place.subtitle,
-                    distance: result.distanceText,
-                    rewardLine: "\(recommendation.best.card.currency.formatted(rate: recommendation.best.appliedRate)) \(recommendation.best.card.currency.unitNoun) here",
-                    // Comparison stays secondary to the winning identity.
-                    reason: recommendation.runnerUpLine ?? recommendation.best.reason
-                ) {
-                    goTo(.map)
+                Button { goTo(.map) } label: {
+                    HStack(alignment: .top, spacing: Metric.snug) {
+                        CategoryIcon(symbolName: "mappin.and.ellipse", tint: InterfacePalette.blue)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Top nearby opportunity")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(InterfacePalette.blue)
+                            Text(result.place.name)
+                                .font(.headline)
+                                .foregroundStyle(InterfacePalette.ink)
+                            Text("Use \(card.displayName) · \(recommendation.best.card.currency.formatted(rate: recommendation.best.appliedRate)) \(recommendation.best.card.currency.unitNoun) here")
+                                .font(.caption)
+                                .foregroundStyle(InterfacePalette.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(result.distanceText)
+                                .font(.caption2)
+                                .foregroundStyle(InterfacePalette.secondary)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(InterfacePalette.blue)
+                    }
+                    .padding(Metric.regular)
+                    .interfacePanel(tinted: true)
                 }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens the nearby map")
                 .padding(.horizontal, Metric.margin)
             } else {
                 Button { goTo(.map) } label: { allSetPanel }
@@ -169,24 +173,43 @@ struct HomeView: View {
     // MARK: - The navy top
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: Metric.tight) {
-            Text("CardWise")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
-            greetingText
-                .font(.system(.title2, design: .rounded).weight(.bold))
-                .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: Metric.roomy) {
+            HStack {
+                (Text("Card").foregroundColor(.white)
+                 + Text("Wise").foregroundColor(InterfacePalette.cyan))
+                    .font(.title3.weight(.bold))
+                Spacer()
+                Button { goTo(.more) } label: {
+                    Image(systemName: "person.crop.circle")
+                        .font(.title2)
+                        .foregroundStyle(.white)
+                        .frame(width: Metric.minimumTarget, height: Metric.minimumTarget)
+                }
+                .accessibilityLabel("Profile and settings")
+            }
+            VStack(alignment: .leading, spacing: Metric.tight) {
+                greetingText
+                    .font(.system(.title).weight(.bold))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("The right card. Right when you need it.")
+                    .font(.footnote)
+                    .foregroundStyle(Color.cardWiseLightBlue)
+            }
+            if !store.cards.isEmpty {
+                nearbyShortcut
+                walletPeek
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Metric.margin)
-        .padding(.vertical, Metric.regular)
+        .padding(.top, Metric.tight)
+        .padding(.bottom, Metric.roomy)
         .background {
-            UnevenRoundedRectangle(
+            HomeAtmosphere()
+            .clipShape(UnevenRoundedRectangle(
                 bottomLeadingRadius: Metric.roomy,
-                bottomTrailingRadius: Metric.roomy,
-                style: .continuous
-            )
-            .fill(.cardWiseHeader)
+                bottomTrailingRadius: Metric.roomy
+            ))
             .ignoresSafeArea(edges: .top)
         }
     }
@@ -199,18 +222,73 @@ struct HomeView: View {
     /// "Good morning, **Oren**" — with the name picked out, the way the mockup
     /// does it.
     ///
-    /// Two concatenated `Text`s rather than two views, so it stays one
-    /// paragraph and wraps as one. The name's colour is Light Blue and
-    /// **deliberately not the mockup's Accent Blue**, which measures 1.70:1
-    /// against the lighter end of the gradient behind it — see
-    /// `Color.cardWiseLightBlue`.
+    /// One accessible phrase, with the name on a second line in cyan against
+    /// the deep navy header. No name is invented for a fresh wallet.
     private var greetingText: Text {
         let name = preferredName.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else {
             return Text(timeOfDay).foregroundColor(.white)
         }
-        return Text("\(timeOfDay), ").foregroundColor(.white)
-            + Text(name).foregroundColor(.cardWiseLightBlue)
+        return Text("\(timeOfDay),\n").foregroundColor(.white)
+            + Text(name).foregroundColor(InterfacePalette.cyan)
+    }
+
+    private var nearbyShortcut: some View {
+        let count = nearby.results.filter(\.isOpportunity).count
+        return Button { goTo(.map) } label: {
+            HStack(spacing: Metric.snug) {
+                Image(systemName: "mappin.circle.fill")
+                    .font(.largeTitle)
+                    .foregroundStyle(Color.cardWiseLightBlue)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(count > 0
+                         ? "\(count) \(count == 1 ? "opportunity" : "opportunities") nearby"
+                         : "Explore nearby places")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Find the best card to use")
+                        .font(.caption)
+                        .foregroundStyle(Color.cardWiseLightBlue)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+            }
+            .foregroundStyle(.white)
+            .padding(Metric.regular)
+            .background {
+                RoundedRectangle(cornerRadius: Metric.tileRadius)
+                    .fill(LinearGradient(colors: [Color(red: 0.02, green: 0.36, blue: 0.77), .cardWiseBlue.opacity(0.55)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Metric.tileRadius)
+                            .strokeBorder(.white.opacity(0.22), lineWidth: 1)
+                    }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var quickLinks: some View {
+        HStack(spacing: Metric.tight) {
+            quickLink("Map", symbol: "map", tab: .map)
+            quickLink("Wallet", symbol: "creditcard", tab: .wallet)
+            quickLink("Benefits", symbol: "star", tab: .benefits)
+            quickLink("More", symbol: "ellipsis", tab: .more)
+        }
+        .padding(.horizontal, Metric.margin)
+    }
+
+    private func quickLink(_ title: String, symbol: String, tab: RootTabView.Tab) -> some View {
+        Button { goTo(tab) } label: {
+            VStack(spacing: Metric.tight) {
+                Image(systemName: symbol).font(.title3)
+                Text(title).font(.caption2.weight(.medium))
+            }
+            .foregroundStyle(InterfacePalette.blue)
+            .frame(maxWidth: .infinity, minHeight: Metric.minimumTarget)
+            .padding(.vertical, Metric.snug)
+            .interfacePanel()
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - What it is doing right now
@@ -300,40 +378,34 @@ struct HomeView: View {
 
     private var walletPeek: some View {
         VStack(alignment: .leading, spacing: Metric.snug) {
-            SectionHeader(title: "Your wallet") {
-                Button("See all") { goTo(.wallet) }
-                    .frame(minHeight: Metric.minimumTarget)
+            HStack {
+                Text("Your wallet").font(.headline)
+                Spacer()
+                Text("\(store.cards.count) \(store.cards.count == 1 ? "card" : "cards")")
+                    .font(.caption)
+                    .foregroundStyle(Color.cardWiseLightBlue)
             }
-            .padding(.horizontal, Metric.margin)
+            .foregroundStyle(.white)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Metric.regular) {
-                    ForEach(store.cards) { card in
-                        Button {
-                            goTo(.wallet)
-                        } label: {
-                            VStack(alignment: .leading, spacing: Metric.tight) {
-                                CardFaceView(card: card, photo: store.photo(for: card))
-                                    .frame(width: 260)
-                                Text(card.displayName)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.primary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                if let best = bestFor(card) {
-                                    Text(best)
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                            }
-                            .frame(width: 260, alignment: .leading)
+            Button { goTo(.wallet) } label: {
+                GeometryReader { geometry in
+                    let width = min(geometry.size.width - Metric.loose, 280)
+                    ZStack(alignment: .top) {
+                        ForEach(Array(store.cards.prefix(3).enumerated().reversed()), id: \.element.id) { index, card in
+                            CardFaceView(card: card, photo: store.photo(for: card))
+                                .frame(width: width, height: width / 1.586)
+                                .rotationEffect(.degrees(Double(index) * -4))
+                                .offset(x: CGFloat(index) * -6, y: CGFloat(2 - index) * 10)
+                                .accessibilityHidden(true)
                         }
-                        .buttonStyle(.plain)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
-                .padding(.horizontal, Metric.margin)
-                .padding(.vertical, Metric.tight)
+                .frame(height: 200)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open your wallet, \(store.cards.count) cards")
         }
     }
 

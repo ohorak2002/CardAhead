@@ -35,7 +35,7 @@ struct WalletStackView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScreenHeader(title: "Wallet", subtitle: walletSubtitle) {
+            ScreenHeader(title: "Your wallet", subtitle: walletSubtitle) {
                 HStack(spacing: Metric.tight) {
                     if store.cards.count > 1 {
                         HeaderButton(symbolName: "arrow.up.arrow.down", label: "Reorder cards") {
@@ -55,7 +55,7 @@ struct WalletStackView: View {
                 }
             }
             }
-            .background(Color(.systemGroupedBackground))
+            .background(InterfacePalette.page)
             .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .bottom) {
                 // Both banners have to survive the wallet going empty — you
@@ -178,7 +178,7 @@ struct WalletStackView: View {
                 // it meant you could not actually look at your cards, which
                 // is the one thing a wallet is for. Each card is now whole,
                 // with what it earns underneath it.
-                VStack(spacing: Metric.loose) {
+                VStack(spacing: Metric.wide) {
 
                     ForEach(store.cards) { card in
                         row(for: card)
@@ -225,18 +225,29 @@ struct WalletStackView: View {
 
     private func row(for card: Card) -> some View {
         let isExpanded = expandedCardID == card.id
-        return VStack(alignment: .leading, spacing: Metric.snug) {
+        return VStack(alignment: .leading, spacing: 0) {
             Button { toggle(card) } label: {
-                VStack(alignment: .leading, spacing: Metric.tight) {
+                VStack(alignment: .leading, spacing: 0) {
                     CardFaceView(card: card, photo: store.photo(for: card))
                         .frame(
                             width: cardWidth > 0 ? cardWidth : nil,
                             height: cardWidth > 0 ? cardWidth / 1.586 : nil
                         )
-                    HStack(alignment: .top, spacing: Metric.snug) {
-                        Text(card.displayName)
-                            .font(.headline)
-                            .fixedSize(horizontal: false, vertical: true)
+                    HStack(alignment: .center, spacing: Metric.snug) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(card.displayName)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(InterfacePalette.ink)
+                                .fixedSize(horizontal: false, vertical: true)
+                            if let category = WalletInsights.bestCategory(for: card, in: store.cards) {
+                                Text("Best for \(BenefitGroup.containing(category).displayName.lowercased())")
+                                    .font(.caption2.weight(.medium))
+                                    .foregroundStyle(InterfacePalette.blue)
+                                    .padding(.horizontal, Metric.tight)
+                                    .padding(.vertical, 3)
+                                    .background(InterfacePalette.wash, in: Capsule())
+                            }
+                        }
                         Spacer(minLength: 0)
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.subheadline.weight(.semibold))
@@ -244,11 +255,14 @@ struct WalletStackView: View {
                     }
                     .foregroundStyle(.primary)
                     .frame(minHeight: Metric.minimumTarget, alignment: .center)
+                    .padding(.horizontal, Metric.snug)
+                    .padding(.vertical, Metric.tight)
                     .accessibilityHidden(true)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(card.displayName)
             .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
             .accessibilityHint(isExpanded ? "Double tap to hide details" : "Double tap to show details")
 
@@ -257,17 +271,21 @@ struct WalletStackView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, Metric.snug)
+                    .padding(.bottom, Metric.snug)
             }
             if isExpanded {
+                RewardSummary(card: card)
+                    .padding(.horizontal, Metric.regular)
+                    .padding(.top, Metric.tight)
                 CardDetailView(card: card)
                     .padding(.horizontal, Metric.regular)
                     .background(Color(.secondarySystemGroupedBackground),
                                 in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous))
                     .transition(.opacity)
-            } else {
-                RewardSummary(card: card)
             }
         }
+        .interfacePanel()
         .animation(motion, value: expandedCardID)
     }
 

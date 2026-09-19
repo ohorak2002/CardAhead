@@ -246,32 +246,38 @@ struct NearbyMapView: View {
     private var floatingControls: some View {
         @Bindable var places = places
 
-        return VStack(spacing: Metric.snug) {
+        return VStack(spacing: Metric.tight) {
             HStack(spacing: Metric.tight) {
-                CardWiseSearchField(
-                    placeholder: "Search places or categories",
-                    text: $places.searchText,
-                    onSubmit: { places.runSearch() },
-                    ground: .floating
-                )
-
+                Text("Nearby map")
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(InterfacePalette.ink)
+                Spacer(minLength: Metric.tight)
                 Button {
                     isFiltering = true
                 } label: {
                     Image(systemName: "slider.horizontal.3")
                         .font(.headline)
-                        .foregroundStyle(Color.cardWiseBlue)
+                        .foregroundStyle(InterfacePalette.blue)
                         .frame(width: 44, height: 44)
-                        .background(.regularMaterial, in: Circle())
-                        .shadow(color: Color.cardWiseNavy.opacity(0.18), radius: 14, y: 5)
+                        .background(InterfacePalette.wash, in: Circle())
                 }
                 .accessibilityLabel("Filters")
             }
-            .padding(.horizontal, Metric.regular)
+            .padding(.horizontal, Metric.margin)
+
+            CardWiseSearchField(
+                placeholder: "Search places, stores or categories",
+                text: $places.searchText,
+                onSubmit: { places.runSearch() },
+                ground: .tinted
+            )
+            .padding(.horizontal, Metric.margin)
 
             chips
         }
         .padding(.top, Metric.tight)
+        .padding(.bottom, Metric.tight)
+        .background { InterfacePalette.page.ignoresSafeArea(edges: .top) }
     }
 
     private var chips: some View {
@@ -283,7 +289,7 @@ struct NearbyMapView: View {
                     title: "All",
                     isOn: !places.isShowingWatchedOnly && places.filter.isShowingEverything,
                     tint: .cardWiseBlue,
-                    ground: .floating
+                    ground: .tinted
                 ) {
                     places.showEverywhere()
                     places.filter.showEverything()
@@ -299,7 +305,7 @@ struct NearbyMapView: View {
                     symbolName: "bell.fill",
                     isOn: places.isShowingWatchedOnly,
                     tint: .cardWiseBlue,
-                    ground: .floating
+                    ground: .tinted
                 ) {
                     if places.isShowingWatchedOnly {
                         places.showEverywhere()
@@ -314,7 +320,7 @@ struct NearbyMapView: View {
                             && !places.filter.isShowingEverything
                             && places.filter.categories == [category],
                         tint: category.mapTint,
-                        ground: .floating
+                        ground: .tinted
                     ) {
                         // A chip is a "show me only this" switch, and tapping
                         // the one already on goes back to everything. Ticking
@@ -354,8 +360,8 @@ struct NearbyMapView: View {
                         .foregroundStyle(Color.primary)
                         .padding(.horizontal, Metric.snug)
                         .padding(.vertical, 7)
-                        .background(.regularMaterial, in: Capsule())
-                        .shadow(color: Color.cardWiseNavy.opacity(0.18), radius: 8, y: 3)
+                        .background(InterfacePalette.wash, in: Capsule())
+                        .frame(minHeight: Metric.minimumTarget)
                     }
                 }
             }

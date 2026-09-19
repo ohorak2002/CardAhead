@@ -78,6 +78,8 @@ struct MapFiltersView: View {
                     Text("Order the list by").textCase(nil)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(InterfacePalette.page)
             .navigationTitle("Filters")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -119,7 +121,7 @@ struct MapFiltersView: View {
                 HStack(spacing: Metric.snug) {
                     CategoryIcon(symbolName: symbolName, tint: tint, size: 32)
                     Text(title)
-                        .foregroundStyle(Color.primary)
+                        .foregroundStyle(InterfacePalette.ink)
                     Spacer(minLength: Metric.tight)
                     if isOn {
                         Image(systemName: "checkmark")
@@ -127,7 +129,9 @@ struct MapFiltersView: View {
                             .foregroundStyle(Color.cardWiseBlue)
                     }
                 }
+                .frame(minHeight: Metric.minimumTarget)
             }
+            .listRowBackground(isOn ? InterfacePalette.wash : InterfacePalette.surface)
             .accessibilityAddTraits(isOn ? [.isSelected] : [])
         }
     }

@@ -27,6 +27,7 @@ struct HomeView: View {
     @Environment(RegionMonitor.self) private var monitor
     @Environment(ReminderCenter.self) private var reminders
     @Environment(NearbyPlacesStore.self) private var nearby
+    @Environment(OrganizationStore.self) private var organization
 
     let auth: LocationAuthorization
     /// Lets a row here move the tab bar, so "See all" goes to the real screen
@@ -45,15 +46,14 @@ struct HomeView: View {
     }
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(spacing: Metric.regular) {
                 header
                 if store.cards.isEmpty {
                     firstCardPrompt
                 } else {
-                    bestCardNow
-                    quickLinks
-                    opportunitySection
+                    TodayDashboard { goTo(.map) }.id("today")
                     watchingBanner
                 }
             }
@@ -63,6 +63,12 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $isAddingCard) { AddCardView() }
+        .onAppear {
+            if DemoSeed.requestedTab == "today" {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { proxy.scrollTo("today", anchor: .top) }
+            }
+        }
+        }
     }
 
     // MARK: - The answer
@@ -196,7 +202,6 @@ struct HomeView: View {
                     .foregroundStyle(Color.cardWiseLightBlue)
             }
             if !store.cards.isEmpty {
-                nearbyShortcut
                 walletPeek
             }
         }
@@ -391,7 +396,7 @@ struct HomeView: View {
                 GeometryReader { geometry in
                     let width = max(1, min(geometry.size.width - Metric.loose, 250))
                     ZStack(alignment: .top) {
-                        ForEach(Array(store.cards.prefix(3).enumerated().reversed()), id: \.element.id) { index, card in
+                        ForEach(Array(organization.visibleCards(in: store.cards).prefix(3).enumerated().reversed()), id: \.element.id) { index, card in
                             CardFaceView(card: card, photo: store.photo(for: card))
                                 .frame(width: width, height: width / 1.586)
                                 .rotationEffect(.degrees(Double(index) * -4))
@@ -401,7 +406,13 @@ struct HomeView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
-                .frame(height: 180)
+                .frame(height: organization.visibleCards(in: store.cards).isEmpty ? Metric.minimumTarget : 180)
+                .overlay {
+                    if organization.visibleCards(in: store.cards).isEmpty {
+                        Label("Your cards are hidden. Open wallet to manage.", systemImage: "eye.slash")
+                            .font(.caption).foregroundStyle(.white)
+                    }
+                }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -549,4 +560,5 @@ private struct OpportunityRow: View {
     .environment(ReminderCenter())
     .environment(ImpactStore.previewStore())
     .environment(NearbyPlacesStore())
+    .environment(OrganizationStore(fileURL: .temporaryDirectory.appendingPathComponent("preview-organization.json")))
 }

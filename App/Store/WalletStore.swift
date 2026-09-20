@@ -171,6 +171,13 @@ final class WalletStore {
         update(card.id) { $0.isPinned.toggle() }
     }
 
+    /// An explicit choice in Organize cards, using the existing tie breaker.
+    func preferOnly(_ id: UUID) {
+        guard cards.contains(where: { $0.id == id }) else { return }
+        for index in cards.indices { cards[index].isPinned = cards[index].id == id }
+        save()
+    }
+
     func setActivated(_ activated: Bool, cardID: UUID, quarter: Quarter) {
         update(cardID) { card in
             guard var program = card.rotatingProgram,

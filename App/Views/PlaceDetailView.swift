@@ -424,12 +424,7 @@ struct PlaceDetailView: View {
                     // sentence the map's place card and Home's hero use, and
                     // which is nil rather than filler when there is nothing
                     // to compare against.
-                    if let why = recommendation.runnerUpLine {
-                        Text(why)
-                            .font(.footnote)
-                            .foregroundStyle(Color.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                    RecommendationReason(recommendation: recommendation, contextName: place.name)
 
                     if let nudge = recommendation.activationNudge {
                         Label(nudge.sentence, systemImage: "exclamationmark.circle.fill")

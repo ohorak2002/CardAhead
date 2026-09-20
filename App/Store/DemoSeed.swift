@@ -73,7 +73,11 @@ enum DemoSeed {
     /// points card with a cap, a rotating-quarter card with the bonus not
     /// switched on, and a flat cash back card.
     static var cards: [Card] {
-        [CardCatalog.amexGold, CardCatalog.chaseFreedomFlex, CardCatalog.citiDoubleCash]
+        var gold = CardCatalog.amexGold
+        // Explicitly fabricated user-entered bonus, confined to screenshot data.
+        // Never added to the catalog or to a real wallet.
+        gold.welcomeBonus = WelcomeBonus(rewardUnits: 15_000, requiredSpendDollars: 1_000, spentDollars: 300, deadline: Date().addingTimeInterval(12 * 86_400))
+        return [gold, CardCatalog.chaseFreedomFlex, CardCatalog.citiDoubleCash]
     }
 
     /// A ledger with enough in it that the impact screen has bars to draw.

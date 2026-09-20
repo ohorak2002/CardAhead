@@ -12,7 +12,7 @@ struct WhyThisCardView: View {
     @Environment(WalletStore.self) private var store
 
     @State private var category: SpendingCategory = .dining
-    @State private var merchantName = "ABC Restaurant"
+    @State private var merchantName = ""
     @State private var confidence: MerchantConfidence = .exact
     @State private var isTraveling = false
     @State private var isAbroad = false
@@ -32,6 +32,7 @@ struct WhyThisCardView: View {
         List {
             whereYouAreSection
             if let recommendation = store.recommendation(for: context) {
+                Section { RecommendationReason(recommendation: recommendation, contextName: category.displayName) }
                 rankingSection(recommendation)
                 if !recommendation.best.caveats.isEmpty {
                     caveatsSection(recommendation)
@@ -71,7 +72,7 @@ struct WhyThisCardView: View {
         } header: {
             Text("Where you are").textCase(nil)
         } footer: {
-            Text("A bench for the ranking. The geofence does this on its own when you actually arrive somewhere.")
+            Text("Choose a purchase type to explore the recommendation for your wallet. The map uses the same ranking for nearby places.")
         }
     }
 

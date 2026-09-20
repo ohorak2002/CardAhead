@@ -9,12 +9,14 @@ struct WalletStackView: View {
     @Environment(WalletStore.self) private var store
     @Environment(ReminderCenter.self) private var reminders
     @Environment(ImpactStore.self) private var impact
+    @Environment(OrganizationStore.self) private var organization
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var expandedCardID: UUID?
     @State private var undone = Pulse()
     @State private var isAddingCard = false
     @State private var isReordering = false
+    @State private var isOrganizing = false
     /// Measured, because a card cannot be sized any other way here. See
     /// `row(for:)`.
     @State private var cardWidth: CGFloat = 0
@@ -37,9 +39,9 @@ struct WalletStackView: View {
         VStack(spacing: 0) {
             ScreenHeader(title: "Your wallet", subtitle: walletSubtitle) {
                 HStack(spacing: Metric.tight) {
-                    if store.cards.count > 1 {
-                        HeaderButton(symbolName: "arrow.up.arrow.down", label: "Reorder cards") {
-                            isReordering = true
+                    if !store.cards.isEmpty {
+                        HeaderButton(symbolName: "slider.horizontal.3", label: "Organize cards") {
+                            isOrganizing = true
                         }
                     }
                     HeaderButton(symbolName: "plus", label: "Add a card") {
@@ -82,6 +84,7 @@ struct WalletStackView: View {
                 }
             }
             .sheet(isPresented: $isReordering) { WalletReorderView() }
+            .sheet(isPresented: $isOrganizing) { CardOrganizationView() }
             .sheet(isPresented: $isAddingCard, onDismiss: offerPrimerIfDue) {
                 AddCardView()
             }
@@ -180,7 +183,18 @@ struct WalletStackView: View {
                 // with what it earns underneath it.
                 VStack(spacing: Metric.wide) {
 
-                    ForEach(store.cards) { card in
+                    NavigationLink { CompareCardsView() } label: {
+                        Label("Compare cards", systemImage: "rectangle.on.rectangle")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity, minHeight: Metric.minimumTarget, alignment: .leading)
+                    }
+                    if !organization.preferences.hiddenCardIDs.isDisjoint(with: store.cards.map(\.id)) {
+                        Button { isOrganizing = true } label: {
+                            Label("Manage hidden cards", systemImage: "eye.slash")
+                                .font(.subheadline).frame(minHeight: Metric.minimumTarget)
+                        }
+                    }
+                    ForEach(store.cards.filter { !organization.isHidden($0) || $0.id == expandedCardID }) { card in
                         row(for: card)
                             .id(card.id)
                             .zIndex(expandedCardID == card.id ? 1 : 0)
@@ -214,6 +228,7 @@ struct WalletStackView: View {
                     // `simctl` cannot press either.
                     if DemoSeed.requestedTab == "addcard" { isAddingCard = true }
                     if DemoSeed.requestedTab == "reorder" { isReordering = true }
+                    if DemoSeed.requestedTab == "organize" { isOrganizing = true }
                 }
             }
             .onAppear { cardWidth = outer.size.width - Metric.margin * 2 }
@@ -235,10 +250,17 @@ struct WalletStackView: View {
                         )
                     HStack(alignment: .center, spacing: Metric.snug) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(card.displayName)
+                            Text(organization.name(for: card))
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(InterfacePalette.ink)
                                 .fixedSize(horizontal: false, vertical: true)
+                            if organization.name(for: card) != card.displayName {
+                                Text(card.displayName).font(.caption).foregroundStyle(Color.secondary)
+                            }
+                            if card.isPinned {
+                                Label("Preferred in a tie", systemImage: "star.fill")
+                                    .font(.caption2).foregroundStyle(InterfacePalette.blue)
+                            }
                             if let category = WalletInsights.bestCategory(for: card, in: store.cards) {
                                 Text("Best for \(BenefitGroup.containing(category).displayName.lowercased())")
                                     .font(.caption2.weight(.medium))
@@ -262,7 +284,7 @@ struct WalletStackView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(card.displayName)
+            .accessibilityLabel(organization.name(for: card))
             .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
             .accessibilityHint(isExpanded ? "Double tap to hide details" : "Double tap to show details")
 
@@ -404,7 +426,7 @@ struct WalletStackView: View {
 
 /// System reordering supplies autoscroll and drag cancellation. The menu and
 /// VoiceOver actions use the same store operation for people who do not drag.
-private struct WalletReorderView: View {
+struct WalletReorderView: View {
     @Environment(WalletStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 

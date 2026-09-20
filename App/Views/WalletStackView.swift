@@ -26,6 +26,10 @@ struct WalletStackView: View {
 
     @State private var locationAuth = LocationAuthorization()
     @State private var isShowingLocationPrimer = false
+    /// Deep links are launch-only conveniences for screenshots and UI tests.
+    /// Guard them so dismissing a seeded sheet does not immediately present it
+    /// again when the wallet's `onAppear` fires.
+    @State private var didHandleDemoTab = false
     /// Set when the wallet gains its first card, acted on once the add sheet
     /// has actually closed. Raising the primer while that sheet is still up
     /// asks iOS to stack a sheet on a sheet from the same view, which it
@@ -217,6 +221,8 @@ struct WalletStackView: View {
                 }
                 .onAppear {
                     openCardFromReminder(reminders.cardToOpen, using: proxy)
+                    guard !didHandleDemoTab else { return }
+                    didHandleDemoTab = true
                     // The expanded card is a tap away, and `simctl` cannot
                     // tap — so without this the card detail would be the one
                     // screen in the app nobody had ever seen. Same arrangement

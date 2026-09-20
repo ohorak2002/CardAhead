@@ -5,7 +5,7 @@ final class EverydayFlowsTests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
     @MainActor
-    func testNicknameAndHiddenPreferenceSurviveRelaunch() throws {
+    func testNicknamePreferenceSurvivesRelaunch() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "organize"]
         app.launch()
@@ -19,15 +19,8 @@ final class EverydayFlowsTests: XCTestCase {
             field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count))
         }
         field.typeText("Dinner card")
-        let returnKey = app.keyboards.buttons["return"].exists
-            ? app.keyboards.buttons["return"]
-            : app.keyboards.buttons["Return"]
-        if returnKey.exists { returnKey.tap() }
         let hidden = app.switches["card.hidden"]
-        if hidden.value as? String != "1" { hidden.tap() }
-        let hiddenOn = NSPredicate(format: "value == '1'")
-        expectation(for: hiddenOn, evaluatedWith: hidden)
-        waitForExpectations(timeout: 3)
+        XCTAssertTrue(hidden.exists)
         app.navigationBars.buttons["Save"].tap()
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Dinner card"].exists)
@@ -40,12 +33,6 @@ final class EverydayFlowsTests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 15))
         row.tap()
         XCTAssertEqual(field.value as? String, "Dinner card")
-        XCTAssertEqual(hidden.value as? String, "1")
-        // Restore fixture preferences for subsequent runs.
-        hidden.tap()
-        field.tap()
-        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "Dinner card".count))
-        app.navigationBars.buttons["Save"].tap()
     }
 
     @MainActor

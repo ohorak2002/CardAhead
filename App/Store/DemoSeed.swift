@@ -77,7 +77,10 @@ enum DemoSeed {
         // Explicitly fabricated user-entered bonus, confined to screenshot data.
         // Never added to the catalog or to a real wallet.
         gold.welcomeBonus = WelcomeBonus(rewardUnits: 15_000, requiredSpendDollars: 1_000, spentDollars: 300, deadline: Date().addingTimeInterval(12 * 86_400))
-        return [gold, CardCatalog.chaseFreedomFlex, CardCatalog.citiDoubleCash]
+        var cards = [gold, CardCatalog.chaseFreedomFlex, CardCatalog.citiDoubleCash]
+        let ids = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333"]
+        for index in cards.indices { cards[index].id = UUID(uuidString: ids[index])! }
+        return cards
     }
 
     /// A ledger with enough in it that the impact screen has bars to draw.

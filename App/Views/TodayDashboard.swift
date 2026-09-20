@@ -4,15 +4,8 @@ import CardKit
 struct TodayDashboard: View {
     @Environment(WalletStore.self) private var wallet
     @Environment(OrganizationStore.self) private var organization
-    @Environment(ImpactStore.self) private var impact
     @Environment(NearbyPlacesStore.self) private var nearby
-    @State private var category: SpendingCategory = .dining
-    @State private var showingGoal = false
     var goToMap: () -> Void
-
-    private var recommendation: Recommendation? {
-        wallet.recommendation(for: PurchaseContext(category: category, confidence: .categoryOnly, isTraveling: category.isTravelRelated, date: Date()))
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metric.regular) {
@@ -22,7 +15,7 @@ struct TodayDashboard: View {
                 Text(Date(), format: .dateTime.month(.abbreviated).day())
                     .font(.subheadline).foregroundStyle(Color.secondary)
             }
-            bestCard
+            TodayRecommendation()
             nearbyRow
             if let deadline = EverydayInsights.deadlines(in: wallet.cards).first,
                let card = wallet.card(withID: deadline.cardID) {
@@ -38,38 +31,9 @@ struct TodayDashboard: View {
                         .padding(Metric.snug).interfacePanel()
                 }.buttonStyle(.plain).foregroundStyle(InterfacePalette.blue)
             }
-            monthlyProgress
+            MonthlyRewardsPanel()
         }
         .padding(.horizontal, Metric.margin)
-        .sheet(isPresented: $showingGoal) { MonthlyGoalView() }
-    }
-
-    @ViewBuilder
-    private var bestCard: some View {
-        if let recommendation {
-            VStack(alignment: .leading, spacing: Metric.snug) {
-                Picker("Buying", selection: $category) {
-                    ForEach(SpendingCategory.allCases, id: \.self) { item in
-                        Text(item.displayName).tag(item)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(minHeight: Metric.minimumTarget)
-                HStack(alignment: .top, spacing: Metric.snug) {
-                    CardThumbnail(card: recommendation.best.card, photo: wallet.photo(for: recommendation.best.card))
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Your best card for \(category.displayName.lowercased())")
-                            .font(.caption.weight(.medium)).foregroundStyle(InterfacePalette.blue)
-                        Text(organization.name(for: recommendation.best.card)).font(.headline)
-                            .foregroundStyle(InterfacePalette.ink)
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
-                }
-                RecommendationReason(recommendation: recommendation, contextName: category.displayName)
-            }
-            .padding(Metric.regular)
-            .interfacePanel(tinted: true)
-        }
     }
 
     private var nearbyRow: some View {
@@ -101,7 +65,52 @@ struct TodayDashboard: View {
         .buttonStyle(.plain)
     }
 
-    private var monthlyProgress: some View {
+}
+
+private struct TodayRecommendation: View {
+    @Environment(WalletStore.self) private var wallet
+    @Environment(OrganizationStore.self) private var organization
+    @State private var category: SpendingCategory = .dining
+
+    var body: some View {
+        let context = PurchaseContext(category: category, confidence: .categoryOnly, isTraveling: category.isTravelRelated, date: Date())
+        if let recommendation = wallet.recommendation(for: context) {
+            VStack(alignment: .leading, spacing: Metric.snug) {
+                HStack {
+                    Text("Buying").font(.subheadline).foregroundStyle(Color.secondary)
+                    Spacer()
+                    Picker("Buying", selection: $category) {
+                        ForEach(SpendingCategory.allCases, id: \.self) { item in
+                            Text(item.displayName).tag(item)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(minHeight: Metric.minimumTarget)
+                }
+                HStack(alignment: .top, spacing: Metric.snug) {
+                    CardThumbnail(card: recommendation.best.card, photo: wallet.photo(for: recommendation.best.card))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Your best card for \(category.displayName.lowercased())")
+                            .font(.caption.weight(.medium)).foregroundStyle(InterfacePalette.blue)
+                        Text(organization.name(for: recommendation.best.card)).font(.headline)
+                            .foregroundStyle(InterfacePalette.ink)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                RecommendationReason(recommendation: recommendation, contextName: category.displayName)
+            }
+            .padding(Metric.regular)
+            .interfacePanel(tinted: true)
+        }
+    }
+}
+
+struct MonthlyRewardsPanel: View {
+    @Environment(ImpactStore.self) private var impact
+    @Environment(OrganizationStore.self) private var organization
+    @State private var showingGoal = false
+
+    var body: some View {
         let summary = EverydayInsights.monthlyImpact(impact.ledger)
         let dollars = summary.estimatedIncrementalValueCents / 100
         let goal = organization.preferences.monthlyGoalDollars
@@ -136,6 +145,7 @@ struct TodayDashboard: View {
             }
         }
         .padding(Metric.regular).interfacePanel()
+        .sheet(isPresented: $showingGoal) { MonthlyGoalView() }
     }
 
     private var impactLink: some View {

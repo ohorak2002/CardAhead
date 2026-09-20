@@ -76,6 +76,7 @@ struct RecommendationReason: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(InterfacePalette.blue)
+            .accessibilityIdentifier("recommendation.why")
         }
         .sheet(isPresented: $isExplaining) {
             RecommendationExplanationView(recommendation: recommendation, contextName: contextName)

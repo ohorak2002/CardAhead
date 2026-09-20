@@ -89,11 +89,13 @@ struct CompareCardsView: View {
                     Text(organization.name(for: card)).tag(Optional(card.id))
                 }
             }
+            .accessibilityIdentifier("compare.first")
             Picker("Compare with", selection: $secondID) {
                 ForEach(wallet.cards.filter { $0.id != firstID }) { card in
                     Text(organization.name(for: card)).tag(Optional(card.id))
                 }
             }
+            .accessibilityIdentifier("compare.second")
         }
         .pickerStyle(.menu)
         .frame(maxWidth: .infinity, alignment: .leading)

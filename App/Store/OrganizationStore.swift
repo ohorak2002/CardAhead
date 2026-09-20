@@ -3,6 +3,7 @@ import Observation
 import CardKit
 
 @Observable
+@MainActor
 final class OrganizationStore {
     private(set) var preferences = WalletOrganization()
     private(set) var failure: String?

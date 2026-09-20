@@ -32,6 +32,7 @@ struct CardOrganizationView: View {
                             }
                             .padding(.vertical, Metric.tight)
                         }
+                        .accessibilityIdentifier("organization.card.\(card.id.uuidString)")
                     }
                 } footer: {
                     Text("Give cards a nickname or hide faces you rarely need. Hidden cards remain in your wallet data and can still be recommended. Your preferred card breaks ties; a better earning card still wins.")
@@ -73,16 +74,19 @@ private struct CardOrganizationEditor: View {
                 Section("Nickname") {
                     TextField("e.g. Everyday dining", text: $nickname)
                         .textInputAutocapitalization(.words)
+                        .accessibilityIdentifier("card.nickname")
                     Text("Only the label in CardWise changes. Your card's name and artwork stay as they are.")
                         .font(.caption).foregroundStyle(Color.secondary)
                 }
                 Section {
                     Toggle("Prefer this card", isOn: $preferred)
+                        .accessibilityIdentifier("card.preferred")
                 } footer: {
                     Text("Use this as your default when cards tie. CardWise still recommends a card with a better estimated value.")
                 }
                 Section {
                     Toggle("Hide from wallet", isOn: $hidden)
+                        .accessibilityIdentifier("card.hidden")
                 } footer: {
                     Text("Hides its face from Home and Wallet. Benefits and recommendations still include this card. You can show it again here anytime.")
                 }

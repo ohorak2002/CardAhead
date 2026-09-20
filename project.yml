@@ -70,3 +70,32 @@ targets:
           Used only to photograph your own card, so your wallet shows the card
           you actually carry. The photo stays on this iPhone and is never
           uploaded. CardWise does not read your card number.
+
+  CardWiseUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: CardWise
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ohorak.cardrewards.uitests
+        SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: CardWise
+        CODE_SIGNING_ALLOWED: NO
+
+schemes:
+  CardWise:
+    build:
+      targets:
+        CardWise: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - CardWiseUITests
+    archive:
+      config: Release

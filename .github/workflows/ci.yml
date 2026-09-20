@@ -204,6 +204,26 @@ jobs:
           # app at the size everybody else sees.
           xcrun simctl ui "$DEVICE" content_size medium
 
+      - name: Exercise everyday flows
+        run: |
+          xcodebuild test \
+            -project CardWise.xcodeproj \
+            -scheme CardWise \
+            -destination "platform=iOS Simulator,id=$DEVICE" \
+            -derivedDataPath build/dd \
+            -resultBundlePath build/everyday-flows.xcresult \
+            -parallel-testing-enabled NO \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: CardWise-UI-test-results
+          path: build/everyday-flows.xcresult
+          if-no-files-found: ignore
+          retention-days: 14
+
       # **`always()`, so a broken photograph step cannot cost every picture.**
       # The job is already `continue-on-error`, which stops it failing the run
       # — but a failed *step* still halts the ones after it, and the first

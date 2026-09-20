@@ -94,7 +94,7 @@ public enum EverydayInsights {
                 result.append(BenefitDeadline(
                     id: "\(card.id).welcome", cardID: card.id,
                     title: "Signup bonus deadline",
-                    detail: "Spend remaining: \(bonus.remainingSpendDollars.formatted(.currency(code: "USD")))",
+                    detail: "Spend remaining: $\(NSDecimalNumber(decimal: bonus.remainingSpendDollars).stringValue)",
                     date: bonus.deadline, needsActivation: false
                 ))
             }

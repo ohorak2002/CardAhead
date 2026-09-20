@@ -366,4 +366,5 @@ struct MoreView: View {
         .environment(RegionMonitor())
         .environment(ImpactStore.previewStore())
         .environment(NearbyPlacesStore())
+        .environment(OrganizationStore(fileURL: .temporaryDirectory.appendingPathComponent("preview-organization.json")))
 }

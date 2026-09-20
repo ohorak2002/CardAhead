@@ -15,3 +15,15 @@ Monthly figures use confirmed estimates recorded in the current calendar month f
 CI adds Today, timeline, comparison, organization and explanation captures, including dark and largest-text variants. The example signup bonus and nickname are fabricated screenshot fixtures under DemoSeed only and never enter a real wallet or catalog.
 
 Widgets, Watch, scanning, transaction import, and onboarding are outside this five-item build. They were discussed earlier but are not implemented by this change.
+
+## Plugin review receipt
+
+Applied SwiftUI Expert 5.0.0 (`skills/swiftui-expert-skill/SKILL.md`), Build iOS Apps 0.1.2 (`skills/swiftui-performance-audit/SKILL.md`), and App Design Research 0.1.5 (`skills/app-design-review/SKILL.md`) from the installed plugin cache. Inputs are the user's ChatGPT-generated design references, the prior CardWise UI, current SwiftUI source, and CI-generated images; no external app research or paid design service was used.
+
+The review focused on three findings:
+
+1. Home's new category selection originally shared a view boundary with monthly ledger calculations. Extracted TodayRecommendation and MonthlyRewardsPanel so changing the purchase type need not rebuild unrelated sections. This is a structural improvement, not a measured performance claim.
+2. Nicknames and hidden cards must survive an app restart without changing notification content. Stored them outside Card, isolated their store to the main actor, and added a simulator persistence test. Preferred-card selection uses the existing ranking tie breaker.
+3. Dense comparisons need their card identity to remain clear while scrolling and at large text sizes. Repeated the card names alongside values, stacked values at accessibility sizes, and retained native Back and sheet dismissal. Added comparison-selection and explanation-dismissal simulator tests.
+
+Minimum deployment remains iOS 17. CI records its actual iPhone/OS in the run logs. Build iOS Apps' local simulator probe returned `spawn xcrun ENOENT` on Windows, so the existing macOS CI performs runtime checks. Device VoiceOver, Reduce Motion, physical-phone interaction, and minimum-OS runtime testing remain unverified unless separately recorded. A screenshot proves appearance only; the UI tests exercise the stated flows.

@@ -487,4 +487,5 @@ struct WalletReorderView: View {
         .environment(ReminderCenter())
         .environment(RegionMonitor())
         .environment(ImpactStore.previewStore())
+        .environment(OrganizationStore(fileURL: .temporaryDirectory.appendingPathComponent("preview-organization.json")))
 }

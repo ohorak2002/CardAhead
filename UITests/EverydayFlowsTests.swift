@@ -21,6 +21,9 @@ final class EverydayFlowsTests: XCTestCase {
         field.typeText("Dinner card")
         let hidden = app.switches["card.hidden"]
         if hidden.value as? String != "1" { hidden.tap() }
+        let hiddenOn = NSPredicate(format: "value == '1'")
+        expectation(for: hiddenOn, evaluatedWith: hidden)
+        waitForExpectations(timeout: 3)
         app.navigationBars.buttons["Save"].tap()
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Dinner card"].exists)

@@ -19,6 +19,10 @@ final class EverydayFlowsTests: XCTestCase {
             field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count))
         }
         field.typeText("Dinner card")
+        let returnKey = app.keyboards.buttons["return"].exists
+            ? app.keyboards.buttons["return"]
+            : app.keyboards.buttons["Return"]
+        if returnKey.exists { returnKey.tap() }
         let hidden = app.switches["card.hidden"]
         if hidden.value as? String != "1" { hidden.tap() }
         let hiddenOn = NSPredicate(format: "value == '1'")

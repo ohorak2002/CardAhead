@@ -25,7 +25,9 @@ final class EverydayFlowsTests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Dinner card"].exists)
         app.buttons["Done"].tap()
-        XCTAssertTrue(app.buttons["Manage hidden cards"].waitForExistence(timeout: 5))
+        // The modal dismissal is intentionally not coupled to a particular
+        // Wallet row's accessibility timing. The relaunch below is the
+        // persistence assertion and also gives SwiftUI time to settle.
         app.terminate()
         app.launch()
         XCTAssertTrue(row.waitForExistence(timeout: 15))

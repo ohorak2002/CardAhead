@@ -38,6 +38,8 @@ struct PlaceDetailView: View {
     /// is what happens offline and on a key with no details quota.
     @State private var place: MapPlace
     @State private var isLoadingDetails = false
+    @State private var purchaseAmount = ""
+    @State private var purchaseChannel: PurchaseChannel = .inStore
 
     init(place: MapPlace) {
         _place = State(initialValue: place)
@@ -52,7 +54,9 @@ struct PlaceDetailView: View {
     }
 
     private var recommendation: Recommendation? {
-        guard !wallet.cards.isEmpty, let context = place.purchaseContext() else { return nil }
+        guard !wallet.cards.isEmpty, var context = place.purchaseContext() else { return nil }
+        context.purchaseDollars = Decimal(string: purchaseAmount)
+        context.channel = purchaseChannel
         return RecommendationEngine().recommend(from: wallet.cards, in: context)
     }
 
@@ -61,6 +65,16 @@ struct PlaceDetailView: View {
             VStack(alignment: .leading, spacing: Metric.roomy) {
                 header
                 actions
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Check personal offers").font(.headline)
+                    TextField("Purchase amount ($), optional", text: $purchaseAmount).keyboardType(.decimalPad)
+                        .textFieldStyle(.roundedBorder)
+                    Picker("Purchase channel", selection: $purchaseChannel) {
+                        Text("In-store").tag(PurchaseChannel.inStore)
+                        Text("Online").tag(PurchaseChannel.online)
+                    }.pickerStyle(.segmented)
+                    Text("Exact merchant names only. Confirm issuer terms and merchant coding before relying on an estimate.").font(.caption)
+                }.padding(.horizontal, Metric.margin)
                 recommendationSection
                 factsSection
                 nearbyCards

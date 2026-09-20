@@ -123,53 +123,7 @@ struct BenefitsBrowserView: View {
                 .buttonStyle(.plain)
                 .padding(.horizontal, Metric.margin)
                 .padding(.top, Metric.snug)
-                // **Chips, not a segmented control.** The map filters with
-                // `CardWiseChip` and this screen filtered with a
-                // `.segmented` Picker — two filter languages in one app, for
-                // no reason anybody chose. The chip is the one that survived
-                // because it scales to more than three options and it is the
-                // control the rest of the app now speaks.
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Metric.tight) {
-                        ForEach(Filter.allCases) { option in
-                            CardWiseChip(
-                                title: option.displayName,
-                                isOn: filter == option,
-                                tint: .cardWiseBlue
-                            ) {
-                                filter = option
-                            }
-                        }
-                    }
-                    .padding(.horizontal, Metric.margin)
-                    .padding(.vertical, 2)
-                }
-                .padding(.top, Metric.tight)
-
-                if visibleGroups.isEmpty {
-                    Text(filter == .expiring
-                         ? "Nothing is about to run out."
-                         : "Nothing is paying right now.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, Metric.margin)
-                } else {
-                    LazyVGrid(columns: columns, spacing: Metric.snug) {
-                        ForEach(visibleGroups) { summary in
-                            Button {
-                                openGroup = summary.group
-                            } label: {
-                                BenefitGroupTile(
-                                    summary: summary,
-                                    wallet: store.cards,
-                                    lead: summary.lead(expiring: expiringIDs)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, Metric.margin)
-                }
+                BenefitGraphicsView()
 
                 if !expiring.isEmpty {
                     expiringSection

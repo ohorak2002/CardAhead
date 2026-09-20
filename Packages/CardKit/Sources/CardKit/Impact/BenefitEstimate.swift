@@ -20,7 +20,7 @@ public struct BenefitEstimate: Codable, Hashable, Sendable {
 
     /// Bumped whenever the arithmetic below changes, so a total summed across
     /// versions can be recognised as such rather than silently mixed.
-    public static let currentCalculationVersion = 1
+    public static let currentCalculationVersion = 2
 
     /// What the user said they spent. Their number, volunteered, never read
     /// from anywhere.
@@ -151,8 +151,17 @@ public enum BenefitValueCalculator {
         guard purchaseDollars > 0 else { return nil }
         let dollars = purchaseDollars.doubleValue
 
-        let value = snapshot.centsPerDollar * dollars
-        let alternateValue = snapshot.alternateCentsPerDollar.map { $0 * dollars }
+        // An amount-specific offer cannot be extrapolated onto a different purchase.
+        if snapshot.includesPersonalOffer == true, snapshot.pricedPurchaseDollars != purchaseDollars { return nil }
+        func calculateValue(rate: Double, cap: Money?, base: Double?) -> Double {
+            if snapshot.pricedPurchaseDollars != nil { return (purchaseDollars * Decimal(rate) / 100).roundedMoney.doubleValue * 100 }
+            let eligible = min(purchaseDollars, cap ?? purchaseDollars)
+            return ((eligible * Decimal(rate) + (purchaseDollars - eligible) * Decimal(base ?? rate)) / 100).roundedMoney.doubleValue * 100
+        }
+        let value = calculateValue(rate: snapshot.centsPerDollar, cap: snapshot.capRemainingDollars, base: snapshot.baseCentsPerDollar)
+        let alternateValue = snapshot.alternateCentsPerDollar.map {
+            calculateValue(rate: $0, cap: snapshot.alternateCapRemainingDollars, base: snapshot.alternateBaseCentsPerDollar)
+        }
 
         return BenefitEstimate(
             purchaseDollars: purchaseDollars,

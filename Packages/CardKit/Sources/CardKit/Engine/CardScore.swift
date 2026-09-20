@@ -34,6 +34,10 @@ public struct CardScore: Identifiable, Sendable, Hashable {
     public var reason: String
     /// Things the user should know before tapping: cap used up, coding quirks, fees.
     public var caveats: [String]
+    public var capRemainingDollars: Money? = nil
+    public var baseCentsPerDollar: Double? = nil
+    public var pricedPurchaseDollars: Money? = nil
+    public var includesPersonalOffer: Bool = false
 
     public var travelPerks: [Perk] {
         card.travelPerks

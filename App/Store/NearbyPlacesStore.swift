@@ -48,7 +48,7 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
             // A different radius or a different set of chips is a different
             // question for the provider, not just a different filter over
             // what is already here.
-            if filter.distance != oldValue.distance || filter.categories != oldValue.categories {
+            if filter.distance != oldValue.distance || filter.effectiveCategories != oldValue.effectiveCategories {
                 refresh()
             }
         }
@@ -80,6 +80,7 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
     @ObservationIgnored private let source: PlaceSearchSource
     @ObservationIgnored private let manager = CLLocationManager()
     @ObservationIgnored private let log = Logger(subsystem: AppLog.subsystem, category: "map")
+    @ObservationIgnored private var requestGate = PlaceRequestGate()
     @ObservationIgnored private var inFlight: Task<Void, Never>?
 
     /// The wallet, read rather than held — the same arrangement `RegionMonitor`
@@ -167,47 +168,52 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
     func searchArea(around coordinate: GeoCoordinate) {
         guard coordinate.isValid else { return }
         center = coordinate
-        activeQuery = nil
-        searchText = ""
         refresh()
     }
 
     // MARK: - Looking things up
 
     func refresh() {
+        inFlight?.cancel()
+        let token = requestGate.invalidate()
+        places = []
+        failure = nil
+        isLoading = false
+        guard !filter.isShowingNothing, !isShowingWatchedOnly else { return }
         guard let center else {
             start()
             return
         }
         let query = activeQuery
+        let requestedFilter = filter
         inFlight?.cancel()
         isLoading = true
         failure = nil
 
         inFlight = Task { @MainActor [weak self] in
             guard let self else { return }
-            defer { self.isLoading = false }
+            defer { if self.requestGate.accepts(token) { self.isLoading = false } }
             do {
                 let found: [MapPlace]
                 if let query {
                     found = try await self.source.places(
                         matching: query,
                         near: center,
-                        radiusMeters: self.filter.distance.meters
+                        radiusMeters: requestedFilter.distance.meters
                     )
                 } else {
                     found = try await self.source.places(
                         near: center,
-                        radiusMeters: self.filter.distance.meters,
-                        categories: self.filter.effectiveCategories
+                        radiusMeters: requestedFilter.distance.meters,
+                        categories: requestedFilter.effectiveCategories
                     )
                 }
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, self.requestGate.accepts(token) else { return }
                 self.places = found
             } catch is CancellationError {
                 return
             } catch {
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, self.requestGate.accepts(token) else { return }
                 self.log.error("place lookup failed: \(error.localizedDescription, privacy: .public)")
                 self.failure = Self.sentence(for: error)
             }
@@ -222,6 +228,8 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
             refresh()
             return
         }
+        guard activeQuery != trimmed || failure != nil else { return }
+        isShowingWatchedOnly = false
         activeQuery = trimmed
         refresh()
     }
@@ -281,6 +289,7 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
 
     func showEverywhere() {
         isShowingWatchedOnly = false
+        refresh()
     }
 
     func showWatchedOnly() {

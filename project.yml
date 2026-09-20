@@ -43,6 +43,8 @@ targets:
         # A billable secret, so it is not in this repository. Empty means the
         # app runs with no place provider and says so. See docs/places-api.md.
         GOOGLE_PLACES_API_KEY: ""
+        IMPACT_SERVICE_URL: ""
+        IMPACT_PUBLIC_KEY: ""
     info:
       path: Supporting/Info.plist
       properties:
@@ -50,6 +52,8 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         GooglePlacesAPIKey: $(GOOGLE_PLACES_API_KEY)
+        ImpactServiceURL: $(IMPACT_SERVICE_URL)
+        ImpactPublicKey: $(IMPACT_PUBLIC_KEY)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

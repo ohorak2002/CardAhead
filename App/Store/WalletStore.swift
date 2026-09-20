@@ -197,6 +197,7 @@ final class WalletStore {
         update(cardID) { card in
             guard let index = card.rules.firstIndex(where: { $0.category == category }) else { return }
             card.rules[index].cap?.spentDollars = amount
+            card.rules[index].cap?.usageUpdatedOn = Date()
         }
     }
 
@@ -225,6 +226,7 @@ final class WalletStore {
     func setRotatingCapSpend(_ amount: Money, cardID: UUID) {
         update(cardID) { card in
             card.rotatingProgram?.cap?.spentDollars = amount
+            card.rotatingProgram?.cap?.usageUpdatedOn = Date()
         }
     }
 

@@ -77,6 +77,8 @@ public struct MapFilter: Codable, Hashable, Sendable {
     /// modelling it as "all eight ticked" means a filter written today breaks
     /// the first time a ninth category is added — everybody's saved "All"
     /// would silently become "all except the new one".
+    public enum Selection: String, Codable, Sendable { case all, none, custom }
+    public private(set) var selection: Selection
     public var categories: Set<MapCategory>
     public var distance: MapDistance
     public var sort: MapSort
@@ -86,6 +88,7 @@ public struct MapFilter: Codable, Hashable, Sendable {
         distance: MapDistance = .standard,
         sort: MapSort = .nearest
     ) {
+        self.selection = categories.isEmpty ? .all : .custom
         self.categories = categories
         self.distance = distance
         self.sort = sort
@@ -93,40 +96,38 @@ public struct MapFilter: Codable, Hashable, Sendable {
 
     public static let standard = MapFilter()
 
-    public var isShowingEverything: Bool {
-        categories.isEmpty || categories.count == MapCategory.allCases.count
+    private enum CodingKeys: String, CodingKey { case selection, categories, distance, sort }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        categories = try c.decode(Set<MapCategory>.self, forKey: .categories)
+        distance = try c.decode(MapDistance.self, forKey: .distance)
+        sort = try c.decode(MapSort.self, forKey: .sort)
+        // Version 1 used an empty set (and a full set) to mean All.
+        selection = try c.decodeIfPresent(Selection.self, forKey: .selection)
+            ?? (categories.isEmpty || categories.count == MapCategory.allCases.count ? .all : .custom)
+        if selection != .custom { categories = [] }
+        if selection == .custom && categories.isEmpty { selection = .none }
     }
 
-    /// The categories actually in play, with "All" expanded.
+    public var isShowingEverything: Bool { selection == .all }
+    public var isShowingNothing: Bool { selection == .none }
     public var effectiveCategories: Set<MapCategory> {
-        isShowingEverything ? Set(MapCategory.allCases) : categories
+        selection == .all ? Set(MapCategory.allCases) : (selection == .none ? [] : categories)
     }
-
-    public func includes(_ category: MapCategory) -> Bool {
-        isShowingEverything || categories.contains(category)
-    }
-
-    /// Ticking the last category off is "show me everything", not "show me
-    /// nothing" — an empty map with no way back to a full one is a dead end.
+    public func includes(_ category: MapCategory) -> Bool { effectiveCategories.contains(category) }
     public mutating func toggle(_ category: MapCategory) {
-        var updated = effectiveCategories
-        if updated.contains(category) {
-            updated.remove(category)
-        } else {
-            updated.insert(category)
-        }
-        categories = updated.isEmpty ? [] : updated
+        if selection != .custom { categories = [] }
+        if categories.contains(category) { categories.remove(category) }
+        else { categories.insert(category) }
+        selection = categories.isEmpty ? .none : .custom
     }
-
-    public mutating func showEverything() {
-        categories = []
+    public mutating func showEverything() { selection = .all; categories = [] }
+    public mutating func showNothing() { selection = .none; categories = [] }
+    public mutating func toggleAll() {
+        if isShowingEverything { showNothing() } else { showEverything() }
     }
-
-    /// Narrow to exactly one category — what tapping a chip on the map does,
-    /// as opposed to ticking a box in the filter sheet.
-    public mutating func showOnly(_ category: MapCategory) {
-        categories = [category]
-    }
+    public mutating func showOnly(_ category: MapCategory) { selection = .custom; categories = [category] }
 
     /// What to ask the place provider for.
     public var requestedPlaceTypes: [String] {
@@ -136,6 +137,7 @@ public struct MapFilter: Codable, Hashable, Sendable {
     /// A line under the map saying what is being shown, for the times when
     /// the chips have scrolled out of view.
     public var summary: String {
+        if isShowingNothing { return "Select a category to see nearby places" }
         if isShowingEverything { return "Everything within \(distance.displayName)" }
         let names = MapCategory.allCases
             .filter { categories.contains($0) }

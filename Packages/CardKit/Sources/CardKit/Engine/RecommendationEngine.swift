@@ -57,9 +57,19 @@ public struct RecommendationEngine: Sendable {
         var isCapExhausted = false
         var isRotatingMatch = false
         var needsActivation = false
+        var appliedCap: EarnCap?
 
         // A permanent bonus rule, if the card has one for this category.
         if context.category != .base, let rule = card.rule(for: context.category) {
+            let merchantAllowed = rule.merchantNames.map { names in
+                context.confidence == .exact && context.merchantName.map { merchant in
+                    names.contains { PersonalOffer.normalized($0) == PersonalOffer.normalized(merchant) }
+                } == true
+            } ?? true
+            let confirmed = rule.requiresConfirmation != true || context.confirmedBenefitIDs.contains(BenefitOrigin.rule(rule.category).identifier)
+            if !merchantAllowed || !confirmed {
+                caveats.append("Conditional benefit: " + (rule.note ?? "Confirm issuer eligibility."))
+            } else
             if let cap = rule.cap, cap.isExhausted {
                 isCapExhausted = true
                 let limit = Self.dollars(cap.limitDollars)
@@ -67,6 +77,7 @@ public struct RecommendationEngine: Sendable {
                 caveats.append("\(context.category.displayName) cap of \(limit) \(cap.period.displayName) is used up. Earning \(fallback) here.")
             } else if rule.rate > appliedRate {
                 appliedRate = rule.rate
+                appliedCap = rule.cap
                 source = .permanent(rule.category)
             }
         }
@@ -92,6 +103,7 @@ public struct RecommendationEngine: Sendable {
                     caveats.append("Rotating bonus cap of \(limit) \(cap.period.displayName) is used up.")
                 } else if program.rate > appliedRate {
                     appliedRate = program.rate
+                    appliedCap = program.cap
                     source = .rotating(rotatingQuarter.quarter)
                 }
 
@@ -105,6 +117,47 @@ public struct RecommendationEngine: Sendable {
         }
 
         var effective = appliedRate * card.currency.centsPerUnit
+        if let cap = appliedCap {
+            if !cap.usageIsCurrent(asOf: context.date) {
+                caveats.append("Cap usage is unknown for this period. Enter current spend before relying on the bonus.")
+            }
+            if let amount = context.purchaseDollars, amount > 0 {
+                let eligible = min(amount, cap.remainingDollars)
+                effective = ((eligible * Decimal(appliedRate) + (amount - eligible) * Decimal(card.baseRate))
+                    * Decimal(card.currency.centsPerUnit) / amount).doubleValue
+            }
+        }
+        // Costco gas shares the existing gas cap. Exact aliases only.
+        if card.catalogProductID == "citi-costco-anywhere-visa", context.category == .gas,
+           context.confidence == .exact, let name = context.merchantName,
+           ["costco", "costco gas", "costco gasoline", "costco wholesale"].contains(PersonalOffer.normalized(name)),
+           !isCapExhausted {
+            appliedRate = 5
+            let amount = context.purchaseDollars
+            if let amount, amount > 0, let cap = appliedCap {
+                let eligible = min(amount, cap.remainingDollars)
+                effective = ((eligible * 5 + (amount - eligible) * Decimal(card.baseRate)) / amount).doubleValue
+            } else { effective = 5 }
+        }
+
+        let evaluations = (card.personalOffers ?? []).compactMap {
+            OfferEvaluator.evaluate($0, in: context, centsPerPoint: card.currency.centsPerUnit)
+        }
+        caveats.append(contentsOf: evaluations.map(\.explanation))
+        // Multiple offers may conflict; choose the best single eligible offer.
+        // No offer-to-offer stacking is inferred.
+        let standardEffective = effective
+        var offerApplied = false
+        for evaluation in evaluations {
+            guard let rate = evaluation.centsPerDollar,
+                  let offer = card.personalOffers?.first(where: { $0.id == evaluation.offerID }) else { continue }
+            let standard = standardEffective
+            let candidate = offer.stacking == .addsToStandard ? standard + rate : rate
+            if candidate > effective { effective = candidate; offerApplied = true }
+        }
+        if context.merchantName != nil {
+            caveats.append("Map categories are estimates, not issuer merchant codes. Actual rewards depend on how the purchase is processed.")
+        }
 
         if context.isAbroad && card.foreignTransactionFeePercent > 0 {
             effective -= card.foreignTransactionFeePercent
@@ -121,7 +174,7 @@ public struct RecommendationEngine: Sendable {
 
         caveats.append(contentsOf: card.notes(for: context.category).map(\.text))
 
-        return CardScore(
+        var result = CardScore(
             card: card,
             appliedRate: appliedRate,
             source: source,
@@ -131,9 +184,14 @@ public struct RecommendationEngine: Sendable {
             isRotatingMatch: isRotatingMatch,
             needsActivation: needsActivation,
             isCapExhausted: isCapExhausted,
-            reason: reason(rate: appliedRate, source: source, card: card),
+            reason: offerApplied ? "Estimated reward includes your eligible personal offer" : reason(rate: appliedRate, source: source, card: card),
             caveats: caveats
         )
+        result.capRemainingDollars = appliedCap?.remainingDollars
+        result.baseCentsPerDollar = card.baseRate * card.currency.centsPerUnit - (context.isAbroad ? card.foreignTransactionFeePercent : 0)
+        result.pricedPurchaseDollars = context.purchaseDollars
+        result.includesPersonalOffer = offerApplied
+        return result
     }
 
     /// An open signup bonus, spread across the spend still required.

@@ -45,6 +45,9 @@ struct CardDetailView: View {
         VStack(alignment: .leading, spacing: Metric.roomy) {
             bestForLine
             rotatingSection
+            NavigationLink { PersonalOffersView(cardID: card.id) } label: {
+                Label("Add a reward or offer", systemImage: "plus.circle")
+            }
             benefitsSection
             notesSection
             factsSection

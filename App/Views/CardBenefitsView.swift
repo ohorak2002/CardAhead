@@ -66,6 +66,8 @@ struct CardBenefitsView: View {
 
     /// Benefit ids the user has unticked. Ids rather than benefits, so a redraw
     /// between the tap and the save cannot drop the wrong row.
+    @State private var setupCard: Card?
+    @State private var adjustingSetup = false
     @State private var dropped: Set<String> = []
     @State private var isChangingCard = false
     @State private var isEditingByHand = false
@@ -94,7 +96,7 @@ struct CardBenefitsView: View {
     /// quarter, logging cap spend) shows here without reopening the screen.
     private var card: Card {
         switch mode {
-        case .confirming(let entry): return entry.card
+        case .confirming(let entry): return setupCard ?? entry.card
         case .reviewing(let card): return store.card(withID: card.id) ?? card
         }
     }
@@ -123,6 +125,27 @@ struct CardBenefitsView: View {
     var body: some View {
         List {
             faceSection
+            if isConfirming {
+                Section {
+                    Text(entry?.versionDescription ?? "User-provided card")
+                    Button("My benefits are different") { adjustingSetup = true }
+                }
+            } else if let entry {
+                Section("Standard benefits & adjustments") {
+                    if card.hasCatalogUpdate {
+                        Text("Catalog terms have changed or this wallet predates version tracking. Your saved terms remain in use until review.")
+                        Button("Review update · preserve my adjustments") {
+                            var next = card; next.reviewCatalogUpdate(); store.replace(next)
+                        }
+                    }
+                    ForEach(entry.card.benefits()) { standard in
+                        NavigationLink { BenefitTermsView(cardID: card.id, origin: standard.origin) } label: {
+                            Text(standard.title + (card.isUserAdjusted(standard.origin) ? " · adjusted or disabled" : ""))
+                        }
+                    }
+                    NavigationLink("Add a reward or offer") { PersonalOffersView(cardID: card.id) }
+                }
+            }
             ForEach(groups, id: \.self) { group in
                 section(for: group)
             }
@@ -163,6 +186,9 @@ struct CardBenefitsView: View {
         // thing to do with them when the product changes is forget them.
         .onChange(of: card.catalogProductID) { _, _ in
             dropped.removeAll()
+        }
+        .sheet(isPresented: $adjustingSetup) {
+            SetupBenefitAdjustmentsView(card: card) { setupCard = $0 }
         }
         .sheet(isPresented: $isChangingCard) {
             AddCardView(replacing: card)
@@ -316,6 +342,8 @@ struct CardBenefitsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                Text(benefit.source == .user ? "User-provided" : benefit.verifiedOn == nil ? "Verification incomplete" : "Standard benefit")
+                    .font(.caption2).foregroundStyle(.secondary)
                 // A cap on something that is not paying yet is noise: the
                 // quarterly $1,500 reads as money waiting for you when the
                 // quarter has not even been switched on.
@@ -385,11 +413,11 @@ struct CardBenefitsView: View {
             Button {
                 isEditingByHand = true
             } label: {
-                Label("Correct the details myself", systemImage: "square.and.pencil")
+                Label("My benefits are different", systemImage: "square.and.pencil")
             }
         } footer: {
             Text(card.isCatalogCard
-                 ? "Changing the card keeps its place in your wallet. Correcting the details by hand makes it your description, so it stops being dated against the bank's page."
+                 ? "Changing the card keeps its place in your wallet. Individual adjustments are labeled user-provided and keep the product identity."
                  : "This card was described by hand, so the form is where its rates live.")
         }
     }
@@ -440,6 +468,7 @@ struct CardBenefitsView: View {
     // MARK: - Pieces
 
     private func capText(_ cap: EarnCap) -> String {
+        if !cap.usageIsCurrent(asOf: Date()) { return "Usage unknown · \(money(cap.limitDollars)) \(cap.period.displayName) cap" }
         if cap.isExhausted {
             return "You have used the whole \(money(cap.limitDollars)) \(cap.period.displayName)."
         }

@@ -119,13 +119,14 @@ struct CardWiseApp: App {
                 .environment(notifications)
                 .environment(organization)
                 .environment(\.placePhotos, photos)
-                .task { await reminders.refreshStatus() }
+                .task { await reminders.refreshStatus(); ImpactCloudStore.shared.flush() }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
                     // Cheap and idempotent. Re-checks both permissions, since
                     // either can be changed in Settings behind our back, and
                     // closes the books on any arrival whose few minutes elapsed
                     // while the app was suspended.
+                    ImpactCloudStore.shared.flush()
                     monitor.start()
                     monitor.settleOutstandingArrivals()
                     Task { await reminders.refreshStatus() }

@@ -20,6 +20,17 @@ public struct EarnCap: Codable, Hashable, Sendable {
     /// How much of the cap the user has already burned this period.
     /// The user edits this; v1 has no transaction feed to fill it in.
     public var spentDollars: Money
+    public var usageUpdatedOn: Date?
+    public func usageIsCurrent(asOf date: Date) -> Bool {
+        guard let updated = usageUpdatedOn else { return spentDollars > 0 }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        switch period {
+        case .monthly: return calendar.isDate(updated, equalTo: date, toGranularity: .month)
+        case .quarterly: return Quarter.containing(updated) == Quarter.containing(date)
+        case .annual: return calendar.isDate(updated, equalTo: date, toGranularity: .year)
+        }
+    }
 
     public init(limitDollars: Money, period: CapPeriod, spentDollars: Money = 0) {
         self.limitDollars = limitDollars

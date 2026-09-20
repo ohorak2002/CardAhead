@@ -73,7 +73,10 @@ struct HomeView: View {
             HStack {
                 (Text("Card").foregroundColor(.white)
                  + Text("Wise").foregroundColor(InterfacePalette.cyan))
-                    .font(.title3.weight(.bold))
+                    .font(.largeTitle.weight(.bold))
+                    .minimumScaleFactor(0.8)
+                    .lineLimit(1)
+                    .layoutPriority(1)
                 Spacer()
                 Button { goTo(.more) } label: {
                     Image(systemName: "person.crop.circle")
@@ -85,7 +88,7 @@ struct HomeView: View {
             }
             VStack(alignment: .leading, spacing: Metric.tight) {
                 greetingText
-                    .font(.system(.title2).weight(.bold))
+                    .font(.headline)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("The right card. Right when you need it.")
                     .font(.footnote)

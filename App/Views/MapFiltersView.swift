@@ -29,7 +29,7 @@ struct MapFiltersView: View {
                         title: "All",
                         isOn: draft.isShowingEverything
                     ) {
-                        draft.showEverything()
+                        draft.toggleAll()
                     }
                     ForEach(MapCategory.allCases, id: \.self) { category in
                         Row(

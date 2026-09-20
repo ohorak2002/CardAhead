@@ -138,14 +138,14 @@ final class RecommendationEngineTests: XCTestCase {
         let discover = CardCatalog.discoverIt
         let inQ4 = engine.score(discover, in: context(.dining, on: Fixture.makeDate(2026, 11, 10)))
 
-        XCTAssertTrue(inQ4.isRotatingMatch)
-        XCTAssertFalse(inQ4.caveats.contains { $0.contains("Nobody has said") }, "\(inQ4.caveats)")
+        XCTAssertFalse(inQ4.isRotatingMatch)
+        XCTAssertTrue(inQ4.caveats.contains { $0.contains("Nobody has said") }, "\(inQ4.caveats)")
     }
 
     /// The differentiator in the product spec: tell the user they forgot to click activate.
     func testActivationNudgeAppearsWhenTheBonusWouldHaveWon() {
         let wallet = [CardCatalog.chaseFreedomFlex, CardCatalog.capitalOneSavor]
-        let recommendation = engine.recommend(from: wallet, in: context(.entertainment))
+        let recommendation = engine.recommend(from: wallet, in: context(.transit))
 
         XCTAssertEqual(recommendation?.best.card.displayName, "Capital One Savor")
         XCTAssertNotNil(recommendation?.activationNudge)

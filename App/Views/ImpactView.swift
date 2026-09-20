@@ -35,6 +35,11 @@ struct ImpactView: View {
                         nothingYet
                     }
                 }
+                NavigationLink("Impact sharing & account") { ImpactSharingView() }
+                if !impact.receivedRewards.isEmpty {
+                    Text("Reported received: " + CardWiseFormat.money(impact.receivedRewards.reduce(Decimal.zero) { $0 + $1.receivedDollars }))
+                    Text("User-reported rewards and credits; not independently verified.").font(.caption)
+                }
                 recordingControls
             }
             .padding(.horizontal, Metric.margin)

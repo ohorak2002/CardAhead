@@ -20,6 +20,17 @@ public struct CatalogEntry: Identifiable, Sendable {
     /// came out of the catalog can always be traced back to its entry.
     public private(set) var card: Card
 
+    public var countryCode: String { "US" }
+    public var versionDescription: String { "U.S. personal product; compare your account agreement, especially historical versions." }
+    public func verifiedDate(for origin: BenefitOrigin) -> Date? {
+        // Perk names alone do not substantiate coverage terms. Unsupported pages stay undated.
+        guard productID != "capital-one-savor" else { return nil }
+        switch origin {
+        case .rule: return checkedOn
+        case .rotating: return productID == "chase-freedom-flex" ? checkedOn : nil
+        default: return nil
+        }
+    }
     public var network: CardNetwork
     /// Personal or business. "Gold Card" is two different products.
     public var variant: CardVariant
@@ -56,6 +67,7 @@ public struct CatalogEntry: Identifiable, Sendable {
         self.productID = productID
         var stamped = card
         stamped.catalogProductID = productID
+        stamped.catalogBaseline = CatalogBaseline(rules: card.rules, perks: card.perks, checkedOn: checkedOn)
         self.card = stamped
         self.network = network
         self.variant = variant
@@ -115,7 +127,7 @@ public struct CatalogIssuer: Identifiable, Hashable, Sendable {
 public enum CardCatalog {
 
     /// The one day all of this was audited against live issuer terms.
-    public static let checkedOn = date(2026, 9, 11)
+    public static let checkedOn = date(2026, 9, 20)
 
     public static var entries: [CatalogEntry] {
         [
@@ -215,7 +227,7 @@ public enum CardCatalog {
                     quarters: [
                         RotatingQuarter(
                             quarter: Quarter(year: 2026, index: 3),
-                            categories: [.gas, .transit, .entertainment],
+                            categories: [.gas, .transit],
                             summary: "Gas stations and EV charging, public transit, select live entertainment, and United Way donations",
                             // Chase closes activation before the quarter ends,
                             // unlike Discover. Missing it costs the whole bonus.
@@ -236,7 +248,7 @@ public enum CardCatalog {
             termsURL: "https://creditcards.chase.com/cash-back-credit-cards/freedom/flex",
             checkedOn: checkedOn,
             notModelled: [
-                "Q4 2026 had not been announced when this was checked. Chase publishes about a fortnight before the quarter starts.",
+                "The official page retrieved on September 20 still displayed Coming Soon for Q4; those categories remain unverified. Select live entertainment is narrower than all entertainment and is excluded from automatic category matching.",
                 "United Way donations are part of this quarter's 5%, but a donation is not a shop and nothing here can notice one."
             ]
         )
@@ -296,7 +308,7 @@ public enum CardCatalog {
             notModelled: [
                 "Refreshed on 15 June 2026; these are the new rates.",
                 "5x on Lyft rides through 30 September 2027, and 5x on Peloton equipment over $150 through 31 December 2027. Both end, so neither is written in as a rate.",
-                "A $50 yearly hotel credit through Chase Travel, and 10% of the year's spend back in points on the account anniversary. Neither changes which card to pay with."
+                "Up to $100 in hotel statement credits through Chase Travel each account anniversary year (not $50). Up to $120 Global Entry/TSA PreCheck/NEXUS credit every four years. Review account eligibility and covered-purchase exclusions."
             ]
         )
     }
@@ -318,26 +330,11 @@ public enum CardCatalog {
                 rotatingProgram: RotatingProgram(
                     rate: 5,
                     cap: EarnCap(limitDollars: 1_500, period: .quarterly),
-                    quarters: [
-                        RotatingQuarter(
-                            quarter: Quarter(year: 2026, index: 3),
-                            categories: [.gas, .drugstores, .transit],
-                            summary: "Gas stations, drug stores, and transportation",
-                            activationDeadline: date(2026, 9, 30)
-                        ),
-                        RotatingQuarter(
-                            quarter: Quarter(year: 2026, index: 4),
-                            categories: [.dining, .entertainment],
-                            summary: "Restaurants, entertainment, and utilities",
-                            activationDeadline: date(2026, 12, 31)
-                        )
-                    ],
-                    // Discover publishes the whole year ahead, which is why two
-                    // quarters are known here and only one is known for Chase.
-                    knownThrough: Quarter(year: 2026, index: 4),
+                    quarters: [],
+                    knownThrough: Quarter(year: 2025, index: 4),
                     sourceURL: "https://www.discover.com/credit-cards/cash-back/cashback-calendar.html"
                 ),
-                perks: [.firstYearCashbackMatch],
+                perks: [],
                 foreignTransactionFeePercent: 0,
                 annualFeeDollars: 0,
                 artKey: "graphite",
@@ -348,7 +345,7 @@ public enum CardCatalog {
             termsURL: "https://www.discover.com/credit-cards/cash-back/it-card.html",
             checkedOn: checkedOn,
             notModelled: [
-                "Utilities are part of Q4's 5%, but a utility bill is not a shop and nothing here can notice one."
+                "The official calendar was inaccessible to this audit. Enter categories from your account; no 2026 categories are assumed. Cashback Match is introductory for eligible new accounts, not a continuing benefit. Add it only if your account qualifies."
             ]
         )
     }
@@ -432,11 +429,11 @@ public enum CardCatalog {
                         cap: EarnCap(limitDollars: 25_000, period: .annual),
                         note: "U.S. supermarkets only."
                     ),
-                    CategoryRule(category: .travelPortal, rate: 5, note: "Prepaid hotels through Amex Travel."),
-                    CategoryRule(category: .flights, rate: 3, note: "Booked with the airline or through Amex Travel."),
+                    CategoryRule(category: .travelPortal, rate: 5, note: "Prepaid hotels through Amex Travel only; confirm booking eligibility.", requiresConfirmation: true),
+                    CategoryRule(category: .flights, rate: 3, note: "Booked with the airline or through Amex Travel; confirm booking eligibility.", requiresConfirmation: true),
                     CategoryRule(category: .base, rate: 1)
                 ],
-                perks: [.noForeignTransactionFee, .annualTravelCredit, .purchaseProtection],
+                perks: [.noForeignTransactionFee, .purchaseProtection],
                 notes: [
                     CategoryNote(
                         category: .warehouseClub,
@@ -475,7 +472,8 @@ public enum CardCatalog {
                 name: "Double Cash",
                 currency: .cashBack,
                 rules: [
-                    CategoryRule(category: .base, rate: 2, note: "1% when you buy, 1% when you pay it off.")
+                    CategoryRule(category: .base, rate: 2, note: "ThankYou Points valued at 1 cent: 1% on purchases plus 1% as paid; assumes payment eligibility."),
+                    CategoryRule(category: .travelPortal, rate: 5, note: "Hotels, car rentals and attractions through Citi Travel only; includes payment rewards.", requiresConfirmation: true)
                 ],
                 foreignTransactionFeePercent: 3,
                 annualFeeDollars: 0,
@@ -487,7 +485,7 @@ public enum CardCatalog {
             termsURL: "https://www.citi.com/credit-cards/citi-double-cash-credit-card",
             checkedOn: checkedOn,
             notModelled: [
-                "Hotels, car rentals and attractions booked through Citi Travel have been earning 5%, but Citi has run that as a dated offer before now and the current end date could not be confirmed. Left out rather than promised.",
+                "5% total on hotels, car rentals and attractions through Citi Travel; includes the payment-dependent 1%. Confirm eligible booking; flights are excluded.",
                 "Rewards arrive as ThankYou Points. One cent each as cash back, possibly more if transferred to an airline."
             ]
         )
@@ -513,7 +511,7 @@ public enum CardCatalog {
                     CategoryRule(category: .travel, rate: 3),
                     CategoryRule(category: .flights, rate: 3),
                     CategoryRule(category: .hotels, rate: 3),
-                    CategoryRule(category: .warehouseClub, rate: 2, note: "Costco and Costco.com."),
+                    CategoryRule(category: .warehouseClub, rate: 2, note: "Costco and Costco.com only, not other warehouse clubs.", merchantNames: ["Costco", "Costco Wholesale", "Costco.com"]),
                     CategoryRule(category: .base, rate: 1)
                 ],
                 perks: [.noForeignTransactionFee],
@@ -554,7 +552,7 @@ public enum CardCatalog {
                 name: "Savor",
                 currency: .cashBack,
                 rules: [
-                    CategoryRule(category: .travelPortal, rate: 5, note: "Hotels, vacation rentals, cars and activities through Capital One Travel."),
+                    CategoryRule(category: .travelPortal, rate: 5, note: "Eligible bookings through Capital One Travel; current scope not verified.", requiresConfirmation: true),
                     CategoryRule(category: .dining, rate: 3),
                     CategoryRule(category: .entertainment, rate: 3),
                     CategoryRule(category: .streaming, rate: 3, note: "Popular streaming services."),
@@ -580,9 +578,9 @@ public enum CardCatalog {
             network: .mastercard,
             aliases: ["Capital One Savor", "Savor", "Savor Rewards"],
             termsURL: "https://www.capitalone.com/credit-cards/savor-dining-rewards/",
-            checkedOn: checkedOn,
+            checkedOn: date(2026, 9, 11),
             notModelled: [
-                "8% back on Capital One Entertainment bookings. That is a website, not a place you walk into, so it never comes up here."
+                "Current product page was inaccessible on September 20. Rates retained from the previous catalog are unverified; compare your account terms. This entry is the $0-fee 3% Savor, not a legacy 4% Savor or a different SavorOne variant."
             ]
         )
     }
@@ -609,7 +607,7 @@ public enum CardCatalog {
             ),
             network: .visa,
             aliases: ["Wells Fargo Active Cash", "Active Cash"],
-            termsURL: "https://www.wellsfargo.com/credit-cards/active-cash/",
+            termsURL: "https://www.wellsfargo.com/credit-cards/documents/active-cash-terms/",
             checkedOn: checkedOn,
             notModelled: [
                 "Cell phone cover up to $600 against theft or damage, with a $25 excess, when the bill is paid with this card."

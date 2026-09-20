@@ -212,6 +212,15 @@ extension CardBenefit {
             found.append(welcomeBenefit(bonus, on: card, source: source, verifiedOn: verifiedOn, asOf: date))
         }
 
+        for index in found.indices {
+            let origin = found[index].origin
+            if card.isUserAdjusted(origin) {
+                found[index].source = .user
+                found[index].verifiedOn = nil
+            } else {
+                found[index].verifiedOn = entry?.verifiedDate(for: origin)
+            }
+        }
         return found.sorted { lhs, rhs in
             if lhs.group != rhs.group { return lhs.group.sortOrder < rhs.group.sortOrder }
             if lhs.rate != rhs.rate { return (lhs.rate ?? -1) > (rhs.rate ?? -1) }
@@ -351,6 +360,7 @@ extension Card {
     public func removingBenefit(_ benefit: CardBenefit) -> Card {
         guard benefit.isRemovable else { return self }
         var card = self
+        card.adjustedBenefitIDs = Array(Set((card.adjustedBenefitIDs ?? []) + [benefit.id]))
         switch benefit.origin {
         case .rule(let category):
             guard category != .base else { return self }

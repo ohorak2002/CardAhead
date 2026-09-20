@@ -270,10 +270,16 @@ struct NearbyMapView: View {
                 placeholder: "Search places, stores or categories",
                 text: $places.searchText,
                 onSubmit: { places.runSearch() },
+                onClear: { places.clearSearch() },
                 ground: .tinted
             )
             .padding(.horizontal, Metric.margin)
 
+            HStack {
+                Text(places.activeQuery.map { "Results for \"\($0)\" · \(places.filter.distance.shortName) from search center" } ?? places.filter.summary)
+                    .font(.caption).foregroundStyle(.secondary)
+                if places.activeQuery != nil { Button("Cancel search") { places.clearSearch() } }
+            }.padding(.horizontal, Metric.margin)
             chips
         }
         .padding(.top, Metric.tight)
@@ -293,7 +299,7 @@ struct NearbyMapView: View {
                     ground: .tinted
                 ) {
                     places.showEverywhere()
-                    places.filter.showEverything()
+                    places.filter.toggleAll()
                 }
                 // **Always shown, even when nothing is watched**, and that is
                 // the point rather than an oversight. "CardWise is not
@@ -319,7 +325,7 @@ struct NearbyMapView: View {
                         title: category.shortName,
                         isOn: !places.isShowingWatchedOnly
                             && !places.filter.isShowingEverything
-                            && places.filter.categories == [category],
+                            && places.filter.categories.contains(category),
                         tint: category.mapTint,
                         ground: .tinted
                     ) {
@@ -331,13 +337,8 @@ struct NearbyMapView: View {
                         // read as one row of alternatives and a category chip
                         // that narrowed the *watched* set while staying dim
                         // would be lying about which of them is on.
-                        let wasWatching = places.isShowingWatchedOnly
                         places.showEverywhere()
-                        if !wasWatching, places.filter.categories == [category] {
-                            places.filter.showEverything()
-                        } else {
-                            places.filter.showOnly(category)
-                        }
+                        places.filter.toggle(category)
                     }
                 }
                 // Hidden in the watched view rather than shown having no
@@ -562,7 +563,9 @@ struct NearbyMapView: View {
     /// and find it is the kind of empty state that reads as an apology.
     @ViewBuilder
     private var emptyMessage: some View {
-        if places.hasNoProvider {
+        if places.filter.isShowingNothing {
+            CardWiseEmptyState(symbolName: "line.3.horizontal.decrease.circle", title: "Select a category to see nearby places", message: "Choose All or one or more categories above.")
+        } else if places.hasNoProvider {
             CardWiseEmptyState(
                 symbolName: "mappin.slash",
                 title: "No place provider",

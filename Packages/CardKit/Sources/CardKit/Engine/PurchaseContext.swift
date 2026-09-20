@@ -19,6 +19,10 @@ public struct PurchaseContext: Sendable, Hashable {
     /// Outside the card's home currency, where a foreign transaction fee bites.
     public var isAbroad: Bool
     public var date: Date
+    public var purchaseDollars: Money?
+    public var channel: PurchaseChannel
+    /// Explicit confirmation of issuer-specific restrictions, never inferred from a map type.
+    public var confirmedBenefitIDs: Set<String>
 
     public init(
         category: SpendingCategory,
@@ -26,7 +30,10 @@ public struct PurchaseContext: Sendable, Hashable {
         confidence: MerchantConfidence = .exact,
         isTraveling: Bool = false,
         isAbroad: Bool = false,
-        date: Date = Date()
+        date: Date = Date(),
+        purchaseDollars: Money? = nil,
+        channel: PurchaseChannel = .unknown,
+        confirmedBenefitIDs: Set<String> = []
     ) {
         self.category = category
         self.merchantName = merchantName
@@ -34,5 +41,8 @@ public struct PurchaseContext: Sendable, Hashable {
         self.isTraveling = isTraveling
         self.isAbroad = isAbroad
         self.date = date
+        self.purchaseDollars = purchaseDollars
+        self.channel = channel
+        self.confirmedBenefitIDs = confirmedBenefitIDs
     }
 }

@@ -22,6 +22,7 @@ import CardKit
 final class ImpactStore {
 
     private(set) var ledger = ImpactLedger()
+    private(set) var receivedRewards: [OfferRedemption] = []
 
     /// Off means nothing is written down at all, and what was already written
     /// is gone. On means it is written here and stays here.
@@ -36,6 +37,8 @@ final class ImpactStore {
         isRecording = on
         if !on {
             ledger.erase()
+            receivedRewards = []
+            ImpactCloudStore.shared.setSharing(false)
             openByRegion = [:]
         }
         save()
@@ -142,6 +145,13 @@ final class ImpactStore {
         return estimate
     }
 
+    func recordReceived(_ redemption: OfferRedemption, productID: String?, category: SpendingCategory?) {
+        guard isRecording else { return }
+        receivedRewards.append(redemption)
+        ImpactCloudStore.shared.receive(redemption, productID: productID, category: category)
+        save()
+    }
+
     // MARK: - What happens in the app
 
     func recordCardAdded(_ card: Card) {
@@ -187,6 +197,8 @@ final class ImpactStore {
 
     func erase() {
         ledger.erase()
+        receivedRewards = []
+        ImpactCloudStore.shared.deleteShared()
         openByRegion = [:]
         save()
     }
@@ -214,6 +226,7 @@ final class ImpactStore {
         }
         for event in new {
             analytics.record(event.redactedForAnalytics())
+            ImpactCloudStore.shared.receive(event)
         }
         save()
     }
@@ -235,6 +248,7 @@ final class ImpactStore {
         /// — see `Card.finish` for the same pattern. Missing means on, which
         /// is what it was.
         var isRecording: Bool?
+        var receivedRewards: [OfferRedemption]?
     }
 
     private func load() {
@@ -245,13 +259,14 @@ final class ImpactStore {
         isRecording = state.isRecording ?? true
         guard isRecording else { return }
         ledger = state.ledger
+        receivedRewards = state.receivedRewards ?? []
         openByRegion = state.openByRegion
     }
 
     private func save() {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        let state = StoredState(ledger: ledger, openByRegion: openByRegion, isRecording: isRecording)
+        let state = StoredState(ledger: ledger, openByRegion: openByRegion, isRecording: isRecording, receivedRewards: receivedRewards)
         guard let data = try? encoder.encode(state) else { return }
         try? data.write(to: fileURL, options: [.atomic])
     }

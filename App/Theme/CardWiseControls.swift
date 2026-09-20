@@ -110,6 +110,8 @@ struct CardWiseSearchField: View {
     /// Called on the keyboard's Search key. Screens that filter as you type
     /// can leave it nil.
     var onSubmit: (() -> Void)?
+    var onClear: (() -> Void)? = nil
+    @FocusState private var focused: Bool
     /// What is behind it. See `ControlGround` — a field floating over a map
     /// needs a different answer from one sitting on a page.
     var ground: ControlGround = .page
@@ -126,11 +128,13 @@ struct CardWiseSearchField: View {
                 .submitLabel(.search)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
-                .onSubmit { onSubmit?() }
+                .focused($focused)
+                .onSubmit { focused = false; onSubmit?() }
 
             if !text.isEmpty {
                 Button {
                     text = ""
+                    onClear?()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(Color.secondary.opacity(0.55))

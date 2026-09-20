@@ -157,7 +157,7 @@ final class CardBenefitTests: XCTestCase {
     // MARK: - Perks land somewhere sensible
 
     func testATravelCreditIsMoneyAndSitsWithTheBonuses() throws {
-        let credit = try XCTUnwrap(benefit(CardCatalog.amexGold, id: "perk.annualTravelCredit"))
+        let credit = try XCTUnwrap(benefit(CardCatalog.chaseSapphirePreferred, id: "perk.annualTravelCredit"))
         XCTAssertEqual(credit.group, .creditsAndBonuses)
         XCTAssertEqual(credit.kind, .credit)
 

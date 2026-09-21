@@ -61,13 +61,16 @@ public struct RecommendationEngine: Sendable {
 
         // A permanent bonus rule, if the card has one for this category.
         if context.category != .base, let rule = card.rule(for: context.category) {
-            let merchantAllowed = rule.merchantNames.map { names in
+            let restriction = CardCatalog.entry(for: card)?.card.rule(for: context.category)
+            let merchantAllowed = (rule.merchantNames ?? restriction?.merchantNames).map { names in
                 context.confidence == .exact && context.merchantName.map { merchant in
                     names.contains { PersonalOffer.normalized($0) == PersonalOffer.normalized(merchant) }
                 } == true
             } ?? true
-            let confirmed = rule.requiresConfirmation != true || context.confirmedBenefitIDs.contains(BenefitOrigin.rule(rule.category).identifier)
-            if !merchantAllowed || !confirmed {
+            let confirmed = (rule.requiresConfirmation ?? restriction?.requiresConfirmation) != true || context.confirmedBenefitIDs.contains(BenefitOrigin.rule(rule.category).identifier)
+            let domesticOnly = (card.catalogProductID == "amex-blue-cash-preferred" && [.groceries, .gas, .streaming].contains(context.category))
+                || (card.catalogProductID == "amex-gold" && context.category == .groceries)
+            if !merchantAllowed || !confirmed || (domesticOnly && context.isAbroad) {
                 caveats.append("Conditional benefit: " + (rule.note ?? "Confirm issuer eligibility."))
             } else
             if let cap = rule.cap, cap.isExhausted {
@@ -109,7 +112,7 @@ public struct RecommendationEngine: Sendable {
 
             case .unannounced:
                 let rate = card.currency.formatted(rate: program.rate)
-                caveats.append("Nobody has said what \(card.displayName) pays \(rate) on this quarter, so this leaves it out.")
+                caveats.append("CardWise has not verified what \(card.displayName) pays \(rate) on this quarter, so this leaves it out.")
 
             default:
                 break
@@ -140,7 +143,7 @@ public struct RecommendationEngine: Sendable {
             } else { effective = 5 }
         }
 
-        let evaluations = (card.personalOffers ?? []).compactMap {
+        let evaluations = card.effectiveOffers.compactMap {
             OfferEvaluator.evaluate($0, in: context, centsPerPoint: card.currency.centsPerUnit)
         }
         caveats.append(contentsOf: evaluations.map(\.explanation))
@@ -150,13 +153,10 @@ public struct RecommendationEngine: Sendable {
         var offerApplied = false
         for evaluation in evaluations {
             guard let rate = evaluation.centsPerDollar,
-                  let offer = card.personalOffers?.first(where: { $0.id == evaluation.offerID }) else { continue }
+                  let offer = card.effectiveOffers.first(where: { $0.id == evaluation.offerID }) else { continue }
             let standard = standardEffective
             let candidate = offer.stacking == .addsToStandard ? standard + rate : rate
             if candidate > effective { effective = candidate; offerApplied = true }
-        }
-        if context.merchantName != nil {
-            caveats.append("Map categories are estimates, not issuer merchant codes. Actual rewards depend on how the purchase is processed.")
         }
 
         if context.isAbroad && card.foreignTransactionFeePercent > 0 {
@@ -173,6 +173,9 @@ public struct RecommendationEngine: Sendable {
         }
 
         caveats.append(contentsOf: card.notes(for: context.category).map(\.text))
+        if context.merchantName != nil {
+            caveats.append("Map categories are estimates, not issuer merchant codes. Actual rewards depend on how the purchase is processed.")
+        }
 
         var result = CardScore(
             card: card,
@@ -285,7 +288,8 @@ public struct RecommendationEngine: Sendable {
     /// said it, and a notification that says the same thing twice has spent
     /// its second line on nothing.
     private func detail(for best: CardScore, in context: PurchaseContext) -> String {
-        "Use \(best.card.displayName) for \(rewardPhrase(for: best, in: context))."
+        if best.includesPersonalOffer { return "Use \(best.card.displayName): estimated rewards include your personal offer. Review its conditions below." }
+        return "Use \(best.card.displayName) for \(rewardPhrase(for: best, in: context))."
     }
 
     /// The tail of that sentence: the rate, and what it is a rate *on*.

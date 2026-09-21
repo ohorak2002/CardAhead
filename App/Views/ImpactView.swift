@@ -58,7 +58,7 @@ struct ImpactView: View {
     private var hero: some View {
         VStack(alignment: .leading, spacing: Metric.tight) {
             HStack(alignment: .top) {
-                Text(dollars(summary.estimatedIncrementalValueCents))
+                Text(summary.knownBaselineCount == 0 ? "Unknown" : dollars(summary.estimatedIncrementalValueCents))
                     .font(.system(.largeTitle).weight(.bold))
                     .monospacedDigit()
                     .minimumScaleFactor(0.6)
@@ -91,7 +91,8 @@ struct ImpactView: View {
         guard summary.priced > 0 else {
             return "Estimated extra rewards. Nothing priced yet."
         }
-        let purchases = summary.priced == 1 ? "one purchase" : "\(summary.priced) purchases"
+        guard summary.knownBaselineCount > 0 else { return "No comparison baseline. Total estimated rewards are separate from additional value." }
+        let purchases = summary.knownBaselineCount == 1 ? "one purchase" : "\(summary.knownBaselineCount) purchases with a known baseline"
         return "Estimated extra rewards, over your next best card, across \(purchases)."
     }
 
@@ -190,7 +191,7 @@ struct ImpactView: View {
             ))
             .font(.subheadline.weight(.medium))
 
-            Text("Kept on this iPhone and nowhere else. There is no account, nothing is uploaded, and no bank or card account is ever read — the dollar figures are the ones you typed in. Switching this off erases what is here.")
+            Text("Local tracking works without sharing. Optional Impact sharing requires separate consent under Impact sharing & account. No bank account is read; amounts are your reports. Switching local tracking off erases local Impact and stops new sharing. Previously shared records remain until deleted through Impact sharing.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

@@ -62,7 +62,7 @@ begin
   if auth.uid() is null then raise exception 'Authentication required' using errcode = '42501'; end if;
   select * into consent from cardwise_private.participants where user_id = auth.uid() for update;
   if not found or not consent.enabled or consent.epoch <> epoch then raise exception 'Sharing not authorized' using errcode = '42501'; end if;
-  if jsonb_typeof(records) <> 'array' or jsonb_array_length(records) > 100 then raise exception 'Invalid batch'; end if;
+  if records is null or jsonb_typeof(records) <> 'array' or jsonb_array_length(records) > 100 then raise exception 'Invalid batch'; end if;
   for r in select * from jsonb_array_elements(records) loop
     if jsonb_typeof(r) <> 'object' or exists(select 1 from jsonb_object_keys(r) k where k not in
       ('id','recommendation_id','day','kind','category','product','purchase_cents','estimated_cents','incremental_cents','received_cents','calculation_version')) then

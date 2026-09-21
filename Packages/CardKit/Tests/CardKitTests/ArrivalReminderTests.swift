@@ -107,7 +107,8 @@ final class ArrivalReminderTests: XCTestCase {
             cards: [CardCatalog.amexGold],
             asOf: Fixture.inQ3
         ))
-        XCTAssertEqual(reminder.body, "Use Amex Gold for 4x at restaurants.")
+        XCTAssertTrue(reminder.body.hasPrefix("Use Amex Gold for 4x at restaurants."))
+        XCTAssertTrue(reminder.body.contains("usage is unknown"))
     }
 
     // MARK: - Saying nothing

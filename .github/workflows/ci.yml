@@ -204,6 +204,31 @@ jobs:
           # app at the size everybody else sees.
           xcrun simctl ui "$DEVICE" content_size medium
 
+      - name: Photograph a smaller iPhone
+        run: |
+          TYPE=$(xcrun simctl list devicetypes -j | python3 -c 'import json,sys; types=json.load(sys.stdin)["devicetypes"]; matches=[t for t in types if "iPhone SE (3rd generation)" in t["name"] or "iPhone 16e" in t["name"]]; print(matches[0]["identifier"] if matches else "")')
+          test -n "$TYPE" || { echo "No supported small iPhone device type"; exit 1; }
+          SMALL=$(xcrun simctl create "CardWise Small" "$TYPE")
+          xcrun simctl boot "$SMALL"
+          xcrun simctl bootstatus "$SMALL" -b
+          APP=$(find build/dd/Build/Products -name 'CardWise.app' | head -1)
+          xcrun simctl install "$SMALL" "$APP"
+          for TAB in home benefits mapfilters; do
+            xcrun simctl terminate "$SMALL" com.ohorak.cardrewards || true
+            xcrun simctl launch "$SMALL" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
+            sleep 5
+            xcrun simctl io "$SMALL" screenshot "screenshots/small-$TAB.png"
+          done
+          xcrun simctl ui "$SMALL" appearance dark
+          xcrun simctl ui "$SMALL" content_size accessibility-extra-extra-extra-large
+          for TAB in home benefits; do
+            xcrun simctl terminate "$SMALL" com.ohorak.cardrewards || true
+            xcrun simctl launch "$SMALL" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
+            sleep 5
+            xcrun simctl io "$SMALL" screenshot "screenshots/small-dark-huge-$TAB.png"
+          done
+          xcrun simctl shutdown "$SMALL"
+
       - name: Exercise everyday flows
         run: |
           xcodebuild test \
@@ -264,6 +289,8 @@ jobs:
       - name: Archive for a real device
         env:
           PLACES_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+          IMPACT_URL: ${{ vars.IMPACT_SERVICE_URL }}
+          IMPACT_KEY: ${{ vars.IMPACT_PUBLIC_KEY }}
         run: |
           xcodebuild archive \
             -project CardWise.xcodeproj \
@@ -272,6 +299,8 @@ jobs:
             -archivePath "$PWD/build/CardWise.xcarchive" \
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             GOOGLE_PLACES_API_KEY="$PLACES_KEY" \
+            IMPACT_SERVICE_URL="$IMPACT_URL" \
+            IMPACT_PUBLIC_KEY="$IMPACT_KEY" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO

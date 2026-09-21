@@ -45,7 +45,11 @@ public struct Recommendation: Sendable, Hashable {
     public var activationNudge: ActivationNudge?
     public var travelPerkSummary: String?
 
-    public var caveats: [String] { best.caveats }
+    public var caveats: [String] {
+        best.caveats + alternates.flatMap { score in
+            score.caveats.filter { $0.contains("conditional —") }.map { "\(score.card.displayName): \($0)" }
+        }
+    }
 
     /// What the next best card in the wallet would have paid here.
     ///

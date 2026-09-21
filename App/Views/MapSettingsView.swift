@@ -79,7 +79,7 @@ struct MapSettingsView: View {
             } header: {
                 Text("Kinds of place").textCase(nil)
             } footer: {
-                Text("Turning the last one off shows everything again, because a map with nothing on it is not a setting anybody wanted.")
+                Text("All includes every category. Turning off the last selection shows no places until you select a category.")
             }
 
             Section {

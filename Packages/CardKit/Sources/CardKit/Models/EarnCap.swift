@@ -22,7 +22,7 @@ public struct EarnCap: Codable, Hashable, Sendable {
     public var spentDollars: Money
     public var usageUpdatedOn: Date?
     public func usageIsCurrent(asOf date: Date) -> Bool {
-        guard let updated = usageUpdatedOn else { return spentDollars > 0 }
+        guard let updated = usageUpdatedOn else { return false }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         switch period {

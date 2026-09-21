@@ -68,6 +68,7 @@ public struct CatalogEntry: Identifiable, Sendable {
         var stamped = card
         stamped.catalogProductID = productID
         stamped.catalogBaseline = CatalogBaseline(rules: card.rules, perks: card.perks, checkedOn: checkedOn)
+        stamped.standardBenefitOffers = StandardCredits.offers(productID: productID, source: termsURL, verifiedOn: checkedOn)
         self.card = stamped
         self.network = network
         self.variant = variant
@@ -455,7 +456,7 @@ public enum CardCatalog {
             termsURL: "https://www.americanexpress.com/us/credit-cards/card/gold-card/",
             checkedOn: checkedOn,
             notModelled: [
-                "Up to $424 a year in credits tied to named merchants. They are worth money but they do not change which card to hand over."
+                "Standard credits require account eligibility: $10/month dining at named partners (enrollment), $7/month U.S. Dunkin' (enrollment), $50 per half-year at qualifying U.S. Resy restaurants (enrollment), and $10/month Uber Cash after adding the card in Uber. No rollover; Uber Cash is an account balance, not extra card earnings. Resy eligibility cannot be inferred from a restaurant map listing."
             ]
         )
     }

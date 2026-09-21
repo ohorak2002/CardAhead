@@ -53,6 +53,8 @@ public struct Card: Identifiable, Codable, Hashable, Sendable {
     public var adjustedBenefitIDs: [String]?
     public var rotatingUserProvided: Bool?
     public var personalOffers: [PersonalOffer]?
+    public var standardBenefitOffers: [PersonalOffer]?
+    public var effectiveOffers: [PersonalOffer] { (standardBenefitOffers ?? []) + (personalOffers ?? []) }
 
 
     public init(

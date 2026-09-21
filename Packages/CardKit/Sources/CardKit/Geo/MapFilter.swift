@@ -79,7 +79,7 @@ public struct MapFilter: Codable, Hashable, Sendable {
     /// would silently become "all except the new one".
     public enum Selection: String, Codable, Sendable { case all, none, custom }
     public private(set) var selection: Selection
-    public var categories: Set<MapCategory>
+    public private(set) var categories: Set<MapCategory>
     public var distance: MapDistance
     public var sort: MapSort
 

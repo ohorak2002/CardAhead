@@ -111,7 +111,7 @@ struct CardEditorView: View {
         // Caps and coding notes belong to the rule, not to the form. Changing a
         // rate must not reset the $6,000 of grocery spend someone logged.
         card.rules = benefits
-            .filter { $0.rate > 0 }
+            .filter { $0.rate.isFinite && $0.rate >= 0 }
             .map { draft in
                 let existing = original.rule(for: draft.category)
                 return CategoryRule(

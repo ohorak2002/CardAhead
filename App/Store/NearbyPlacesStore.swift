@@ -191,7 +191,7 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
         failure = nil
 
         inFlight = Task { @MainActor [weak self] in
-            guard let self else { return }
+            guard let self, !Task.isCancelled, self.requestGate.accepts(token) else { return }
             defer { if self.requestGate.accepts(token) { self.isLoading = false } }
             do {
                 let found: [MapPlace]
@@ -294,6 +294,9 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
 
     func showWatchedOnly() {
         isShowingWatchedOnly = true
+        inFlight?.cancel()
+        requestGate.invalidate()
+        isLoading = false
         // Every watched shop, not "the watched restaurants". Somebody opening
         // this is asking what the app is up to, and an answer narrowed by a
         // chip they set ten minutes ago for another reason would under-report

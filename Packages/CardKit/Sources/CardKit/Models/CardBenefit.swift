@@ -119,6 +119,7 @@ public struct CardBenefit: Identifiable, Codable, Hashable, Sendable {
     /// The day somebody last read this off the issuer's own page. Nil for a
     /// card described by hand, because then nobody did.
     public var verifiedOn: Date?
+    public var sourceURL: String?
     public var expiresOn: Date?
     /// False when the benefit exists but is not paying right now: a cap used
     /// up, a quarter not switched on, a signup bonus already met.
@@ -219,6 +220,7 @@ extension CardBenefit {
                 found[index].verifiedOn = nil
             } else {
                 found[index].verifiedOn = entry?.verifiedDate(for: origin)
+                found[index].sourceURL = entry?.termsURL
             }
         }
         return found.sorted { lhs, rhs in
@@ -254,7 +256,7 @@ extension CardBenefit {
             }
             isActive = quarter.isActivated
         case .unannounced:
-            detail = "\(card.issuer) has not published this quarter's list yet."
+            detail = "CardWise has not verified this quarter's categories. Check your issuer."
         case .none:
             detail = "Nothing extra on this card this quarter."
         }
@@ -272,7 +274,7 @@ extension CardBenefit {
             isActive: isActive,
             // The issuer owns this one. Switching it off here would only hide
             // it from the person it is being kept honest for.
-            isRemovable: false
+            isRemovable: true
         )
     }
 
@@ -370,7 +372,7 @@ extension Card {
         case .welcomeBonus:
             card.welcomeBonus = nil
         case .rotating:
-            return self
+            card.rotatingProgram = nil
         }
         return card
     }

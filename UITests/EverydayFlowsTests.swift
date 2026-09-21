@@ -5,6 +5,48 @@ final class EverydayFlowsTests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
     @MainActor
+    func testAllOffRemainsNoneThroughSearchAndCancel() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "mapfilters"]
+        app.launch()
+        let all = app.buttons["All"].firstMatch
+        XCTAssertTrue(all.waitForExistence(timeout: 15))
+        if !all.isSelected { all.tap() }
+        all.tap()
+        XCTAssertFalse(all.isSelected)
+        app.buttons["Apply filters"].tap()
+        let empty = app.staticTexts["Select a category to see nearby places"].firstMatch
+        XCTAssertTrue(empty.waitForExistence(timeout: 5))
+        let search = app.textFields["Search places, stores or categories"]
+        search.tap(); search.typeText("coffee\n")
+        XCTAssertTrue(empty.exists)
+        app.buttons["Clear search"].tap()
+        XCTAssertTrue(empty.exists)
+        app.buttons["Filters"].tap()
+        app.buttons["Restaurants"].firstMatch.tap()
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(empty.exists)
+    }
+
+    @MainActor
+    func testOfferGuidanceCanBeCancelledWithoutSaving() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "benefits"]
+        app.launch()
+        let add = app.buttons["Add a reward or offer"].firstMatch
+        XCTAssertTrue(add.waitForExistence(timeout: 15))
+        add.tap()
+        XCTAssertTrue(app.textFields["Name this offer"].waitForExistence(timeout: 5))
+        app.textFields["Name this offer"].tap()
+        app.textFields["Name this offer"].typeText("Unsaved test offer")
+        app.buttons["Next"].tap()
+        XCTAssertTrue(app.staticTexts["What do you get?"].exists || app.staticTexts["WHAT DO YOU GET?"].exists)
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(add.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Unsaved test offer"].exists)
+    }
+
+    @MainActor
     func testNicknamePreferenceSurvivesRelaunch() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "organize"]

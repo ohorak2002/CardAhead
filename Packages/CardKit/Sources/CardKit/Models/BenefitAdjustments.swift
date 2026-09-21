@@ -23,7 +23,7 @@ extension Card {
                 || current.cap?.limitDollars != standard.cap?.limitDollars || current.cap?.period != standard.cap?.period
         case .perk(let perk): return !baseline.perks.contains(perk)
         case .welcomeBonus: return true
-        case .rotating: return rotatingUserProvided ?? false
+        case .rotating: return (rotatingUserProvided ?? false) || rotatingProgram?.quarters.contains(where: { $0.enteredByUser }) == true
         }
     }
 
@@ -60,6 +60,7 @@ extension Card {
                 if !adjustedBenefitIDs!.contains(origin.identifier) { adjustedBenefitIDs!.append(origin.identifier) }
             } else { restoreBenefit(origin) }
         }
+        if standardBenefitOffers == nil { standardBenefitOffers = entry.card.standardBenefitOffers }
         catalogBaseline = entry.card.catalogBaseline
     }
 }

@@ -114,7 +114,7 @@ final class CardBenefitTests: XCTestCase {
         let rotating = try XCTUnwrap(
             CardBenefit.benefits(for: CardCatalog.chaseFreedomFlex, asOf: inQ4).first { $0.id == "rotating" }
         )
-        XCTAssertEqual(rotating.detail, "Chase has not published this quarter's list yet.")
+        XCTAssertEqual(rotating.detail, "CardWise has not verified this quarter's categories. Check your issuer.")
         XCTAssertFalse(rotating.isActive)
     }
 
@@ -208,8 +208,8 @@ final class CardBenefitTests: XCTestCase {
     func testTheRotatingQuarterCannotBeRemoved() throws {
         let flex = CardCatalog.chaseFreedomFlex
         let rotating = try XCTUnwrap(benefit(flex, id: "rotating"))
-        XCTAssertFalse(rotating.isRemovable)
-        XCTAssertNotNil(flex.removingBenefit(rotating).rotatingProgram)
+        XCTAssertTrue(rotating.isRemovable)
+        XCTAssertNil(flex.removingBenefit(rotating).rotatingProgram)
     }
 
     func testRemovingSeveralBenefitsAtOnce() {

@@ -18,11 +18,24 @@ struct PersonalOffersView: View {
             }
             ForEach(cards) { card in
                 Section(card.displayName) {
-                    ForEach(card.personalOffers ?? []) { offer in
+                    if let entry = CardCatalog.entry(for: card), !(entry.card.standardBenefitOffers ?? []).isEmpty {
+                        Button("Restore missing standard credits") {
+                            var next = card
+                            var credits = next.standardBenefitOffers ?? []
+                            for standard in entry.card.standardBenefitOffers ?? [] where !credits.contains(where: { $0.catalogBenefitID == standard.catalogBenefitID }) {
+                                credits.append(standard)
+                            }
+                            next.standardBenefitOffers = credits; wallet.replace(next)
+                        }
+                    }
+                    ForEach(card.effectiveOffers) { offer in
                         VStack(alignment: .leading, spacing: 8) {
                             Text(offer.title).font(.headline)
                             Text(offer.summary).font(.title3.bold())
-                            Text(offer.enabled ? "Enabled · User-provided" : "Disabled · User-provided").font(.caption)
+                            Text(offer.catalogBenefitID == nil ? "User-provided offer" : "Standard credit · account confirmation required").font(.caption)
+                            if let source = offer.sourceURL, let url = URL(string: source) { Link("Issuer terms", destination: url).font(.caption) }
+                            if let date = offer.verifiedOn { Text("Source checked \(date, style: .date)").font(.caption) }
+                            Text(offer.enabled ? "Enabled" : "Disabled").font(.caption)
                             if let expires = offer.expiresOn { Text("Expires \(expires, style: .date)").font(.caption) }
                             Text("\(offer.usage(asOf: Date()).count) uses recorded this period").font(.caption)
                             if let cap = offer.maximumReward {
@@ -41,7 +54,8 @@ struct PersonalOffersView: View {
                         .padding(.vertical, 8)
                         .swipeActions { Button("Delete", role: .destructive) {
                             var next = card
-                            next.personalOffers?.removeAll { $0.id == offer.id }
+                            if offer.catalogBenefitID == nil { next.personalOffers?.removeAll { $0.id == offer.id } }
+                            else { next.standardBenefitOffers?.removeAll { $0.id == offer.id } }
                             wallet.replace(next)
                         } }
                     }
@@ -56,8 +70,12 @@ struct PersonalOffersView: View {
 
     private func update(_ card: Card, offer: PersonalOffer, change: (inout PersonalOffer) -> Void) {
         var next = card
-        guard let index = next.personalOffers?.firstIndex(where: { $0.id == offer.id }) else { return }
-        change(&next.personalOffers![index]); wallet.replace(next)
+        if offer.catalogBenefitID != nil, let index = next.standardBenefitOffers?.firstIndex(where: { $0.id == offer.id }) {
+            change(&next.standardBenefitOffers![index])
+        } else if let index = next.personalOffers?.firstIndex(where: { $0.id == offer.id }) {
+            change(&next.personalOffers![index])
+        }
+        wallet.replace(next)
     }
 }
 
@@ -93,6 +111,7 @@ struct OfferEditorView: View {
         copy.spendingCap = Decimal(string: spendCap)
         copy.startsOn = hasStart ? start : nil
         copy.expiresOn = hasExpiry ? expiry : nil
+        if existing?.catalogBenefitID != nil { copy.verifiedOn = nil }
         return copy
     }
     private var error: String? {
@@ -224,10 +243,11 @@ struct OfferEditorView: View {
     }
     private func save() {
         guard error == nil, let cardID, var card = wallet.card(withID: cardID) else { return }
-        var offers = card.personalOffers ?? []
+        var offers = prepared.catalogBenefitID == nil ? (card.personalOffers ?? []) : (card.standardBenefitOffers ?? [])
         if let index = offers.firstIndex(where: { $0.id == prepared.id }) { offers[index] = prepared }
         else { offers.append(prepared) }
-        card.personalOffers = offers; wallet.replace(card); dismiss()
+        if prepared.catalogBenefitID == nil { card.personalOffers = offers } else { card.standardBenefitOffers = offers }
+        wallet.replace(card); dismiss()
     }
 }
 
@@ -249,11 +269,12 @@ private struct OfferRedemptionView: View {
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save") {
-                        guard var card = wallet.card(withID: cardID), let index = card.personalOffers?.firstIndex(where: { $0.id == offerID }) else { return }
+                        guard var card = wallet.card(withID: cardID), let offer = card.effectiveOffers.first(where: { $0.id == offerID }) else { return }
                         let redemption = OfferRedemption(purchaseDollars: spent, receivedDollars: received)
-                        card.personalOffers![index].redemptions.append(redemption)
+                        if let index = card.personalOffers?.firstIndex(where: { $0.id == offerID }) { card.personalOffers![index].redemptions.append(redemption) }
+                        else if let index = card.standardBenefitOffers?.firstIndex(where: { $0.id == offerID }) { card.standardBenefitOffers![index].redemptions.append(redemption) }
                         wallet.replace(card)
-                        impact.recordReceived(redemption, productID: card.catalogProductID, category: card.personalOffers![index].scope == .category ? card.personalOffers![index].category : nil)
+                        impact.recordReceived(redemption, productID: card.catalogProductID, category: offer.scope == .category ? offer.category : nil)
                         dismiss()
                     }.disabled(spent <= 0 || received < 0 || spent > 1_000_000 || received > 100_000) }
                 }

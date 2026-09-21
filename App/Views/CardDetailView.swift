@@ -412,7 +412,7 @@ struct CardDetailView: View {
     /// the bar earns its place and appears.
     private func capBar(_ cap: EarnCap, label: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            if cap.fractionUsed > 0 {
+            if cap.usageIsCurrent(asOf: Date()) && cap.fractionUsed > 0 {
                 ProgressView(value: cap.fractionUsed)
                     .tint(cap.isExhausted ? Color.cardWiseWarning : Color.cardWiseActionInk)
             }
@@ -439,6 +439,7 @@ struct CardDetailView: View {
     }
 
     private func capText(_ cap: EarnCap) -> String {
+        if !cap.usageIsCurrent(asOf: Date()) { return "Usage unknown for this period. Enter current cap spend." }
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = "USD"

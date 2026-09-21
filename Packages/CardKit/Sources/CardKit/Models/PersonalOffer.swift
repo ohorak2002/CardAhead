@@ -11,6 +11,9 @@ public enum OfferStacking: String, Codable, CaseIterable, Sendable { case unknow
 public struct PersonalOffer: Identifiable, Codable, Hashable, Sendable {
     public var id = UUID()
     public var title = ""
+    public var catalogBenefitID: String?
+    public var sourceURL: String?
+    public var verifiedOn: Date?
     public var scope: OfferScope = .merchant
     public var merchantNames: [String] = []
     public var category: SpendingCategory = .dining

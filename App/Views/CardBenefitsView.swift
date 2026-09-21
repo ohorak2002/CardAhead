@@ -149,6 +149,17 @@ struct CardBenefitsView: View {
             ForEach(groups, id: \.self) { group in
                 section(for: group)
             }
+            if let entry, !(entry.card.standardBenefitOffers ?? []).isEmpty {
+                Section("Standard credits · confirm account eligibility") {
+                    ForEach(entry.card.standardBenefitOffers ?? []) { credit in
+                        VStack(alignment: .leading) {
+                            Text(credit.title).font(.headline)
+                            Text(credit.summary)
+                            Text("Not enabled. Review enrollment, channels, exclusions and stacking in Personal rewards after adding the card.").font(.caption)
+                        }
+                    }
+                }
+            }
             provenanceSection
             if !isConfirming { actionsSection }
         }

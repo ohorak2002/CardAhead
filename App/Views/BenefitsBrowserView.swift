@@ -107,23 +107,9 @@ struct BenefitsBrowserView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Metric.roomy) {
-                NavigationLink { BenefitTimelineView() } label: {
-                    HStack(spacing: Metric.snug) {
-                        CategoryIcon(symbolName: "calendar", tint: InterfacePalette.blue)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Your benefit timeline").font(.headline).foregroundStyle(Color.primary)
-                            Text("See what's ending and when to use it")
-                                .font(.caption).foregroundStyle(Color.secondary)
-                        }
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right").foregroundStyle(InterfacePalette.blue)
-                    }
-                    .padding(Metric.regular).interfacePanel(tinted: true)
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, Metric.margin)
-                .padding(.top, Metric.snug)
                 BenefitGraphicsView()
+                NavigationLink("Benefit timeline") { BenefitTimelineView() }
+                    .padding(.horizontal, Metric.margin)
 
                 if !expiring.isEmpty {
                     expiringSection

@@ -213,6 +213,7 @@ final class WalletStore {
     ) {
         update(cardID) { card in
             guard var program = card.rotatingProgram else { return }
+            card.rotatingUserProvided = true
             program.setQuarter(RotatingQuarter(
                 quarter: quarter,
                 categories: categories,

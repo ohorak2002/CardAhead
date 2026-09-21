@@ -41,6 +41,8 @@ select public.test_denied('select * from cardwise_private.impact');
 select public.test_denied('update cardwise_private.owner_config set user_id = auth.uid()');
 select public.test_denied($q$select public.cardwise_upload('11111111-1111-1111-1111-111111111111','[]')$q$);
 select public.cardwise_set_sharing(true,'11111111-1111-1111-1111-111111111111');
+select public.test_denied($q$select public.cardwise_upload(null,'[]')$q$);
+select public.test_invalid($q$select public.cardwise_upload('11111111-1111-1111-1111-111111111111',null)$q$);
 select public.cardwise_upload('11111111-1111-1111-1111-111111111111',
  '[{"id":"22222222-2222-2222-2222-222222222222","recommendation_id":"33333333-3333-3333-3333-333333333333","day":"2026-09-20","kind":"recommendationAccepted","category":"dining"}]');
 -- Retry with the same ID and a distinct ID for the same recommendation both deduplicate.

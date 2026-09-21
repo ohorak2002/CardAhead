@@ -70,13 +70,20 @@ struct HomeView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Metric.regular) {
-            HStack {
-                (Text("Card").foregroundColor(.white)
-                 + Text("Wise").foregroundColor(InterfacePalette.cyan))
-                    .font(.largeTitle.weight(.bold))
-                    .minimumScaleFactor(0.8)
-                    .lineLimit(1)
-                    .layoutPriority(1)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 3) {
+                    (Text("Card").foregroundColor(.white)
+                     + Text("Wise").foregroundColor(InterfacePalette.cyan))
+                        .font(.title.weight(.bold))
+                        .minimumScaleFactor(0.85)
+                        .lineLimit(1)
+                        .layoutPriority(1)
+                    Text("The right card. Right when you need it.")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color.cardWiseLightBlue)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
                 Spacer()
                 Button { goTo(.more) } label: {
                     Image(systemName: "person.crop.circle")
@@ -86,14 +93,11 @@ struct HomeView: View {
                 }
                 .accessibilityLabel("Profile and settings")
             }
-            VStack(alignment: .leading, spacing: Metric.tight) {
-                greetingText
-                    .font(.headline)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("The right card. Right when you need it.")
-                    .font(.footnote)
-                    .foregroundStyle(Color.cardWiseLightBlue)
-            }
+            greetingText
+                .font(.title3.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+                .accessibilityElement(children: .combine)
             if !store.cards.isEmpty {
                 walletPeek
             }
@@ -117,17 +121,14 @@ struct HomeView: View {
         return hour < 12 ? "Good morning" : (hour < 18 ? "Good afternoon" : "Good evening")
     }
 
-    /// "Good morning, **Oren**" — with the name picked out, the way the mockup
-    /// does it.
-    ///
-    /// One accessible phrase, with the name on a second line in cyan against
-    /// the deep navy header. No name is invented for a fresh wallet.
+    /// The greeting is one calm line below the brand lockup. Keeping a name
+    /// inline gives it a natural rhythm without turning it into a second title.
     private var greetingText: Text {
         let name = preferredName.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else {
             return Text(timeOfDay).foregroundColor(.white)
         }
-        return Text("\(timeOfDay),\n").foregroundColor(.white)
+        return Text("\(timeOfDay), ").foregroundColor(.white)
             + Text(name).foregroundColor(InterfacePalette.cyan)
     }
 

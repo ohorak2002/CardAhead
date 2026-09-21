@@ -109,7 +109,9 @@ struct BenefitTermsView: View {
                             var next = card
                             var rule = next.rule(for: category) ?? CategoryRule(category: category, rate: rate)
                             rule.rate = rate
-                            rule.cap = hasCap ? EarnCap(limitDollars: capLimit, period: period, spentDollars: rule.cap?.spentDollars ?? 0) : nil
+                            let previousCap = rule.cap
+                            rule.cap = hasCap ? EarnCap(limitDollars: capLimit, period: period, spentDollars: previousCap?.spentDollars ?? 0) : nil
+                            if previousCap?.period == period { rule.cap?.usageUpdatedOn = previousCap?.usageUpdatedOn }
                             next.rules.removeAll { $0.category == category }; next.rules.append(rule)
                             next.adjustedBenefitIDs = Array(Set((next.adjustedBenefitIDs ?? []) + [origin.identifier]))
                             wallet.replace(next)

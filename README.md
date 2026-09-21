@@ -19,7 +19,7 @@ suggestion injected at the till.
 | 5. Places API merchant resolution | Done, needs an API key |
 | 6. Significant-location-change travel mode | Not started |
 | 7. Safari extension for online purchases | Not started |
-| 8. Impact tracking — was any of this worth it | Done, on-device only |
+| 8. Impact tracking — was any of this worth it | Local tracking plus opt-in sharing; backend deployment required |
 | 9. Nearby Map — what is around you, and which card wins there | Built, needs an API key and a phone |
 
 **Step 4** is written end to end. `RegionPlanner` picks the twenty nearest shops
@@ -80,6 +80,12 @@ and category are already in the registered region by the time you walk in. No
 key is committed; without one the app runs, watches nothing, and says so in
 Settings. See `docs/places-api.md`.
 
+## September 2026 audit and personal rewards
+
+Standard catalog terms, personal adjustments, and account-specific offers are stored separately. Benefits now compares rates within each reward currency; caps show reported usage or explicitly unknown usage. Add and manage offers from Benefits or card details. Map filters persist explicit All, None, or custom selection.
+
+Impact remains useful locally without an account. Sharing is a separate opt-in, with offline retries and shared-record deletion. The native owner dashboard requires a deployed Supabase project and a verified account UUID provisioned server-side; no user becomes owner by signing up. See [backend setup](docs/impact-backend.md) and the [issuer audit](docs/card-data-audit-2026-09-20.md).
+
 ## Adding a card
 
 You choose your card. You do not describe it.
@@ -113,7 +119,7 @@ Packages/CardKit/       Pure Swift. No UIKit, no Core Location, no SwiftUI.
                         Merchant, MerchantSource, and the map's MapCategory,
                         MapPlace, MapFilter, NearbyPlaces
     Impact/             RecommendationSnapshot, BenefitEstimate, ImpactEvent,
-                        ImpactLedger, AnalyticsService (a no-op, on purpose)
+                        ImpactLedger, AnalyticsService (legacy no-op), ImpactSharing
     Places/             GooglePlacesSource, MerchantCache, and the map's own
                         PlaceSearchSource / GooglePlaceSearchSource
   Tests/CardKitTests/   run on macOS and Linux

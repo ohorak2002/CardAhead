@@ -118,9 +118,48 @@ final class UpgradeTests: XCTestCase {
         card.rules[i].rate = 10
         let estimate = try XCTUnwrap(BenefitValueCalculator.estimate(for: snapshot, purchaseDollars: 100))
         XCTAssertEqual(estimate.estimatedValueCents, 150, accuracy: 0.001)
+        XCTAssertEqual(estimate.rewardUnits, 150, accuracy: 0.001)
         XCTAssertEqual(estimate.incrementalValueCents!, -50, accuracy: 0.001)
         let restored = try JSONDecoder().decode(RecommendationSnapshot.self, from: JSONEncoder().encode(snapshot))
         XCTAssertEqual(restored.capRemainingDollars, 10)
+    }
+
+    func testIndividualLegacyRestoreDoesNotCertifyOtherBenefits() {
+        var card = CardCatalog.amexGold
+        card.catalogBaseline = nil
+        card.restoreBenefit(.rule(.dining))
+        XCTAssertFalse(card.isUserAdjusted(.rule(.dining)))
+        XCTAssertTrue(card.isUserAdjusted(.rule(.groceries)))
+        XCTAssertTrue(card.hasCatalogUpdate)
+    }
+
+    func testNewCatalogRuleIsAddedButDisabledRuleStaysDisabled() {
+        var card = CardCatalog.citiDoubleCash
+        card.rules.removeAll { $0.category == .travelPortal }
+        card.catalogBaseline?.rules.removeAll { $0.category == .travelPortal }
+        card.reviewCatalogUpdate()
+        XCTAssertNotNil(card.rule(for: .travelPortal))
+        card.rules.removeAll { $0.category == .travelPortal }
+        card.adjustedBenefitIDs = [BenefitOrigin.rule(.travelPortal).identifier]
+        card.reviewCatalogUpdate()
+        XCTAssertNil(card.rule(for: .travelPortal))
+    }
+
+    func testPricedCapAndOfferSnapshotsRejectDifferentAmounts() throws {
+        var card = CardCatalog.amexBlueCashPreferred
+        let index = card.rules.firstIndex { $0.category == .groceries }!
+        card.rules[index].cap?.spentDollars = 5990
+        let ctx = PurchaseContext(category: .groceries, date: date, purchaseDollars: 100)
+        let recommendation = try XCTUnwrap(RecommendationEngine().recommend(from: [card], in: ctx))
+        let snapshot = RecommendationSnapshot(recommendation, context: ctx)
+        XCTAssertEqual(BenefitValueCalculator.estimate(for: snapshot, purchaseDollars: 100)?.estimatedValueCents, 150)
+        XCTAssertNil(BenefitValueCalculator.estimate(for: snapshot, purchaseDollars: 50))
+        card.personalOffers = [offer()]
+        let offerContext = context()
+        let offerRecommendation = try XCTUnwrap(RecommendationEngine().recommend(from: [card], in: offerContext))
+        let offerSnapshot = RecommendationSnapshot(offerRecommendation, context: offerContext)
+        XCTAssertTrue(offerSnapshot.includesPersonalOffer == true)
+        XCTAssertNil(BenefitValueCalculator.estimate(for: offerSnapshot, purchaseDollars: 100))
     }
     func testConsentRetriesDeduplicationDisableAndDeletion() throws {
         let event = ImpactEvent(kind: .recommendationAccepted, date: date, recommendationID: UUID())

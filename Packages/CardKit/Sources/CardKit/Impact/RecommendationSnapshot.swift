@@ -67,6 +67,8 @@ public struct RecommendationSnapshot: Identifiable, Codable, Hashable, Sendable 
     public var pricedPurchaseDollars: Money?
     public var includesPersonalOffer: Bool?
     public var assumptions: [String]?
+    /// Raw standard base rate, before point valuation or foreign fees.
+    public var baseAppliedRate: Double?
 
     /// A missing value in an old file means nobody knows, and nobody knowing
     /// is not the same as it having been there. The safe reading is no.
@@ -144,6 +146,7 @@ public struct RecommendationSnapshot: Identifiable, Codable, Hashable, Sendable 
         pricedPurchaseDollars = best.pricedPurchaseDollars
         includesPersonalOffer = best.includesPersonalOffer
         assumptions = best.caveats
+        baseAppliedRate = best.card.baseRate
     }
 
     /// One line for the follow-up prompt, naming no merchant.

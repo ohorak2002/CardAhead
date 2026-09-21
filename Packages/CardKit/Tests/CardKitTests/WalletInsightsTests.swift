@@ -67,7 +67,7 @@ final class WalletInsightsTests: XCTestCase {
 
     func testTheOnlyCardInAWalletIsBestAtItsOwnBestThing() {
         let gold = CardCatalog.amexGold
-        XCTAssertEqual(WalletInsights.bestCategory(for: gold, in: [gold], asOf: today), .travelPortal)
+        XCTAssertEqual(WalletInsights.bestCategory(for: gold, in: [gold], asOf: today), .dining)
 
         // Built here rather than taken from the catalog: this is asserting
         // how `bestCategory` behaves, and a catalog rate that changes at the

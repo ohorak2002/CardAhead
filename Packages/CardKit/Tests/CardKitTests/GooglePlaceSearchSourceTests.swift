@@ -61,11 +61,19 @@ final class GooglePlaceSearchSourceTests: XCTestCase {
 
     // MARK: - Parsing a search
 
+    func testEmptyCategoriesNeverReachProvider() async throws {
+        let transport = FakeTransport(json: mixedBlock)
+        let source = GooglePlaceSearchSource(apiKey: "k", transport: transport)
+        let result = try await source.places(near: anchor, radiusMeters: 2_000, categories: [])
+        XCTAssertTrue(result.isEmpty)
+        XCTAssertEqual(transport.callCount, 0)
+    }
+
     func testKeepsPlacesNoCardEarnsAt() async throws {
         let transport = FakeTransport(json: mixedBlock)
         let source = GooglePlaceSearchSource(apiKey: "k", transport: transport)
 
-        let places = try await source.places(near: anchor, radiusMeters: 2_000, categories: [])
+        let places = try await source.places(near: anchor, radiusMeters: 2_000, categories: Set(MapCategory.allCases))
 
         XCTAssertEqual(places.count, 3, "the geofence parser drops the gym; the map must not")
         let gym = places.first { $0.id == "p2" }
@@ -77,7 +85,7 @@ final class GooglePlaceSearchSourceTests: XCTestCase {
         let transport = FakeTransport(json: mixedBlock)
         let source = GooglePlaceSearchSource(apiKey: "k", transport: transport)
 
-        let places = try await source.places(near: anchor, radiusMeters: 2_000, categories: [])
+        let places = try await source.places(near: anchor, radiusMeters: 2_000, categories: Set(MapCategory.allCases))
         XCTAssertEqual(places.first { $0.id == "p1" }?.typeDescription, "Steakhouse")
         XCTAssertEqual(places.first { $0.id == "p1" }?.rating, 4.6)
         XCTAssertEqual(places.first { $0.id == "p1" }?.ratingCount, 1234)
@@ -157,7 +165,7 @@ final class GooglePlaceSearchSourceTests: XCTestCase {
     func testMissingKeyIsReportedRatherThanSwallowed() async {
         let source = GooglePlaceSearchSource(apiKey: "", transport: FakeTransport(json: "{}"))
         do {
-            _ = try await source.places(near: anchor, radiusMeters: 2_000, categories: [])
+            _ = try await source.places(near: anchor, radiusMeters: 2_000, categories: Set(MapCategory.allCases))
             XCTFail("expected a missing-key error")
         } catch {
             XCTAssertEqual(error as? PlacesError, .missingAPIKey)
@@ -173,7 +181,7 @@ final class GooglePlaceSearchSourceTests: XCTestCase {
             transport: FakeTransport(json: refusal, status: 400)
         )
         do {
-            _ = try await source.places(near: anchor, radiusMeters: 2_000, categories: [])
+            _ = try await source.places(near: anchor, radiusMeters: 2_000, categories: Set(MapCategory.allCases))
             XCTFail("expected a server error")
         } catch let error as PlacesError {
             guard case .server(let status, let message) = error else {

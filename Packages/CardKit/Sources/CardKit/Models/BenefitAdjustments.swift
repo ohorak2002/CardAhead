@@ -29,6 +29,13 @@ extension Card {
 
     public mutating func restoreBenefit(_ origin: BenefitOrigin) {
         guard let standard = CardCatalog.entry(for: self)?.card else { return }
+        // Certify only the restored item. Other legacy terms still need review.
+        if catalogBaseline == nil {
+            adjustedBenefitIDs = Array(Set((adjustedBenefitIDs ?? [])
+                + rules.map { BenefitOrigin.rule($0.category).identifier }
+                + perks.map { BenefitOrigin.perk($0).identifier }))
+            catalogBaseline = CatalogBaseline(rules: [], perks: [], checkedOn: .distantPast)
+        }
         switch origin {
         case .rule(let category):
             let usage = rule(for: category)?.cap
@@ -37,9 +44,14 @@ extension Card {
                 if let usage { rule.cap?.spentDollars = usage.spentDollars; rule.cap?.usageUpdatedOn = usage.usageUpdatedOn }
                 rules.append(rule)
             }
+            catalogBaseline?.rules.removeAll { $0.category == category }
+            if let rule = standard.rule(for: category) { catalogBaseline?.rules.append(rule) }
         case .perk(let perk): if standard.perks.contains(perk) && !perks.contains(perk) { perks.append(perk) }
         case .rotating: rotatingProgram = standard.rotatingProgram; rotatingUserProvided = false
         case .welcomeBonus: return
+        }
+        if case .perk(let perk) = origin, standard.perks.contains(perk), catalogBaseline?.perks.contains(perk) == false {
+            catalogBaseline?.perks.append(perk)
         }
         adjustedBenefitIDs?.removeAll { $0 == origin.identifier }
     }
@@ -51,6 +63,7 @@ extension Card {
 
     public mutating func reviewCatalogUpdate() {
         guard let entry = CardCatalog.entry(for: self) else { return }
+        let previousBaseline = catalogBaseline
         // Classify against the old accepted version BEFORE replacing it.
         let origins = Set((catalogBaseline?.rules ?? rules).map { BenefitOrigin.rule($0.category) }
             + (catalogBaseline?.perks ?? perks).map { BenefitOrigin.perk($0) })
@@ -59,6 +72,16 @@ extension Card {
                 if adjustedBenefitIDs == nil { adjustedBenefitIDs = [] }
                 if !adjustedBenefitIDs!.contains(origin.identifier) { adjustedBenefitIDs!.append(origin.identifier) }
             } else { restoreBenefit(origin) }
+        }
+        // A newly published category can be added only when this card had an
+        // accepted baseline; legacy omissions may be intentional personal terms.
+        if let previousBaseline {
+            for rule in entry.card.rules where !previousBaseline.rules.contains(where: { $0.category == rule.category }) {
+                let origin = BenefitOrigin.rule(rule.category)
+                if self.rule(for: rule.category) == nil && !(adjustedBenefitIDs ?? []).contains(origin.identifier) {
+                    restoreBenefit(origin)
+                }
+            }
         }
         if standardBenefitOffers == nil { standardBenefitOffers = entry.card.standardBenefitOffers }
         catalogBaseline = entry.card.catalogBaseline

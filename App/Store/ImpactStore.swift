@@ -4,13 +4,10 @@ import CardKit
 
 /// Whether this app has been worth carrying, kept on the phone that carries it.
 ///
-/// **Nothing here is sent anywhere.** There is no account, no backend and no
-/// network call: `analytics` is `NoOpAnalyticsService`, and the only record of
-/// anything is `impact.json` beside the wallet, which "Erase everything" takes
-/// with it. The events are shaped so that a backend *could* one day exist
-/// without a rewrite — see `AnalyticsService` — but the reason they exist
-/// today is the user's own question, which nobody else can answer for them:
-/// has being told which card to use actually earned me anything?
+/// Local tracking requires no account. A separate, default-off ImpactCloudStore
+/// consent controls delivery of a small allowlist of user reports to the backend.
+/// The legacy analytics service remains a no-op. Shared deletion is a separate
+/// acknowledged server operation; see docs/impact-backend.md.
 ///
 /// Two things it deliberately does not do. It does not read a transaction, a
 /// statement or an account — every dollar figure in here is one somebody typed
@@ -25,7 +22,7 @@ final class ImpactStore {
     private(set) var receivedRewards: [OfferRedemption] = []
 
     /// Off means nothing is written down at all, and what was already written
-    /// is gone. On means it is written here and stays here.
+    /// is gone. On alone never grants consent to cloud sharing.
     ///
     /// Set through `setRecording(_:)` rather than by assignment: switching it
     /// off erases, and a property observer that erases is one `load()` away
@@ -125,6 +122,17 @@ final class ImpactStore {
     }
 
     // MARK: - What the user says about it
+
+    func recordUsedRecommendation(_ snapshot: RecommendationSnapshot, purchase: Money?) {
+        guard isRecording else { return }
+        let date = Date()
+        emit {
+            $0.recordGenerated(snapshot)
+            $0.recordShown(snapshot, at: date)
+            $0.recordAnswer(.recommendationAccepted, for: snapshot.id, at: date)
+            if let purchase, purchase > 0 { $0.recordPurchase(purchase, for: snapshot.id, at: date) }
+        }
+    }
 
     /// The one suggestion worth asking about, if there is one.
     var followUp: OpenRecommendation? {

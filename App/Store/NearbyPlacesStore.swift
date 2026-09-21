@@ -288,6 +288,7 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
     var opportunityCount: Int { NearbyPlaces.opportunityCount(in: results) }
 
     func showEverywhere() {
+        guard isShowingWatchedOnly else { return }
         isShowingWatchedOnly = false
         refresh()
     }

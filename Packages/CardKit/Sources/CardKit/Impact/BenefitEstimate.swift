@@ -149,10 +149,10 @@ public enum BenefitValueCalculator {
         isUserConfirmed: Bool = true
     ) -> BenefitEstimate? {
         guard purchaseDollars > 0 else { return nil }
-        let dollars = purchaseDollars.doubleValue
 
-        // An amount-specific offer cannot be extrapolated onto a different purchase.
-        if snapshot.includesPersonalOffer == true, snapshot.pricedPurchaseDollars != purchaseDollars { return nil }
+        // Offers and cap-blended rates are specific to the quoted purchase.
+        if let priced = snapshot.pricedPurchaseDollars, priced != purchaseDollars { return nil }
+        if snapshot.includesPersonalOffer == true, snapshot.pricedPurchaseDollars == nil { return nil }
         func calculateValue(rate: Double, cap: Money?, base: Double?) -> Double {
             if snapshot.pricedPurchaseDollars != nil { return (purchaseDollars * Decimal(rate) / 100).roundedMoney.doubleValue * 100 }
             let eligible = min(purchaseDollars, cap ?? purchaseDollars)
@@ -162,6 +162,9 @@ public enum BenefitValueCalculator {
         let alternateValue = snapshot.alternateCentsPerDollar.map {
             calculateValue(rate: $0, cap: snapshot.alternateCapRemainingDollars, base: snapshot.alternateBaseCentsPerDollar)
         }
+        let eligible = min(purchaseDollars, snapshot.capRemainingDollars ?? purchaseDollars)
+        let units = eligible.doubleValue * snapshot.appliedRate
+            + (purchaseDollars - eligible).doubleValue * (snapshot.baseAppliedRate ?? snapshot.appliedRate)
 
         return BenefitEstimate(
             purchaseDollars: purchaseDollars,
@@ -169,7 +172,7 @@ public enum BenefitValueCalculator {
             currencyName: snapshot.currencyName,
             style: snapshot.style,
             appliedRate: snapshot.appliedRate,
-            rewardUnits: snapshot.appliedRate * dollars,
+            rewardUnits: units,
             estimatedValueCents: value,
             comparedWithCardName: snapshot.alternateCardName,
             comparedWithValueCents: alternateValue,

@@ -175,6 +175,9 @@ struct CardEditorView: View {
                         .fontWeight(.semibold)
                 }
             }
+            // The rate, fee and cap fields are all decimal pads, and a
+            // decimal pad has no return key. Once, for the whole form.
+            .keyboardDoneButton()
         }
     }
 
@@ -274,11 +277,14 @@ struct CardEditorView: View {
 
                     Spacer(minLength: 8)
 
-                    TextField("Rate", value: $benefit.rate, format: .number)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 56)
-                        .font(.body.monospacedDigit())
+                    NumberField(
+                        "Rate",
+                        value: $benefit.rate,
+                        width: 56,
+                        alignment: .trailing,
+                        label: "Rate for \(benefit.category.displayName)"
+                    )
+                    .font(.body.monospacedDigit())
 
                     Text(style == .percent ? "%" : "x")
                         .foregroundStyle(.secondary)
@@ -296,20 +302,26 @@ struct CardEditorView: View {
             HStack {
                 Text("Annual fee")
                 Spacer(minLength: 8)
-                TextField("0", value: $annualFee, format: .number)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 76)
-                    .font(.body.monospacedDigit())
+                NumberField(
+                    "0",
+                    value: $annualFee,
+                    width: 76,
+                    alignment: .trailing,
+                    label: "Annual fee in dollars"
+                )
+                .font(.body.monospacedDigit())
             }
             HStack {
                 Text("Extra fee abroad")
                 Spacer(minLength: 8)
-                TextField("0", value: $foreignFeePercent, format: .number)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 56)
-                    .font(.body.monospacedDigit())
+                NumberField(
+                    "0",
+                    value: $foreignFeePercent,
+                    width: 56,
+                    alignment: .trailing,
+                    label: "Extra fee abroad, percent"
+                )
+                .font(.body.monospacedDigit())
                 Text("%").foregroundStyle(.secondary)
             }
         } header: {

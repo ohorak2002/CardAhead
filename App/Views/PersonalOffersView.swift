@@ -132,6 +132,7 @@ struct OfferEditorView: View {
             }
             .navigationTitle(existing == nil ? "Add a reward or offer" : "Edit offer")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneButton()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
@@ -185,8 +186,7 @@ struct OfferEditorView: View {
                 Text("Fixed credit").tag(OfferReward.credit)
                 Text("Spend X, get Y").tag(OfferReward.spendGet)
             }
-            TextField(offer.reward == .cashBack ? "Percent" : offer.reward == .points ? "Points per dollar" : "Credit in dollars", value: $offer.value, format: .number)
-                .keyboardType(.decimalPad)
+            NumberField(offer.reward == .cashBack ? "Percent" : offer.reward == .points ? "Points per dollar" : "Credit in dollars", value: $offer.value)
             if offer.reward == .spendGet { TextField("Spend required in dollars", text: $minimum).keyboardType(.decimalPad) }
             Text("Illustrative example only: spend $50, get $10. This is not an available bank offer.").font(.caption)
         }
@@ -262,10 +262,11 @@ private struct OfferRedemptionView: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Purchase amount ($)", value: $spent, format: .number).keyboardType(.decimalPad)
-                TextField("Reward or credit actually received ($)", value: $received, format: .number).keyboardType(.decimalPad)
+                NumberField("Purchase amount ($)", value: $spent)
+                NumberField("Reward or credit actually received ($)", value: $received)
                 Text("Your report, not independently verified. Enter the cash value received, not a points count.").font(.caption)
             }.navigationTitle("Record use")
+                .keyboardDoneButton()
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Save") {

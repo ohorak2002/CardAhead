@@ -101,6 +101,9 @@ struct PlaceDetailView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle(place.name)
         .navigationBarTitleDisplayMode(.inline)
+        // The amount field sits above the fold with the keyboard over
+        // everything below it; without this there is nothing left to tap.
+        .keyboardDoneButton()
         .task {
             guard !isLoadingDetails else { return }
             isLoadingDetails = true

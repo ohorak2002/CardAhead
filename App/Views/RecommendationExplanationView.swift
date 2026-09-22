@@ -61,11 +61,15 @@ struct RecommendationExplanationView: View {
 struct RecommendationReason: View {
     let recommendation: Recommendation
     let contextName: String
+    /// False where the screen already shows the rate itself. Today's panel
+    /// draws it as a badge beside the card, and the full explanation would
+    /// print it again one line below.
+    var includesRate = true
     @State private var isExplaining = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metric.tight) {
-            Text(recommendation.choiceExplanation)
+            Text(includesRate ? recommendation.choiceExplanation : recommendation.choiceRationale)
                 .font(.footnote)
                 .foregroundStyle(Color.secondary)
                 .fixedSize(horizontal: false, vertical: true)

@@ -15,13 +15,14 @@ struct SetupBenefitAdjustmentsView: View {
                 Text("Only change terms that differ on your account. Changes will be labeled user-provided.")
                 ForEach($draft.rules) { $rule in
                     Section(rule.category.displayName) {
-                        TextField("Rate", value: $rule.rate, format: .number).keyboardType(.decimalPad)
+                        NumberField("Rate", value: $rule.rate, label: "Rate for \(rule.category.displayName)")
                         if let cap = rule.cap {
                             Text("Cap: $\(cap.limitDollars.description) \(cap.period.displayName). You can edit caps after adding the card.").font(.caption)
                         }
                     }
                 }
             }.navigationTitle("My benefits")
+                .keyboardDoneButton()
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Apply") {

@@ -761,6 +761,22 @@ not go back there.
   **"Card saved" fires at the button, not in the wallet watching its count**,
   because `undoRemove()` also makes that count go up and the two must not feel
   the same.
+- **Typed numbers go through `NumberField`, and every screen with a field on
+  it gets `.keyboardDoneButton()`.** Both come from
+  `App/Theme/CardWiseNumberEntry.swift`, and both fix something found on a
+  real phone rather than in a screenshot. **The decimal pad has no return
+  key** — `.keyboardType(.decimalPad)` draws ten digits, a separator and a
+  backspace, so on a screen where the field is the last thing above the fold
+  the keyboard covers everything that would have dismissed it and there is no
+  way out. The toolbar goes on the `Form` or `ScrollView`, **once**: SwiftUI
+  merges keyboard toolbars from the whole active hierarchy, so a screen that
+  applies it per field draws one Done button per field. And
+  `TextField(value:format:)` bound to a value that starts at 0 renders "0",
+  leaves the caret after it, and turns the next keystroke into "05" — every
+  fee, cap and amount in this app starts at zero, so every one of them did
+  that. `NumberField` clears the field on focus **only when the value is the
+  zero it was born with**; a non-zero number is something somebody typed and
+  clearing it on a stray tap loses it.
 - **`python scripts/brace-scan.py <files>` before pushing.** CI is the
   compiler, and a missing brace otherwise costs a full round trip to find. It
   understands comments, multiline strings, escapes and interpolation. OK does

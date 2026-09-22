@@ -108,6 +108,16 @@ struct PurchaseAmountView: View {
                     }
                 }
             }
+            // The same Done as the one in the navigation bar, because the
+            // keyboard is covering that one. A number that is not a number
+            // yet just puts the keyboard away.
+            .keyboardDoneButton {
+                if amount == nil {
+                    isFocused = false
+                } else {
+                    submit()
+                }
+            }
             .onAppear { isFocused = true }
         }
     }

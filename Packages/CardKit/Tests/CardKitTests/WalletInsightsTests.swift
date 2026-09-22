@@ -21,7 +21,7 @@ final class WalletInsightsTests: XCTestCase {
         // Its best rate is the 5x on hotels prepaid through Amex Travel, not
         // the 4x on dining — which is exactly why the wallet row shows the
         // *group* and says "Best for travel". See `HomeView.bestFor`.
-        XCTAssertEqual(WalletInsights.bestCategory(for: gold, in: wallet, asOf: today), .travelPortal)
+        XCTAssertEqual(WalletInsights.bestCategory(for: gold, in: wallet, asOf: today), .dining)
     }
 
     /// The label a person reads has to be a phrase a person uses. "Best for
@@ -31,8 +31,8 @@ final class WalletInsightsTests: XCTestCase {
         let gold = CardCatalog.amexGold
         let wallet = [gold, CardCatalog.citiDoubleCash]
         let category = try XCTUnwrap(WalletInsights.bestCategory(for: gold, in: wallet, asOf: today))
-        XCTAssertEqual(BenefitGroup.containing(category), .travel)
-        XCTAssertEqual(BenefitGroup.containing(category).displayName, "Travel")
+        XCTAssertEqual(BenefitGroup.containing(category), .dining)
+        XCTAssertEqual(BenefitGroup.containing(category).displayName, "Dining")
     }
 
     /// A flat card beaten everywhere on bonuses is still the one you reach for
@@ -67,7 +67,7 @@ final class WalletInsightsTests: XCTestCase {
 
     func testTheOnlyCardInAWalletIsBestAtItsOwnBestThing() {
         let gold = CardCatalog.amexGold
-        XCTAssertEqual(WalletInsights.bestCategory(for: gold, in: [gold], asOf: today), .travelPortal)
+        XCTAssertEqual(WalletInsights.bestCategory(for: gold, in: [gold], asOf: today), .dining)
 
         // Built here rather than taken from the catalog: this is asserting
         // how `bestCategory` behaves, and a catalog rate that changes at the
@@ -270,7 +270,7 @@ final class WalletInsightsTests: XCTestCase {
 
     /// Every card has a base rate, so it distinguishes nothing.
     func testTheBaseRateIsNeverAHeadline() {
-        let flat = CardCatalog.citiDoubleCash.headlineStats(asOf: today)
+        let flat = CardCatalog.wellsFargoActiveCash.headlineStats(asOf: today)
         XCTAssertEqual(flat.count, 1)
         XCTAssertEqual(flat.first?.label, "Annual fee")
         XCTAssertFalse(flat.contains { $0.label == "Everything else" })

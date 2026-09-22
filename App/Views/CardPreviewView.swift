@@ -47,10 +47,13 @@ struct CardPreviewView: View {
                 details
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(InterfacePalette.page)
         .safeAreaInset(edge: .bottom) { actions }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) { AddCardProgress(step: 3) }
+        }
         .sensoryFeedback(.success, trigger: added)
     }
 

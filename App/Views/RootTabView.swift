@@ -52,12 +52,12 @@ struct RootTabView: View {
             // "notificationlab" are one level deeper still — inside Settings
             // — and are pushed straight from More rather than through it, the
             // same shortcut "impact" takes.
-            case "impact", "notifications", "notificationlab": return .more
+            case "impact", "notifications", "notificationlab", "compare", "timeline", "why": return .more
             // All three are the Map tab: "watching" is a chip on it,
             // "placecard" selects a pin, and "placedetail" opens one. None of
             // the three is reachable by `simctl`, which cannot tap.
-            case "watching", "placecard", "placedetail": return .map
-            case "cardphoto", "cardbenefits", "cardpreview", "carddetail", "addcard": return .wallet
+            case "watching", "placecard", "placedetail", "mapfilters": return .map
+            case "cardphoto", "cardbenefits", "cardpreview", "carddetail", "addcard", "reorder", "organize": return .wallet
             default: return Tab(rawValue: raw) ?? .home
             }
         }
@@ -177,10 +177,13 @@ struct MoreView: View {
     @State private var isShowingImpact = false
     @State private var isShowingNotifications = false
     @State private var isShowingLab = false
+    @State private var isShowingCompare = false
+    @State private var isShowingTimeline = false
+    @State private var isShowingWhy = false
 
     var body: some View {
         VStack(spacing: 0) {
-        ScreenHeader("More", subtitle: "Everything that is not a card")
+        ScreenHeader("More", subtitle: "Your impact and app settings")
         List {
             // **The impact is a card, not a row.** This screen was three grey
             // rows and 386 points — 44% of the phone — of empty background
@@ -198,6 +201,12 @@ struct MoreView: View {
             }
 
             Section {
+                NavigationLink { CompareCardsView() } label: {
+                    Label("Compare cards", systemImage: "rectangle.on.rectangle")
+                }
+                NavigationLink { BenefitTimelineView() } label: {
+                    Label("Benefit timeline", systemImage: "calendar")
+                }
                 NavigationLink {
                     WhyThisCardView()
                 } label: {
@@ -230,9 +239,12 @@ struct MoreView: View {
                 .padding(.bottom, Metric.regular)
         }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(InterfacePalette.page)
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(isPresented: $isShowingImpact) { ImpactView() }
+        .navigationDestination(isPresented: $isShowingCompare) { CompareCardsView() }
+        .navigationDestination(isPresented: $isShowingTimeline) { BenefitTimelineView() }
+        .navigationDestination(isPresented: $isShowingWhy) { WhyThisCardView() }
         .navigationDestination(isPresented: $isShowingNotifications) {
             NotificationSettingsView()
         }
@@ -248,6 +260,9 @@ struct MoreView: View {
     /// be left.
     private func followDeepLink() {
         switch deepLink {
+        case "compare" where !isShowingCompare: isShowingCompare = true
+        case "timeline" where !isShowingTimeline: isShowingTimeline = true
+        case "why" where !isShowingWhy: isShowingWhy = true
         case "impact" where !isShowingImpact:
             isShowingImpact = true
         case "notifications" where !isShowingNotifications:
@@ -351,4 +366,5 @@ struct MoreView: View {
         .environment(RegionMonitor())
         .environment(ImpactStore.previewStore())
         .environment(NearbyPlacesStore())
+        .environment(OrganizationStore(fileURL: .temporaryDirectory.appendingPathComponent("preview-organization.json")))
 }

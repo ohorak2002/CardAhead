@@ -15,6 +15,7 @@ struct SettingsView: View {
     @Environment(ImpactStore.self) private var impact
     @Environment(NearbyPlacesStore.self) private var nearby
     @Environment(NotificationPolicyStore.self) private var notifications
+    @Environment(OrganizationStore.self) private var organization
     let auth: LocationAuthorization
 
     @AppStorage("preferredName") private var preferredName = ""
@@ -47,9 +48,10 @@ struct SettingsView: View {
                 erased.fire()
                 store.eraseEverything()
                 impact.erase()
+                organization.erase()
             }
         } message: {
-            Text("Removes every card, every photo, and the record of what these reminders earned you. There is no account and no backup, so this cannot be undone.")
+            Text("Removes every card, every photo, and the record of what these reminders earned you. Local deletion cannot be undone. Shared Impact deletion is also requested; reconnect while signed in to complete it. Your optional sign-in account remains.")
         }
     }
 

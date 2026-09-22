@@ -61,9 +61,10 @@ struct MapSettingsView: View {
             }
 
             Section {
+                Toggle("All categories", isOn: Binding(get: { places.filter.isShowingEverything }, set: { _ in places.filter.toggleAll() }))
                 ForEach(MapCategory.allCases, id: \.self) { category in
                     Toggle(isOn: Binding(
-                        get: { places.filter.includes(category) },
+                        get: { !places.filter.isShowingEverything && places.filter.includes(category) },
                         set: { _ in places.filter.toggle(category) }
                     )) {
                         Label {
@@ -78,7 +79,7 @@ struct MapSettingsView: View {
             } header: {
                 Text("Kinds of place").textCase(nil)
             } footer: {
-                Text("Turning the last one off shows everything again, because a map with nothing on it is not a setting anybody wanted.")
+                Text("All includes every category. Turning off the last selection shows no places until you select a category.")
             }
 
             Section {

@@ -94,7 +94,7 @@ public struct RegionPlanner: Sendable {
     public func relevantCategories(in cards: [Card], asOf date: Date = Date()) -> Set<SpendingCategory> {
         var categories: Set<SpendingCategory> = []
         for card in cards {
-            categories.formUnion(card.bonusCategories(asOf: date))
+            categories.formUnion(card.bonusCategories(asOf: date).filter { $0 != .travelPortal && $0 != .onlineShopping && $0 != .streaming })
         }
         categories.remove(.base)
         return categories

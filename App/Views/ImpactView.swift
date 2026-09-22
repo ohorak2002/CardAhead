@@ -35,6 +35,11 @@ struct ImpactView: View {
                         nothingYet
                     }
                 }
+                NavigationLink("Impact sharing & account") { ImpactSharingView() }
+                if !impact.receivedRewards.isEmpty {
+                    Text("Reported received: " + CardWiseFormat.money(impact.receivedRewards.reduce(Decimal.zero) { $0 + $1.receivedDollars }))
+                    Text("User-reported rewards and credits; not independently verified.").font(.caption)
+                }
                 recordingControls
             }
             .padding(.horizontal, Metric.margin)
@@ -43,8 +48,8 @@ struct ImpactView: View {
             // scroll view rather than shortening it.
             .padding(.bottom, 90)
         }
-        .background(Color(.systemGroupedBackground))
-        .navigationTitle("Your impact")
+        .background(InterfacePalette.page)
+        .navigationTitle("CardWise impact")
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -53,8 +58,8 @@ struct ImpactView: View {
     private var hero: some View {
         VStack(alignment: .leading, spacing: Metric.tight) {
             HStack(alignment: .top) {
-                Text(dollars(summary.estimatedIncrementalValueCents))
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                Text(summary.knownBaselineCount == 0 ? "Unknown" : dollars(summary.estimatedIncrementalValueCents))
+                    .font(.system(.largeTitle).weight(.bold))
                     .monospacedDigit()
                     .minimumScaleFactor(0.6)
                     .lineLimit(1)
@@ -62,6 +67,8 @@ struct ImpactView: View {
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.75))
+                    .frame(width: Metric.minimumTarget, height: Metric.minimumTarget)
+                    .background(.white.opacity(0.14), in: Circle())
                     .accessibilityHidden(true)
             }
             Text(heroCaption)
@@ -72,7 +79,11 @@ struct ImpactView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Metric.roomy)
         .background(.cardWiseAccentGradient, in: RoundedRectangle(cornerRadius: Metric.cardRadius, style: .continuous))
-        .shadow(color: Color.cardWiseBlue.opacity(0.28), radius: 14, x: 0, y: 6)
+        .overlay {
+            RoundedRectangle(cornerRadius: Metric.cardRadius)
+                .strokeBorder(.white.opacity(0.22), lineWidth: 1)
+        }
+        .shadow(color: Color.cardWiseBlue.opacity(0.16), radius: 14, x: 0, y: 6)
         .accessibilityElement(children: .combine)
     }
 
@@ -80,7 +91,8 @@ struct ImpactView: View {
         guard summary.priced > 0 else {
             return "Estimated extra rewards. Nothing priced yet."
         }
-        let purchases = summary.priced == 1 ? "one purchase" : "\(summary.priced) purchases"
+        guard summary.knownBaselineCount > 0 else { return "No comparison baseline. Total estimated rewards are separate from additional value." }
+        let purchases = summary.knownBaselineCount == 1 ? "one purchase" : "\(summary.knownBaselineCount) purchases with a known baseline"
         return "Estimated extra rewards, over your next best card, across \(purchases)."
     }
 
@@ -179,7 +191,7 @@ struct ImpactView: View {
             ))
             .font(.subheadline.weight(.medium))
 
-            Text("Kept on this iPhone and nowhere else. There is no account, nothing is uploaded, and no bank or card account is ever read — the dollar figures are the ones you typed in. Switching this off erases what is here.")
+            Text("Local tracking works without sharing. Optional Impact sharing requires separate consent under Impact sharing & account. No bank account is read; amounts are your reports. Switching local tracking off erases local Impact and stops new sharing. Previously shared records remain until deleted through Impact sharing.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

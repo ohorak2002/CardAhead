@@ -13,11 +13,15 @@ public struct CategoryRule: Identifiable, Codable, Hashable, Sendable {
     public var cap: EarnCap?
     /// Shown in the card detail view. Used for coding quirks the user should know about.
     public var note: String?
+    public var merchantNames: [String]?
+    public var requiresConfirmation: Bool?
 
-    public init(category: SpendingCategory, rate: Double, cap: EarnCap? = nil, note: String? = nil) {
+    public init(category: SpendingCategory, rate: Double, cap: EarnCap? = nil, note: String? = nil, merchantNames: [String]? = nil, requiresConfirmation: Bool? = nil) {
         self.category = category
         self.rate = rate
         self.cap = cap
         self.note = note
+        self.merchantNames = merchantNames
+        self.requiresConfirmation = requiresConfirmation
     }
 }

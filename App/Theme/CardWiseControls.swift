@@ -63,7 +63,7 @@ struct CardWiseSecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
-            .foregroundStyle(isEnabled ? Color.cardWiseBlue : Color.secondary)
+            .foregroundStyle(isEnabled ? Color.cardWiseActionInk : Color.secondary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, Metric.regular)
             .padding(.horizontal, Metric.roomy)
@@ -110,6 +110,8 @@ struct CardWiseSearchField: View {
     /// Called on the keyboard's Search key. Screens that filter as you type
     /// can leave it nil.
     var onSubmit: (() -> Void)?
+    var onClear: (() -> Void)? = nil
+    @FocusState private var focused: Bool
     /// What is behind it. See `ControlGround` — a field floating over a map
     /// needs a different answer from one sitting on a page.
     var ground: ControlGround = .page
@@ -121,24 +123,30 @@ struct CardWiseSearchField: View {
                 .accessibilityHidden(true)
 
             TextField(placeholder, text: $text)
+                .accessibilityLabel(placeholder)
+                .frame(minHeight: Metric.minimumTarget)
                 .submitLabel(.search)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
-                .onSubmit { onSubmit?() }
+                .focused($focused)
+                .onSubmit { focused = false; onSubmit?() }
 
             if !text.isEmpty {
                 Button {
                     text = ""
+                    onClear?()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(Color.secondary.opacity(0.55))
+                        .frame(width: Metric.minimumTarget, height: Metric.minimumTarget)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Clear search")
                 .transition(.opacity)
             }
         }
         .padding(.horizontal, Metric.snug)
-        .padding(.vertical, 12)
+        .padding(.vertical, 2)
         .background(
             ground.fill,
             in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
@@ -165,11 +173,14 @@ enum ControlGround {
     /// underneath stays visible — which is the whole reason the control is
     /// floating rather than in a bar — and lifted, because it genuinely is.
     case floating
+    /// Blue wash used by the redesigned bank picker and map header.
+    case tinted
 
     var fill: AnyShapeStyle {
         switch self {
         case .page: return AnyShapeStyle(Color(.secondarySystemGroupedBackground))
         case .floating: return AnyShapeStyle(.regularMaterial)
+        case .tinted: return AnyShapeStyle(InterfacePalette.wash)
         }
     }
 
@@ -178,6 +189,7 @@ enum ControlGround {
         switch self {
         case .page: return 0
         case .floating: return 0.18
+        case .tinted: return 0
         }
     }
 }
@@ -223,6 +235,8 @@ struct CardWiseChip: View {
             .padding(.vertical, 7)
             .background(isOn ? AnyShapeStyle(tint) : ground.fill, in: Capsule())
             .shadow(color: Color.cardWiseNavy.opacity(ground.shadowOpacity), radius: 8, y: 3)
+            .frame(minHeight: Metric.minimumTarget)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isOn ? [.isSelected] : [])

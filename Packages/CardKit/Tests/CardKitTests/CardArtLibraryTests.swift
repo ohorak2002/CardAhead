@@ -108,6 +108,41 @@ final class CardArtLibraryTests: XCTestCase {
 
     // MARK: - Licence safety (§48)
 
+    func testMissingLicensedPixelsFallBackToDrawingEvenWithPhotoAvailable() {
+        let selected = CardArtSource.resolve(for: catalogCard(), in: [grant()], asOf: today)
+        let displayed = selected.availableForDisplay(licensedImageAvailable: false, photoAvailable: true)
+        XCTAssertEqual(displayed, .drawn)
+        XCTAssertEqual(displayed.shortLabel, "CardWise representation")
+        XCTAssertTrue(displayed.accessibilityDescription(for: catalogCard()).contains("CardWise representation"))
+    }
+
+    func testLoadedLicensedPixelsKeepPriorityOverPhoto() {
+        let selected = CardArtSource.resolve(for: catalogCard(), in: [grant()], asOf: today)
+        XCTAssertEqual(selected.availableForDisplay(licensedImageAvailable: true, photoAvailable: true), selected)
+    }
+
+    func testMissingPhotoPixelsAreDescribedAsDrawn() {
+        let selected = CardArtSource.userPhoto("deleted.jpg")
+        XCTAssertEqual(selected.availableForDisplay(licensedImageAvailable: false, photoAvailable: false), .drawn)
+        XCTAssertEqual(selected.availableForDisplay(licensedImageAvailable: false, photoAvailable: true), selected)
+    }
+
+    func testUnsavedPhotoPreviewUsesPhotoProvenance() {
+        let displayed = CardArtSource.drawn.availableForDisplay(licensedImageAvailable: false, photoAvailable: true)
+        XCTAssertEqual(displayed, .userPhoto(""))
+        XCTAssertEqual(displayed.shortLabel, "Your card photo")
+    }
+
+    func testAvailablePixelsCannotPromoteARefusedGrant() {
+        let selected = CardArtSource.resolve(for: catalogCard(), in: [grant(status: .revoked)], asOf: today)
+        XCTAssertEqual(selected.availableForDisplay(licensedImageAvailable: true, photoAvailable: false), .drawn)
+    }
+
+    func testWalletOnlyGrantDoesNotReachAppDisplay() {
+        let selected = CardArtSource.resolve(for: catalogCard(), in: [grant(uses: [.walletDisplay])], use: .appDisplay, asOf: today)
+        XCTAssertEqual(selected, .drawn)
+    }
+
     func testPendingGrantCannotDraw() {
         let asset = grant(status: .pendingReview)
         XCTAssertFalse(asset.isUsable(asOf: today))

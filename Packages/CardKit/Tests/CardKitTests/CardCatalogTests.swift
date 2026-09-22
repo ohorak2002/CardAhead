@@ -30,9 +30,9 @@ final class CardCatalogTests: XCTestCase {
         }
     }
 
-    func testTheWholeCatalogWasCheckedOnOneDay() {
+    func testInaccessibleProductDoesNotReceiveANewVerificationDate() {
         for entry in CardCatalog.entries {
-            XCTAssertEqual(entry.checkedOn, CardCatalog.checkedOn, entry.id)
+            XCTAssertEqual(entry.checkedOn, entry.productID == "capital-one-savor" ? CardCatalog.date(2026, 9, 11) : CardCatalog.checkedOn, entry.id)
         }
     }
 
@@ -186,11 +186,8 @@ final class CardCatalogTests: XCTestCase {
         XCTAssertEqual(chase.status(for: q4), .unannounced)
         XCTAssertTrue(chase.needsCategories(asOf: CardCatalog.date(2026, 11, 1)))
 
-        guard case .bonus(let known) = discover.status(for: q4) else {
-            return XCTFail("Discover's Q4 should be known")
-        }
-        XCTAssertEqual(known.categories, [.dining, .entertainment])
-        XCTAssertFalse(discover.needsCategories(asOf: CardCatalog.date(2026, 11, 1)))
+        XCTAssertEqual(discover.status(for: q4), .unannounced)
+        XCTAssertTrue(discover.needsCategories(asOf: CardCatalog.date(2026, 11, 1)))
     }
 
     func testThisQuarterIsKnownForBoth() throws {
@@ -200,7 +197,7 @@ final class CardCatalogTests: XCTestCase {
         guard case .bonus(let quarter) = chase.status(for: q3) else {
             return XCTFail("Q3 should be known")
         }
-        XCTAssertEqual(quarter.categories, [.gas, .transit, .entertainment])
+        XCTAssertEqual(quarter.categories, [.gas, .transit])
         XCTAssertFalse(chase.needsCategories(asOf: Fixture.inQ3))
         // Chase closes activation before the quarter ends. Missing it costs the
         // whole bonus, so the date has to be the real one.

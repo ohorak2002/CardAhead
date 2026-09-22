@@ -28,7 +28,7 @@ targets:
         # which fails the install with a message about the bundle identifier
         # rather than anything to do with this app.
         PRODUCT_BUNDLE_IDENTIFIER: com.ohorak.cardrewards
-        MARKETING_VERSION: "0.1"
+        MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1"
@@ -43,11 +43,17 @@ targets:
         # A billable secret, so it is not in this repository. Empty means the
         # app runs with no place provider and says so. See docs/places-api.md.
         GOOGLE_PLACES_API_KEY: ""
+        IMPACT_SERVICE_URL: ""
+        IMPACT_PUBLIC_KEY: ""
     info:
       path: Supporting/Info.plist
       properties:
         CFBundleDisplayName: CardWise
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         GooglePlacesAPIKey: $(GOOGLE_PLACES_API_KEY)
+        ImpactServiceURL: $(IMPACT_SERVICE_URL)
+        ImpactPublicKey: $(IMPACT_PUBLIC_KEY)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -68,3 +74,32 @@ targets:
           Used only to photograph your own card, so your wallet shows the card
           you actually carry. The photo stays on this iPhone and is never
           uploaded. CardWise does not read your card number.
+
+  CardWiseUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: CardWise
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ohorak.cardrewards.uitests
+        SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: CardWise
+        CODE_SIGNING_ALLOWED: NO
+
+schemes:
+  CardWise:
+    build:
+      targets:
+        CardWise: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - CardWiseUITests
+    archive:
+      config: Release

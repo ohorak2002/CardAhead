@@ -46,6 +46,7 @@ jobs:
             -project CardWise.xcodeproj \
             -scheme CardWise \
             -destination 'generic/platform=iOS Simulator' \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             CODE_SIGNING_ALLOWED=NO
 
   # Pictures of the app, from a machine that cannot run it.
@@ -75,7 +76,7 @@ jobs:
 
       - name: Build for the simulator
         run: |
-          xcodebuild build             -project CardWise.xcodeproj             -scheme CardWise             -configuration Debug             -destination 'generic/platform=iOS Simulator'             -derivedDataPath build/dd             CODE_SIGNING_ALLOWED=NO
+          xcodebuild build             -project CardWise.xcodeproj             -scheme CardWise             -configuration Debug             -destination 'generic/platform=iOS Simulator'             -derivedDataPath build/dd             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"             CODE_SIGNING_ALLOWED=NO
 
       - name: Boot a phone
         run: |
@@ -153,13 +154,20 @@ jobs:
           # them. Debug build, so the row exists here and not on a phone.
           shoot notifications 15
           shoot notificationlab 16
+          shoot reorder 17
+          shoot mapfilters 18
+          shoot today 19
+          shoot timeline 20
+          shoot compare 21
+          shoot organize 22
+          shoot why 23
 
       # A palette that works on white paper is not automatically the one that
       # works at night, and nobody has ever seen this app at night.
       - name: Photograph it in the dark
         run: |
           xcrun simctl ui "$DEVICE" appearance dark
-          for TAB in home map wallet benefits impact watching cardphoto cardbenefits placecard carddetail addcard notifications notificationlab; do
+          for TAB in home map wallet benefits impact watching cardphoto cardbenefits placecard carddetail addcard notifications notificationlab reorder mapfilters today timeline compare organize; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
             sleep 6
@@ -186,7 +194,7 @@ jobs:
           # `content_size`, with an underscore — unlike `appearance` above.
           # simctl prints its whole usage page and exits 117 for the hyphen.
           xcrun simctl ui "$DEVICE" content_size accessibility-extra-extra-extra-large
-          for TAB in home wallet benefits more carddetail; do
+          for TAB in home wallet benefits more carddetail reorder addcard mapfilters today timeline compare organize; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
             sleep 6
@@ -195,6 +203,51 @@ jobs:
           # Put it back, so anything added after this step photographs the
           # app at the size everybody else sees.
           xcrun simctl ui "$DEVICE" content_size medium
+
+      - name: Photograph a smaller iPhone
+        run: |
+          TYPE=$(xcrun simctl list devicetypes -j | python3 -c 'import json,sys; types=json.load(sys.stdin)["devicetypes"]; matches=[t for t in types if "iPhone SE (3rd generation)" in t["name"] or "iPhone 16e" in t["name"]]; print(matches[0]["identifier"] if matches else "")')
+          test -n "$TYPE" || { echo "No supported small iPhone device type"; exit 1; }
+          SMALL=$(xcrun simctl create "CardWise Small" "$TYPE")
+          xcrun simctl boot "$SMALL"
+          xcrun simctl bootstatus "$SMALL" -b
+          APP=$(find build/dd/Build/Products -name 'CardWise.app' | head -1)
+          xcrun simctl install "$SMALL" "$APP"
+          for TAB in home benefits mapfilters; do
+            xcrun simctl terminate "$SMALL" com.ohorak.cardrewards || true
+            xcrun simctl launch "$SMALL" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
+            sleep 5
+            xcrun simctl io "$SMALL" screenshot "screenshots/small-$TAB.png"
+          done
+          xcrun simctl ui "$SMALL" appearance dark
+          xcrun simctl ui "$SMALL" content_size accessibility-extra-extra-extra-large
+          for TAB in home benefits; do
+            xcrun simctl terminate "$SMALL" com.ohorak.cardrewards || true
+            xcrun simctl launch "$SMALL" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
+            sleep 5
+            xcrun simctl io "$SMALL" screenshot "screenshots/small-dark-huge-$TAB.png"
+          done
+          xcrun simctl shutdown "$SMALL"
+
+      - name: Exercise everyday flows
+        run: |
+          xcodebuild test \
+            -project CardWise.xcodeproj \
+            -scheme CardWise \
+            -destination "platform=iOS Simulator,id=$DEVICE" \
+            -derivedDataPath build/dd \
+            -resultBundlePath build/everyday-flows.xcresult \
+            -parallel-testing-enabled NO \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: CardWise-UI-test-results
+          path: build/everyday-flows.xcresult
+          if-no-files-found: ignore
+          retention-days: 14
 
       # **`always()`, so a broken photograph step cannot cost every picture.**
       # The job is already `continue-on-error`, which stops it failing the run
@@ -236,13 +289,18 @@ jobs:
       - name: Archive for a real device
         env:
           PLACES_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+          IMPACT_URL: ${{ vars.IMPACT_SERVICE_URL }}
+          IMPACT_KEY: ${{ vars.IMPACT_PUBLIC_KEY }}
         run: |
           xcodebuild archive \
             -project CardWise.xcodeproj \
             -scheme CardWise \
             -destination 'generic/platform=iOS' \
             -archivePath "$PWD/build/CardWise.xcarchive" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             GOOGLE_PLACES_API_KEY="$PLACES_KEY" \
+            IMPACT_SERVICE_URL="$IMPACT_URL" \
+            IMPACT_PUBLIC_KEY="$IMPACT_KEY" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO

@@ -270,6 +270,7 @@ public struct ImpactSummary: Hashable, Sendable {
     public var ignored: Int
     /// Purchases somebody put a number on.
     public var priced: Int
+    public var knownBaselineCount: Int
 
     /// Summed over user-confirmed estimates only.
     public var estimatedRewardValueCents: Double
@@ -295,6 +296,7 @@ public struct ImpactSummary: Hashable, Sendable {
         let priceable = ledger.events.filter { $0.estimate?.isUserConfirmed == true }
         let estimates = priceable.compactMap(\.estimate)
         priced = estimates.count
+        knownBaselineCount = estimates.filter { $0.incrementalValueCents != nil }.count
         estimatedRewardValueCents = estimates.reduce(0) { $0 + $1.estimatedValueCents }
         estimatedIncrementalValueCents = estimates.reduce(0) { $0 + ($1.incrementalValueCents ?? 0) }
 

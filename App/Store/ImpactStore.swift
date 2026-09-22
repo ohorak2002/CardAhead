@@ -4,13 +4,10 @@ import CardKit
 
 /// Whether this app has been worth carrying, kept on the phone that carries it.
 ///
-/// **Nothing here is sent anywhere.** There is no account, no backend and no
-/// network call: `analytics` is `NoOpAnalyticsService`, and the only record of
-/// anything is `impact.json` beside the wallet, which "Erase everything" takes
-/// with it. The events are shaped so that a backend *could* one day exist
-/// without a rewrite — see `AnalyticsService` — but the reason they exist
-/// today is the user's own question, which nobody else can answer for them:
-/// has being told which card to use actually earned me anything?
+/// Local tracking requires no account. A separate, default-off ImpactCloudStore
+/// consent controls delivery of a small allowlist of user reports to the backend.
+/// The legacy analytics service remains a no-op. Shared deletion is a separate
+/// acknowledged server operation; see docs/impact-backend.md.
 ///
 /// Two things it deliberately does not do. It does not read a transaction, a
 /// statement or an account — every dollar figure in here is one somebody typed
@@ -22,9 +19,10 @@ import CardKit
 final class ImpactStore {
 
     private(set) var ledger = ImpactLedger()
+    private(set) var receivedRewards: [OfferRedemption] = []
 
     /// Off means nothing is written down at all, and what was already written
-    /// is gone. On means it is written here and stays here.
+    /// is gone. On alone never grants consent to cloud sharing.
     ///
     /// Set through `setRecording(_:)` rather than by assignment: switching it
     /// off erases, and a property observer that erases is one `load()` away
@@ -36,6 +34,8 @@ final class ImpactStore {
         isRecording = on
         if !on {
             ledger.erase()
+            receivedRewards = []
+            ImpactCloudStore.shared.setSharing(false)
             openByRegion = [:]
         }
         save()
@@ -123,6 +123,17 @@ final class ImpactStore {
 
     // MARK: - What the user says about it
 
+    func recordUsedRecommendation(_ snapshot: RecommendationSnapshot, purchase: Money?) {
+        guard isRecording else { return }
+        let date = Date()
+        emit {
+            $0.recordGenerated(snapshot)
+            $0.recordShown(snapshot, at: date)
+            $0.recordAnswer(.recommendationAccepted, for: snapshot.id, at: date)
+            if let purchase, purchase > 0 { $0.recordPurchase(purchase, for: snapshot.id, at: date) }
+        }
+    }
+
     /// The one suggestion worth asking about, if there is one.
     var followUp: OpenRecommendation? {
         guard isRecording else { return nil }
@@ -140,6 +151,13 @@ final class ImpactStore {
         var estimate: BenefitEstimate?
         emit { estimate = $0.recordPurchase(dollars, for: recommendationID, at: date) }
         return estimate
+    }
+
+    func recordReceived(_ redemption: OfferRedemption, productID: String?, category: SpendingCategory?) {
+        guard isRecording else { return }
+        receivedRewards.append(redemption)
+        ImpactCloudStore.shared.receive(redemption, productID: productID, category: category)
+        save()
     }
 
     // MARK: - What happens in the app
@@ -187,6 +205,8 @@ final class ImpactStore {
 
     func erase() {
         ledger.erase()
+        receivedRewards = []
+        ImpactCloudStore.shared.deleteShared()
         openByRegion = [:]
         save()
     }
@@ -214,6 +234,7 @@ final class ImpactStore {
         }
         for event in new {
             analytics.record(event.redactedForAnalytics())
+            ImpactCloudStore.shared.receive(event)
         }
         save()
     }
@@ -235,6 +256,7 @@ final class ImpactStore {
         /// — see `Card.finish` for the same pattern. Missing means on, which
         /// is what it was.
         var isRecording: Bool?
+        var receivedRewards: [OfferRedemption]?
     }
 
     private func load() {
@@ -245,13 +267,14 @@ final class ImpactStore {
         isRecording = state.isRecording ?? true
         guard isRecording else { return }
         ledger = state.ledger
+        receivedRewards = state.receivedRewards ?? []
         openByRegion = state.openByRegion
     }
 
     private func save() {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        let state = StoredState(ledger: ledger, openByRegion: openByRegion, isRecording: isRecording)
+        let state = StoredState(ledger: ledger, openByRegion: openByRegion, isRecording: isRecording, receivedRewards: receivedRewards)
         guard let data = try? encoder.encode(state) else { return }
         try? data.write(to: fileURL, options: [.atomic])
     }

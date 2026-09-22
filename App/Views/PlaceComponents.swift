@@ -76,6 +76,11 @@ struct MerchantRow: View {
                         .font(.caption.weight(result.rewardLine == nil ? .regular : .semibold))
                         .foregroundStyle(result.rewardLine == nil ? Color.secondary : Color.cardWiseBlue)
                         .lineLimit(2)
+                    if let recommendation = result.recommendation {
+                        Text(recommendation.choiceExplanation)
+                            .font(.caption2).foregroundStyle(Color.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -283,11 +288,8 @@ struct MerchantPlaceCard: View {
             // The one line here that says something the others do not — see
             // `Recommendation.runnerUpLine`. Nil for a one-card wallet and for
             // a tie, and nothing is drawn in its place.
-            if let why = result.recommendation?.runnerUpLine {
-                Text(why)
-                    .font(.footnote)
-                    .foregroundStyle(Color.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+            if let recommendation = result.recommendation {
+                RecommendationReason(recommendation: recommendation, contextName: result.place.name)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

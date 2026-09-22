@@ -49,6 +49,13 @@ public struct Card: Identifiable, Codable, Hashable, Sendable {
     /// a licensed image. A wallet file written before this field existed still
     /// decodes — those cards simply have no product behind them.
     public var catalogProductID: String?
+    public var catalogBaseline: CatalogBaseline?
+    public var adjustedBenefitIDs: [String]?
+    public var rotatingUserProvided: Bool?
+    public var personalOffers: [PersonalOffer]?
+    public var standardBenefitOffers: [PersonalOffer]?
+    public var effectiveOffers: [PersonalOffer] { (standardBenefitOffers ?? []) + (personalOffers ?? []) }
+
 
     public init(
         id: UUID = UUID(),

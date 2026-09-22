@@ -119,6 +119,7 @@ public struct CardBenefit: Identifiable, Codable, Hashable, Sendable {
     /// The day somebody last read this off the issuer's own page. Nil for a
     /// card described by hand, because then nobody did.
     public var verifiedOn: Date?
+    public var sourceURL: String?
     public var expiresOn: Date?
     /// False when the benefit exists but is not paying right now: a cap used
     /// up, a quarter not switched on, a signup bonus already met.
@@ -212,6 +213,16 @@ extension CardBenefit {
             found.append(welcomeBenefit(bonus, on: card, source: source, verifiedOn: verifiedOn, asOf: date))
         }
 
+        for index in found.indices {
+            let origin = found[index].origin
+            if card.isUserAdjusted(origin) {
+                found[index].source = .user
+                found[index].verifiedOn = nil
+            } else {
+                found[index].verifiedOn = entry?.verifiedDate(for: origin)
+                found[index].sourceURL = entry?.termsURL
+            }
+        }
         return found.sorted { lhs, rhs in
             if lhs.group != rhs.group { return lhs.group.sortOrder < rhs.group.sortOrder }
             if lhs.rate != rhs.rate { return (lhs.rate ?? -1) > (rhs.rate ?? -1) }
@@ -245,7 +256,7 @@ extension CardBenefit {
             }
             isActive = quarter.isActivated
         case .unannounced:
-            detail = "\(card.issuer) has not published this quarter's list yet."
+            detail = "CardWise has not verified this quarter's categories. Check your issuer."
         case .none:
             detail = "Nothing extra on this card this quarter."
         }
@@ -263,7 +274,7 @@ extension CardBenefit {
             isActive: isActive,
             // The issuer owns this one. Switching it off here would only hide
             // it from the person it is being kept honest for.
-            isRemovable: false
+            isRemovable: true
         )
     }
 
@@ -351,6 +362,7 @@ extension Card {
     public func removingBenefit(_ benefit: CardBenefit) -> Card {
         guard benefit.isRemovable else { return self }
         var card = self
+        card.adjustedBenefitIDs = Array(Set((card.adjustedBenefitIDs ?? []) + [benefit.id]))
         switch benefit.origin {
         case .rule(let category):
             guard category != .base else { return self }
@@ -360,7 +372,7 @@ extension Card {
         case .welcomeBonus:
             card.welcomeBonus = nil
         case .rotating:
-            return self
+            card.rotatingProgram = nil
         }
         return card
     }

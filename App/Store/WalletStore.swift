@@ -171,6 +171,13 @@ final class WalletStore {
         update(card.id) { $0.isPinned.toggle() }
     }
 
+    /// An explicit choice in Organize cards, using the existing tie breaker.
+    func preferOnly(_ id: UUID) {
+        guard cards.contains(where: { $0.id == id }) else { return }
+        for index in cards.indices { cards[index].isPinned = cards[index].id == id }
+        save()
+    }
+
     func setActivated(_ activated: Bool, cardID: UUID, quarter: Quarter) {
         update(cardID) { card in
             guard var program = card.rotatingProgram,
@@ -190,6 +197,7 @@ final class WalletStore {
         update(cardID) { card in
             guard let index = card.rules.firstIndex(where: { $0.category == category }) else { return }
             card.rules[index].cap?.spentDollars = amount
+            card.rules[index].cap?.usageUpdatedOn = Date()
         }
     }
 
@@ -205,6 +213,7 @@ final class WalletStore {
     ) {
         update(cardID) { card in
             guard var program = card.rotatingProgram else { return }
+            card.rotatingUserProvided = true
             program.setQuarter(RotatingQuarter(
                 quarter: quarter,
                 categories: categories,
@@ -218,6 +227,7 @@ final class WalletStore {
     func setRotatingCapSpend(_ amount: Money, cardID: UUID) {
         update(cardID) { card in
             card.rotatingProgram?.cap?.spentDollars = amount
+            card.rotatingProgram?.cap?.usageUpdatedOn = Date()
         }
     }
 

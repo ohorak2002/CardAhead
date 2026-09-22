@@ -38,6 +38,9 @@ struct PlaceDetailView: View {
     /// is what happens offline and on a key with no details quota.
     @State private var place: MapPlace
     @State private var isLoadingDetails = false
+    @State private var purchaseAmount = ""
+    @State private var purchaseChannel: PurchaseChannel = .inStore
+    @State private var recordedUse = false
 
     init(place: MapPlace) {
         _place = State(initialValue: place)
@@ -51,8 +54,15 @@ struct PlaceDetailView: View {
         monitor.plan?.watchedPlaceIDs.contains(place.id) ?? false
     }
 
+    private var purchaseContext: PurchaseContext? {
+        guard var context = place.purchaseContext() else { return nil }
+        context.purchaseDollars = Decimal(string: purchaseAmount)
+        context.channel = purchaseChannel
+        return context
+    }
+
     private var recommendation: Recommendation? {
-        guard !wallet.cards.isEmpty, let context = place.purchaseContext() else { return nil }
+        guard !wallet.cards.isEmpty, let context = purchaseContext else { return nil }
         return RecommendationEngine().recommend(from: wallet.cards, in: context)
     }
 
@@ -61,7 +71,27 @@ struct PlaceDetailView: View {
             VStack(alignment: .leading, spacing: Metric.roomy) {
                 header
                 actions
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Check personal offers").font(.headline)
+                    TextField("Purchase amount ($), optional", text: $purchaseAmount).keyboardType(.decimalPad)
+                        .textFieldStyle(.roundedBorder)
+                    Picker("Purchase channel", selection: $purchaseChannel) {
+                        Text("In-store").tag(PurchaseChannel.inStore)
+                        Text("Online").tag(PurchaseChannel.online)
+                    }.pickerStyle(.segmented)
+                    Text("Exact merchant names only. Confirm issuer terms and merchant coding before relying on an estimate.").font(.caption)
+                }.padding(.horizontal, Metric.margin)
                 recommendationSection
+                if impact.isRecording, let context = purchaseContext, let recommendation {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button(recordedUse ? "Recorded in Your impact" : "I used this card") {
+                            impact.recordUsedRecommendation(RecommendationSnapshot(recommendation, context: context), purchase: context.purchaseDollars)
+                            recordedUse = true
+                        }.buttonStyle(.cardWisePrimary).disabled(recordedUse)
+                        Text("Saves your report and these reward assumptions. The amount is optional; received rewards can be entered separately.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }.padding(.horizontal, Metric.margin)
+                }
                 factsSection
                 nearbyCards
                 muteSection
@@ -424,12 +454,7 @@ struct PlaceDetailView: View {
                     // sentence the map's place card and Home's hero use, and
                     // which is nil rather than filler when there is nothing
                     // to compare against.
-                    if let why = recommendation.runnerUpLine {
-                        Text(why)
-                            .font(.footnote)
-                            .foregroundStyle(Color.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                    RecommendationReason(recommendation: recommendation, contextName: place.name)
 
                     if let nudge = recommendation.activationNudge {
                         Label(nudge.sentence, systemImage: "exclamationmark.circle.fill")

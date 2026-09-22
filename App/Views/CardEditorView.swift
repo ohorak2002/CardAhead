@@ -87,7 +87,7 @@ struct CardEditorView: View {
         // A card whose rates somebody has typed over is no longer the
         // catalog's claim about that product, and must stop being dated
         // against the issuer's page as though it were.
-        card.catalogProductID = nil
+        // Product identity survives personal edits; provenance is per benefit.
         card.issuer = issuer
         let trimmed = cardName.trimmingCharacters(in: .whitespaces)
         card.name = trimmed.isEmpty ? (isEditing ? original.name : "Your card") : trimmed
@@ -111,16 +111,24 @@ struct CardEditorView: View {
         // Caps and coding notes belong to the rule, not to the form. Changing a
         // rate must not reset the $6,000 of grocery spend someone logged.
         card.rules = benefits
-            .filter { $0.rate > 0 }
+            .filter { $0.rate.isFinite && $0.rate >= 0 }
             .map { draft in
                 let existing = original.rule(for: draft.category)
                 return CategoryRule(
                     category: draft.category,
                     rate: draft.rate,
                     cap: existing?.cap,
-                    note: existing?.note
+                    note: existing?.note,
+                    merchantNames: existing?.merchantNames,
+                    requiresConfirmation: existing?.requiresConfirmation
                 )
             }
+        if original.catalogProductID != nil {
+            let changed = Set(original.rules.map(\.category) + card.rules.map(\.category)).filter {
+                original.rule(for: $0)?.rate != card.rule(for: $0)?.rate || original.currency.style != card.currency.style
+            }
+            card.adjustedBenefitIDs = Array(Set((original.adjustedBenefitIDs ?? []) + changed.map { BenefitOrigin.rule($0).identifier }))
+        }
         return card
     }
 

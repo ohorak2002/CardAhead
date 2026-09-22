@@ -101,6 +101,7 @@ public struct GooglePlaceSearchSource: PlaceSearchSource {
         radiusMeters: Double,
         categories: Set<MapCategory>
     ) async throws -> [MapPlace] {
+        guard !categories.isEmpty else { return [] }
         guard !apiKey.isEmpty else { throw PlacesError.missingAPIKey }
 
         let asOf = now()

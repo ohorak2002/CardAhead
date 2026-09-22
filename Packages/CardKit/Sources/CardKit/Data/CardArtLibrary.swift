@@ -446,6 +446,23 @@ public enum CardArtSource: Hashable, Sendable {
         }
     }
 
+    /// Reconcile the selected source with pixels actually available to the UI.
+    /// A missing licensed file fails closed to our drawing, never a blank image
+    /// labelled official. An unsaved photo is allowed in the photo preview.
+    public func availableForDisplay(
+        licensedImageAvailable: Bool,
+        photoAvailable: Bool
+    ) -> CardArtSource {
+        switch self {
+        case .licensed:
+            return licensedImageAvailable ? self : .drawn
+        case .userPhoto:
+            return photoAvailable ? self : .drawn
+        case .drawn:
+            return photoAvailable ? .userPhoto("") : .drawn
+        }
+    }
+
     /// What VoiceOver should call this card, given where its face came from.
     /// "Blue rectangle" is what happens when nobody writes this function.
     public func accessibilityDescription(for card: Card) -> String {

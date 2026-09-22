@@ -104,7 +104,7 @@ struct FlowRow: Layout {
         var widest: CGFloat = 0
 
         for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
+            let size = subview.sizeThatFits(ProposedViewSize(width: maxWidth.isFinite ? maxWidth : nil, height: nil))
             if x > 0, x + spacing + size.width > maxWidth {
                 totalHeight += rowHeight + rowSpacing
                 widest = max(widest, x)
@@ -125,7 +125,7 @@ struct FlowRow: Layout {
         var rowHeight: CGFloat = 0
 
         for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
+            let size = subview.sizeThatFits(ProposedViewSize(width: bounds.width, height: nil))
             if x > bounds.minX, x + spacing + size.width > bounds.maxX {
                 y += rowHeight + rowSpacing
                 x = bounds.minX

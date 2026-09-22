@@ -159,7 +159,7 @@ struct LocationPrimerView: View {
             point(
                 icon: "hand.raised",
                 title: "Nothing else will ever use this",
-                detail: "No offers, no marketing, no daily summary. There is no account and nobody to send you anything."
+                detail: "No marketing or daily notification summary. Impact sharing is optional and controlled separately."
             )
         }
     }

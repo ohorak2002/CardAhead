@@ -180,13 +180,18 @@ public enum WalletInsights {
     ) -> SpendingCategory? {
         func wins(_ category: SpendingCategory) -> Bool {
             let context = PurchaseContext(category: category, confidence: .exact, date: date)
-            return engine.rank(wallet, in: context).first?.card.id == card.id
+            guard let best = engine.rank(wallet, in: context).first, best.card.id == card.id else { return false }
+            return category == .base || best.appliedRate > card.baseRate
         }
 
         // Its own bonus categories first, best-paying one leading — that is the
         // headline anybody would pick for the card themselves.
         let bonuses = card.bonusCategories(asOf: date)
-            .sorted { rate(of: card, in: $0, asOf: date) > rate(of: card, in: $1, asOf: date) }
+            .sorted {
+                let left = engine.score(card, in: PurchaseContext(category: $0, date: date)).effectiveCentsPerDollar
+                let right = engine.score(card, in: PurchaseContext(category: $1, date: date)).effectiveCentsPerDollar
+                return left == right ? $0.rawValue < $1.rawValue : left > right
+            }
 
         if let won = bonuses.first(where: wins) { return won }
 

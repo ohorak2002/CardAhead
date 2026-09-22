@@ -60,6 +60,15 @@ public struct RecommendationSnapshot: Identifiable, Codable, Hashable, Sendable 
     /// the same pattern as `Card.finish`, and for the same reason. Read it
     /// through `hadActivationNudge`, never directly.
     public var activationNudge: Bool?
+    public var capRemainingDollars: Money?
+    public var baseCentsPerDollar: Double?
+    public var alternateCapRemainingDollars: Money?
+    public var alternateBaseCentsPerDollar: Double?
+    public var pricedPurchaseDollars: Money?
+    public var includesPersonalOffer: Bool?
+    public var assumptions: [String]?
+    /// Raw standard base rate, before point valuation or foreign fees.
+    public var baseAppliedRate: Double?
 
     /// A missing value in an old file means nobody knows, and nobody knowing
     /// is not the same as it having been there. The safe reading is no.
@@ -130,6 +139,14 @@ public struct RecommendationSnapshot: Identifiable, Codable, Hashable, Sendable 
             confidence: context.confidence,
             activationNudge: recommendation.activationNudge != nil
         )
+        capRemainingDollars = best.capRemainingDollars
+        baseCentsPerDollar = best.baseCentsPerDollar
+        alternateCapRemainingDollars = alternate?.capRemainingDollars
+        alternateBaseCentsPerDollar = alternate?.baseCentsPerDollar
+        pricedPurchaseDollars = best.pricedPurchaseDollars
+        includesPersonalOffer = best.includesPersonalOffer
+        assumptions = best.caveats
+        baseAppliedRate = best.card.baseRate
     }
 
     /// One line for the follow-up prompt, naming no merchant.

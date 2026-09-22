@@ -36,20 +36,20 @@ final class NearbyPlacesTests: XCTestCase {
         }
     }
 
-    func testUntickingTheLastCategoryShowsEverythingAgain() {
+    func testUntickingTheLastCategoryShowsNothing() {
         var filter = MapFilter()
         filter.showOnly(.restaurants)
         XCTAssertFalse(filter.isShowingEverything)
 
         filter.toggle(.restaurants)
-        XCTAssertTrue(filter.isShowingEverything, "a map with no categories on it is a dead end")
+        XCTAssertTrue(filter.isShowingNothing)
     }
 
-    func testUntickingOneOfAllLeavesTheRest() {
+    func testSelectingOneFromAllSelectsOnlyThatCategory() {
         var filter = MapFilter()
         filter.toggle(.hotels)
-        XCTAssertFalse(filter.includes(.hotels))
-        XCTAssertTrue(filter.includes(.restaurants))
+        XCTAssertTrue(filter.includes(.hotels))
+        XCTAssertFalse(filter.includes(.restaurants))
     }
 
     func testDistanceDecidesWhatIsInRange() {

@@ -88,7 +88,7 @@ struct BenefitsBrowserView: View {
                 }
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(InterfacePalette.page)
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(item: $openGroup) { group in
             BenefitGroupDetailView(
@@ -101,59 +101,15 @@ struct BenefitsBrowserView: View {
     private var headerSubtitle: String? {
         guard !store.cards.isEmpty else { return nil }
         let active = WalletInsights.activeBenefitCount(in: store.cards)
-        return active == 1 ? "1 paying right now" : "\(active) paying right now"
+        return active == 1 ? "1 active benefit in your wallet" : "\(active) active benefits in your wallet"
     }
 
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Metric.roomy) {
-                // **Chips, not a segmented control.** The map filters with
-                // `CardWiseChip` and this screen filtered with a
-                // `.segmented` Picker — two filter languages in one app, for
-                // no reason anybody chose. The chip is the one that survived
-                // because it scales to more than three options and it is the
-                // control the rest of the app now speaks.
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Metric.tight) {
-                        ForEach(Filter.allCases) { option in
-                            CardWiseChip(
-                                title: option.displayName,
-                                isOn: filter == option,
-                                tint: .cardWiseBlue
-                            ) {
-                                filter = option
-                            }
-                        }
-                    }
+                BenefitGraphicsView()
+                NavigationLink("Benefit timeline") { BenefitTimelineView() }
                     .padding(.horizontal, Metric.margin)
-                    .padding(.vertical, 2)
-                }
-                .padding(.top, Metric.tight)
-
-                if visibleGroups.isEmpty {
-                    Text(filter == .expiring
-                         ? "Nothing is about to run out."
-                         : "Nothing is paying right now.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, Metric.margin)
-                } else {
-                    LazyVGrid(columns: columns, spacing: Metric.snug) {
-                        ForEach(visibleGroups) { summary in
-                            Button {
-                                openGroup = summary.group
-                            } label: {
-                                BenefitGroupTile(
-                                    summary: summary,
-                                    wallet: store.cards,
-                                    lead: summary.lead(expiring: expiringIDs)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, Metric.margin)
-                }
 
                 if !expiring.isEmpty {
                     expiringSection
@@ -266,7 +222,7 @@ private struct BenefitGroupTile: View {
                 )
                 rateText
             } else {
-                HStack(alignment: .firstTextBaseline) {
+                HStack(alignment: .center) {
                     CategoryIcon(
                         symbolName: summary.group.symbolName,
                         tint: summary.group.tint,
@@ -317,7 +273,7 @@ private struct BenefitGroupTile: View {
         // Filling the row's height makes a row read as a row.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(Metric.regular)
-        .cardWisePanel(radius: Metric.tileRadius)
+        .interfacePanel(tinted: true)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(summary.group.displayName). \(lead.text)")
     }

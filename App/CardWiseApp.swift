@@ -10,6 +10,7 @@ struct CardWiseApp: App {
     @State private var impact: ImpactStore
     @State private var nearby: NearbyPlacesStore
     @State private var notifications: NotificationPolicyStore
+    @State private var organization: OrganizationStore
     /// Not `@State`: it has no observable state to redraw on, and it outlives
     /// every view that reads it. See `EnvironmentValues.placePhotos`.
     private let photos: PlacePhotoLoader
@@ -30,6 +31,13 @@ struct CardWiseApp: App {
         let seeded = DemoSeed.isActive
 
         let store = WalletStore(fileURL: seeded ? DemoSeed.walletURL() : nil)
+        let organization = OrganizationStore(fileURL: seeded ? DemoSeed.directory().appendingPathComponent("organization.json") : nil)
+        if seeded {
+            _ = organization.update { preferences in
+                preferences.monthlyGoalDollars = 25
+                if let card = store.cards.last { preferences.setNickname("Everyday cash back", for: card.id) }
+            }
+        }
         let reminders = ReminderCenter()
         let impact = ImpactStore(fileURL: seeded ? DemoSeed.impactURL() : nil)
         let notifications = NotificationPolicyStore(
@@ -96,6 +104,7 @@ struct CardWiseApp: App {
         _impact = State(initialValue: impact)
         _nearby = State(initialValue: nearby)
         _notifications = State(initialValue: notifications)
+        _organization = State(initialValue: organization)
         self.photos = photos
     }
 
@@ -108,14 +117,16 @@ struct CardWiseApp: App {
                 .environment(impact)
                 .environment(nearby)
                 .environment(notifications)
+                .environment(organization)
                 .environment(\.placePhotos, photos)
-                .task { await reminders.refreshStatus() }
+                .task { await reminders.refreshStatus(); ImpactCloudStore.shared.flush() }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
                     // Cheap and idempotent. Re-checks both permissions, since
                     // either can be changed in Settings behind our back, and
                     // closes the books on any arrival whose few minutes elapsed
                     // while the app was suspended.
+                    ImpactCloudStore.shared.flush()
                     monitor.start()
                     monitor.settleOutstandingArrivals()
                     Task { await reminders.refreshStatus() }

@@ -130,25 +130,37 @@ final class EverydayFlowsTests: XCTestCase {
         XCTAssertTrue(app.keyboards.element.waitForNonExistence(timeout: 5))
     }
 
-    /// A fee field showing the zero it was born with must not turn "95" into
-    /// "095" — the zero is a prompt, not something anybody typed.
+    /// An amount field showing the zero it was born with must not turn "5"
+    /// into "05" — the zero is a prompt, not something anybody typed.
+    ///
+    /// **Deliberately the offer editor and not the card editor**, although
+    /// the card editor's fee fields are where this was first noticed. A
+    /// SwiftUI `Form` is a collection view: rows below the fold are never
+    /// built, so they do not exist to be found, and the first version of this
+    /// test spent ten seconds waiting for a field four sections down. The
+    /// offer amount is one tap in and on screen, and it is the same
+    /// `NumberField` either way.
     @MainActor
-    func testAZeroFeeIsReplacedRatherThanTypedInto() throws {
+    func testAZeroAmountIsReplacedRatherThanTypedInto() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "addcard"]
+        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "benefits"]
         app.launch()
-        let byHand = app.buttons["My card is not on the list"].firstMatch
-        XCTAssertTrue(byHand.waitForExistence(timeout: 15))
-        for _ in 0..<4 where !byHand.isHittable { app.swipeUp() }
-        byHand.tap()
-        let fee = app.textFields["Annual fee in dollars"]
-        XCTAssertTrue(fee.waitForExistence(timeout: 10))
-        for _ in 0..<6 where !fee.isHittable { app.swipeUp() }
-        XCTAssertEqual(fee.value as? String, "0")
-        fee.tap()
-        fee.typeText("95")
-        XCTAssertEqual(fee.value as? String, "95")
+        let add = app.buttons["Add a reward or offer"].firstMatch
+        XCTAssertTrue(add.waitForExistence(timeout: 15))
+        add.tap()
+        let name = app.textFields["Name this offer"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Zero entry test")
+        app.buttons["Next"].tap()
+        let percent = app.textFields["Percent"]
+        XCTAssertTrue(percent.waitForExistence(timeout: 5))
+        XCTAssertEqual(percent.value as? String, "0")
+        percent.tap()
+        percent.typeText("5")
+        XCTAssertEqual(percent.value as? String, "5")
         app.buttons["keyboard.done"].firstMatch.tap()
-        XCTAssertEqual(fee.value as? String, "95")
+        XCTAssertEqual(percent.value as? String, "5")
+        app.buttons["Cancel"].tap()
     }
 }

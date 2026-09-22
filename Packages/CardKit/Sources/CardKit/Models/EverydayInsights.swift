@@ -35,17 +35,29 @@ public struct WalletOrganization: Codable, Equatable, Sendable {
 /// Explanations read the existing score; they never rank a second time or
 /// assign a value to an annual fee or an untracked credit.
 public extension Recommendation {
-    var choiceExplanation: String {
+    /// Why this card won, *without* the rate.
+    ///
+    /// **It is separate so a screen that shows the rate itself is not made to
+    /// say it twice.** Today's panel draws "4x dining" as a badge beside the
+    /// card, and appending `best.reason` under it would repeat the badge in
+    /// prose one line below. The same argument as `runnerUpLine`: the engine
+    /// has more sentences than any one surface should print.
+    var choiceRationale: String {
         if best.welcomeBonusBoostCentsPerDollar > 0 {
-            return "This purchase helps toward your open signup bonus. \(best.reason)."
+            return "This purchase helps toward your open signup bonus."
         }
         if let other = alternates.first, abs(best.total - other.total) <= RecommendationEngine().tieTolerance {
             return best.card.isPinned && !other.card.isPinned
-                ? "Your preferred card breaks a tie in estimated value. \(best.reason)."
-                : "Tied for the best estimated value in your wallet. \(best.reason)."
+                ? "Your preferred card breaks a tie in estimated value."
+                : "Tied for the best estimated value in your wallet."
         }
-        if alternates.isEmpty { return "Your only card in this wallet. \(best.reason)." }
-        return "Highest estimated value for this purchase. \(best.reason)."
+        if alternates.isEmpty { return "Your only card in this wallet." }
+        return "Highest estimated value for this purchase."
+    }
+
+    /// The rationale and the rate, for the places with room for both.
+    var choiceExplanation: String {
+        "\(choiceRationale) \(best.reason)."
     }
 }
 

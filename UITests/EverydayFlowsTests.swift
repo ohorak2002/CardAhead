@@ -109,4 +109,46 @@ final class EverydayFlowsTests: XCTestCase {
         app.buttons["Done"].tap()
         XCTAssertTrue(why.waitForExistence(timeout: 5))
     }
+
+    /// A decimal pad has no return key, so without the keyboard toolbar there
+    /// is nothing on screen that puts it away.
+    @MainActor
+    func testAmountFieldOffersAWayOffTheKeyboard() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "today"]
+        app.launch()
+        let goal = app.buttons["Edit goal"].firstMatch
+        XCTAssertTrue(goal.waitForExistence(timeout: 15))
+        goal.tap()
+        let field = app.textFields["Monthly goal in US dollars"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        XCTAssertTrue(app.keyboards.element.waitForExistence(timeout: 5))
+        let done = app.buttons["keyboard.done"].firstMatch
+        XCTAssertTrue(done.waitForExistence(timeout: 5))
+        done.tap()
+        XCTAssertTrue(app.keyboards.element.waitForNonExistence(timeout: 5))
+    }
+
+    /// A fee field showing the zero it was born with must not turn "95" into
+    /// "095" — the zero is a prompt, not something anybody typed.
+    @MainActor
+    func testAZeroFeeIsReplacedRatherThanTypedInto() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "addcard"]
+        app.launch()
+        let byHand = app.buttons["My card is not on the list"].firstMatch
+        XCTAssertTrue(byHand.waitForExistence(timeout: 15))
+        for _ in 0..<4 where !byHand.isHittable { app.swipeUp() }
+        byHand.tap()
+        let fee = app.textFields["Annual fee in dollars"]
+        XCTAssertTrue(fee.waitForExistence(timeout: 10))
+        for _ in 0..<6 where !fee.isHittable { app.swipeUp() }
+        XCTAssertEqual(fee.value as? String, "0")
+        fee.tap()
+        fee.typeText("95")
+        XCTAssertEqual(fee.value as? String, "95")
+        app.buttons["keyboard.done"].firstMatch.tap()
+        XCTAssertEqual(fee.value as? String, "95")
+    }
 }

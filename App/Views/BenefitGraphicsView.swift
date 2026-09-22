@@ -95,10 +95,10 @@ struct BenefitTermsView: View {
                 }
                 if case .rule(let category) = origin {
                     Section("My benefits are different") {
-                        TextField("Rate", value: $rate, format: .number).keyboardType(.decimalPad)
+                        NumberField("Rate", value: $rate)
                         Toggle("Spending cap", isOn: $hasCap)
                         if hasCap {
-                            TextField("Spending cap ($)", value: $capLimit, format: .number).keyboardType(.decimalPad)
+                            NumberField("Spending cap ($)", value: $capLimit)
                             Picker("Reset period", selection: $period) {
                                 Text("Monthly").tag(CapPeriod.monthly)
                                 Text("Quarterly").tag(CapPeriod.quarterly)
@@ -122,7 +122,7 @@ struct BenefitTermsView: View {
                     }
                     if card.rule(for: category)?.cap != nil {
                         Section("Usage this period") {
-                            TextField("Spend already counted ($)", value: $spent, format: .number).keyboardType(.decimalPad)
+                            NumberField("Spend already counted ($)", value: $spent)
                             Button("Save reported usage") { wallet.setCapSpend(spent, cardID: card.id, category: category) }
                                 .disabled(spent < 0)
                             Text("No transaction feed. Update usage each period; an unknown amount is never displayed as measured progress.").font(.caption)
@@ -134,6 +134,7 @@ struct BenefitTermsView: View {
                 }
             }
         }.navigationTitle("Benefit details")
+            .keyboardDoneButton()
             .onAppear {
                 guard !loaded else { return }; loaded = true
                 rate = benefit?.rate ?? 0; hasCap = benefit?.cap != nil

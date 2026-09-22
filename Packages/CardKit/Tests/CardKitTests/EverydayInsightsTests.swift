@@ -87,6 +87,19 @@ final class EverydayInsightsTests: XCTestCase {
         XCTAssertTrue(boosted.choiceExplanation.contains("signup bonus"))
     }
 
+    /// Today's panel prints the rate as a badge and the rationale as prose.
+    /// If the rationale ever carries the rate again, that screen says "4x
+    /// dining" twice, one line apart.
+    func testRationaleLeavesTheRateToTheCaller() throws {
+        let context = PurchaseContext(category: .dining, date: Fixture.inQ3)
+        let engine = RecommendationEngine()
+        let winner = try XCTUnwrap(engine.recommend(from: [CardCatalog.amexGold, CardCatalog.citiDoubleCash], in: context))
+        XCTAssertFalse(winner.best.reason.isEmpty)
+        XCTAssertFalse(winner.choiceRationale.contains(winner.best.reason))
+        XCTAssertTrue(winner.choiceExplanation.hasPrefix(winner.choiceRationale))
+        XCTAssertTrue(winner.choiceExplanation.contains(winner.best.reason))
+    }
+
     func testMonthlyProgressOnlyCountsConfirmedEstimatesInThisMonth() throws {
         let now = Fixture.inQ3
         let context = PurchaseContext(category: .dining, date: now)

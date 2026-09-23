@@ -19,14 +19,27 @@ struct BenefitGraphicsView: View {
                 }
                 .buttonStyle(.cardWiseSecondary)
             }
-            Text("Standard benefits & your adjustments").font(.title2.bold())
+            Text("Standard benefits & your adjustments")
+                .font(.system(.title2, design: .rounded).weight(.bold))
+                .foregroundStyle(Color.cardWiseActionInk)
             Text("Rates describe eligible purchases. Map categories do not establish issuer eligibility.").font(.footnote).foregroundStyle(.secondary)
             ForEach(currencies, id: \.self) { currency in
                 VStack(alignment: .leading, spacing: 16) {
-                    Text(currency).font(.headline)
+                    // A shelf is a subject, not a row label. Giving it its
+                    // own branded title treatment keeps it distinct from the
+                    // card and rate titles beneath it.
+                    Text(currency)
+                        .font(.system(.title3, design: .rounded).weight(.bold))
+                        .foregroundStyle(Color.cardWiseActionInk)
                     ForEach(wallet.cards.filter { $0.currency.name == currency }) { card in
                         VStack(alignment: .leading, spacing: 12) {
-                            Text(card.displayName).font(.headline)
+                            // Card names are the title of each benefit panel.
+                            // The larger light-blue treatment establishes that
+                            // hierarchy without introducing a colour outside
+                            // CardWise's existing navy-and-blue palette.
+                            Text(card.displayName)
+                                .font(.system(.title2, design: .rounded).weight(.bold))
+                                .foregroundStyle(Color.cardWiseLightBlue)
                             ForEach(card.benefits().filter { $0.kind == .rewardRate }) { benefit in
                                 NavigationLink { BenefitTermsView(cardID: card.id, origin: benefit.origin) } label: {
                                     VStack(alignment: .leading, spacing: 5) {

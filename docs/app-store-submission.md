@@ -15,7 +15,9 @@ in App Store Connect, Google Cloud, or on a real iPhone.
    contact email is enough. Set `SUPPORT_URL` to it too.
 3. **Places key restricted and quota-capped.** In Google Cloud: API
    restriction = Places API (New) only; Application restriction = iOS apps,
-   bundle ID `com.ohorak.cardrewards`; a daily quota cap; a billing alert.
+   bundle ID `com.ohorak.cardrewards`; usage alerts at 2% of each daily
+   quota (the daily quotas themselves are not adjustable on this account);
+   a $10/month budget alert.
    The key ships inside the app, so restriction is the only protection.
    The app now sends `X-Ios-Bundle-Identifier` so this works (**code**).
    Validate on a device: build, open the Map, confirm places load. If the

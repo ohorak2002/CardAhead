@@ -52,11 +52,11 @@ struct RootTabView: View {
             // "notificationlab" are one level deeper still — inside Settings
             // — and are pushed straight from More rather than through it, the
             // same shortcut "impact" takes.
-            case "impact", "notifications", "notificationlab", "compare", "timeline", "why": return .more
+            case "impact", "notifications", "notificationlab", "compare", "timeline", "why", "settings": return .more
             // All three are the Map tab: "watching" is a chip on it,
             // "placecard" selects a pin, and "placedetail" opens one. None of
             // the three is reachable by `simctl`, which cannot tap.
-            case "watching", "placecard", "placedetail", "mapfilters": return .map
+            case "watching", "placecard", "placedetail", "mapfilters", "mapsettings": return .map
             case "cardphoto", "cardbenefits", "cardpreview", "carddetail", "addcard", "reorder", "organize": return .wallet
             default: return Tab(rawValue: raw) ?? .home
             }
@@ -72,7 +72,7 @@ struct RootTabView: View {
             .tag(Tab.home)
 
             NavigationStack {
-                NearbyMapView()
+                NearbyMapView(auth: locationAuth)
             }
             .tabItem { Label("Map", systemImage: "map.fill") }
             .tag(Tab.map)
@@ -180,6 +180,7 @@ struct MoreView: View {
     @State private var isShowingCompare = false
     @State private var isShowingTimeline = false
     @State private var isShowingWhy = false
+    @State private var isShowingSettings = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -205,7 +206,7 @@ struct MoreView: View {
                     Label("Compare cards", systemImage: "rectangle.on.rectangle")
                 }
                 NavigationLink { BenefitTimelineView() } label: {
-                    Label("Benefit timeline", systemImage: "calendar")
+                    Label("Benefit deadlines", systemImage: "calendar")
                 }
                 NavigationLink {
                     WhyThisCardView()
@@ -245,6 +246,7 @@ struct MoreView: View {
         .navigationDestination(isPresented: $isShowingCompare) { CompareCardsView() }
         .navigationDestination(isPresented: $isShowingTimeline) { BenefitTimelineView() }
         .navigationDestination(isPresented: $isShowingWhy) { WhyThisCardView() }
+        .navigationDestination(isPresented: $isShowingSettings) { SettingsView(auth: auth) }
         .navigationDestination(isPresented: $isShowingNotifications) {
             NotificationSettingsView()
         }
@@ -263,6 +265,7 @@ struct MoreView: View {
         case "compare" where !isShowingCompare: isShowingCompare = true
         case "timeline" where !isShowingTimeline: isShowingTimeline = true
         case "why" where !isShowingWhy: isShowingWhy = true
+        case "settings" where !isShowingSettings: isShowingSettings = true
         case "impact" where !isShowingImpact:
             isShowingImpact = true
         case "notifications" where !isShowingNotifications:

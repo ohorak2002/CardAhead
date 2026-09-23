@@ -40,7 +40,7 @@ struct BenefitTimelineView: View {
             }
             .background(InterfacePalette.page)
         }
-        .navigationTitle("Benefit timeline")
+        .navigationTitle("Benefit deadlines")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .sheet(isPresented: $isAddingCard) { AddCardView() }

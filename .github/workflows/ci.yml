@@ -161,13 +161,15 @@ jobs:
           shoot compare 21
           shoot organize 22
           shoot why 23
+          shoot settings 24
+          shoot mapsettings 25
 
       # A palette that works on white paper is not automatically the one that
       # works at night, and nobody has ever seen this app at night.
       - name: Photograph it in the dark
         run: |
           xcrun simctl ui "$DEVICE" appearance dark
-          for TAB in home map wallet benefits impact watching cardphoto cardbenefits placecard carddetail addcard notifications notificationlab reorder mapfilters today timeline compare organize; do
+          for TAB in home map wallet benefits impact watching cardphoto cardbenefits placecard carddetail addcard notifications notificationlab reorder mapfilters today timeline compare organize settings mapsettings; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
             xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
             sleep 6

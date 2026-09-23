@@ -108,7 +108,7 @@ struct BenefitsBrowserView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Metric.roomy) {
                 BenefitGraphicsView()
-                NavigationLink("Benefit timeline") { BenefitTimelineView() }
+                NavigationLink("Benefit deadlines") { BenefitTimelineView() }
                     .padding(.horizontal, Metric.margin)
 
                 if !expiring.isEmpty {

@@ -13,7 +13,6 @@ struct SettingsView: View {
     @Environment(RegionMonitor.self) private var monitor
     @Environment(ReminderCenter.self) private var reminders
     @Environment(ImpactStore.self) private var impact
-    @Environment(NearbyPlacesStore.self) private var nearby
     @Environment(NotificationPolicyStore.self) private var notifications
     @Environment(OrganizationStore.self) private var organization
     let auth: LocationAuthorization
@@ -27,12 +26,15 @@ struct SettingsView: View {
     @State private var erased = Pulse()
     @State private var isShowingArtworkDetail = false
 
+    /// **No Map section, on purpose.** Its one row only ever changed the map,
+    /// so it now lives on the map, beside the Filters button. A settings list
+    /// earns a section by holding something with nowhere better to be.
     var body: some View {
         List {
             nameSection
             valuationSection
             remindersSection
-            mapSection
+            activitySection
             artworkSection
             dataSection
         }
@@ -134,16 +136,6 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            NavigationLink {
-                RegionActivityView()
-            } label: {
-                HStack {
-                    Text("Reminder activity")
-                    Spacer(minLength: 8)
-                    Text(watchingSummary)
-                        .foregroundStyle(.secondary)
-                }
-            }
             #if DEBUG
             NavigationLink("Notification lab") { NotificationLabView() }
             #endif
@@ -166,12 +158,6 @@ struct SettingsView: View {
         return notifications.policy.intensity.explanation
     }
 
-    private var watchingSummary: String {
-        guard monitor.isMonitoring else { return "Off" }
-        let count = monitor.monitoredCount
-        return count == 0 ? "No places yet" : "\(count) places"
-    }
-
     private var locationStateText: String {
         if auth.hasAlways { return "Always" }
         if auth.isBlocked { return "Off" }
@@ -185,31 +171,45 @@ struct SettingsView: View {
         return "Not set"
     }
 
-    // MARK: - Artwork
+    // MARK: - Recent activity
 
-    /// The map's standing preferences, one screen deep.
+    /// The last few things the geofences did, right here rather than a screen
+    /// away — the rest of what "Reminder activity" used to show is said
+    /// elsewhere, and the list was the part anybody opened it for.
     ///
-    /// A section of its own rather than a row under Reminders: the map is the
-    /// one part of this app that does not send anything, and filing it under
-    /// notifications would imply it did.
-    private var mapSection: some View {
+    /// Three rows, because this is a glance. "See all" only appears when
+    /// there is more than a glance's worth.
+    private var activitySection: some View {
         Section {
-            NavigationLink {
-                MapSettingsView(auth: auth)
-            } label: {
-                HStack {
-                    Text("Map settings")
-                    Spacer(minLength: 8)
-                    Text(nearby.filter.distance.displayName)
-                        .foregroundStyle(.secondary)
+            if monitor.recentEvents.isEmpty {
+                Text(RecentActivityView.emptySentence)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(monitor.recentEvents.prefix(3)) { event in
+                    ActivityEventRow(event: event)
+                }
+                if monitor.recentEvents.count > 3 {
+                    NavigationLink("See all \(monitor.recentEvents.count)") {
+                        RecentActivityView()
+                    }
                 }
             }
         } header: {
-            Text("Map").textCase(nil)
+            Text("Recent activity").textCase(nil)
         } footer: {
-            Text("How far the Nearby Map looks, and which kinds of place it draws. The same settings the filter button on the map itself changes.")
+            Text(watchingFooter)
         }
     }
+
+    private var watchingFooter: String {
+        guard monitor.isMonitoring else { return "Not watching any places right now." }
+        let count = monitor.monitoredCount
+        if count == 0 { return "Watching, but no places nearby pay extra on your cards yet." }
+        return count == 1 ? "Watching 1 place right now." : "Watching \(count) places right now."
+    }
+
+    // MARK: - Artwork
 
     private var artworkSection: some View {
         Section {

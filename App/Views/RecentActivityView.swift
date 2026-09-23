@@ -1,33 +1,38 @@
 import SwiftUI
 import CardKit
 
-/// What the geofences have actually been doing.
+/// Everything the geofences have done lately — arrivals, departures,
+/// reminders sent and skipped — and nothing else.
 ///
 /// Everything interesting about this feature happens while the app is closed
 /// and the phone is in a pocket. Without a list like this, "it did not remind
 /// me" and "it never noticed I was there" and "there was nothing to remind me
 /// about" are indistinguishable — to the user and to anyone trying to fix it.
-struct RegionActivityView: View {
+///
+/// **This used to be "Reminder activity", and it was a status screen with the
+/// list at the bottom.** How many places are watched, where they come from,
+/// what is pending — true, and already said elsewhere: the watching count is
+/// the footer of the Settings section that links here, the place source is on
+/// the map's own settings, and a missing notification permission is flagged
+/// in Reminders. What only this screen can show is the list, so the list is
+/// the screen.
+struct RecentActivityView: View {
 
     @Environment(RegionMonitor.self) private var monitor
-    @Environment(ReminderCenter.self) private var reminders
 
     var body: some View {
         List {
-            statusSection
             if monitor.recentEvents.isEmpty {
                 Section {
-                    Text("Nothing yet. Events show up here as you arrive at and leave the places being watched.")
+                    Text(RecentActivityView.emptySentence)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             } else {
                 Section {
                     ForEach(monitor.recentEvents) { event in
-                        EventRow(event: event)
+                        ActivityEventRow(event: event)
                     }
-                } header: {
-                    Text("Recent").textCase(nil)
                 } footer: {
                     Text("The last \(monitor.recentEvents.count) of at most 40. Older ones are dropped.")
                 }
@@ -37,44 +42,17 @@ struct RegionActivityView: View {
                 }
             }
         }
-        .navigationTitle("Reminder activity")
+        .navigationTitle("Recent activity")
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var statusSection: some View {
-        Section {
-            LabeledContent("Watching") {
-                Text(monitor.isMonitoring ? "\(monitor.monitoredCount) places" : "Off")
-                    .foregroundStyle(monitor.isMonitoring ? Color.secondary : Color.cardWiseWarning)
-            }
-            LabeledContent("Places come from") {
-                Text(monitor.sourceDescription)
-                    .multilineTextAlignment(.trailing)
-                    .foregroundStyle(.secondary)
-            }
-            if let waiting = monitor.tracker.pending.first {
-                LabeledContent("Waiting on") {
-                    Text(waiting.merchant.name)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            if !reminders.isAuthorized {
-                Label(
-                    "Notifications are off, so nothing arrives even when a place is confirmed.",
-                    systemImage: "bell.slash"
-                )
-                .font(.footnote)
-                .foregroundStyle(Color.cardWiseWarning)
-            }
-        } footer: {
-            Text(monitor.monitoredCount == 0
-                 ? "iOS lets an app watch twenty places at once, and we spend them on the nearest shops where one of your cards pays extra."
-                 : "iOS lets an app watch twenty places at once. These are the nearest ones where one of your cards pays extra, and they change as you move.")
-        }
-    }
+    /// Shared with the Settings section, so an empty list reads the same
+    /// wherever it is empty.
+    static let emptySentence = "Nothing yet. Arrivals and departures at the places being watched show up here."
 }
 
-private struct EventRow: View {
+/// One thing a geofence did, and when.
+struct ActivityEventRow: View {
     let event: RegionEvent
 
     var body: some View {
@@ -107,8 +85,7 @@ private struct EventRow: View {
 
 #Preview {
     NavigationStack {
-        RegionActivityView()
+        RecentActivityView()
             .environment(RegionMonitor())
-            .environment(ReminderCenter())
     }
 }

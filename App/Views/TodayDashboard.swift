@@ -25,7 +25,7 @@ struct TodayDashboard: View {
                 .buttonStyle(.plain)
             } else {
                 NavigationLink { BenefitTimelineView() } label: {
-                    Label("View your benefit timeline", systemImage: "calendar")
+                    Label("View your benefit deadlines", systemImage: "calendar")
                         .font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity, minHeight: Metric.minimumTarget, alignment: .leading)
                         .padding(Metric.snug).interfacePanel()

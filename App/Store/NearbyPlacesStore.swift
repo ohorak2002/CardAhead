@@ -33,6 +33,10 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
     /// The phone's own position, kept apart from `center` so "recentre" has
     /// somewhere to go back to after a pan.
     private(set) var userLocation: GeoCoordinate?
+    /// The address the map is centred on, when somebody picked one instead of
+    /// standing there. Said on screen, because a list of shops measured from
+    /// somewhere other than where you are needs to admit it.
+    private(set) var anchorName: String?
     private(set) var places: [MapPlace] = []
     private(set) var isLoading = false
     /// Said on the screen, not swallowed into a log. A map that is empty
@@ -152,6 +156,7 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
             start()
             return
         }
+        anchorName = nil
         center = userLocation
         refresh()
     }
@@ -167,6 +172,24 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
 
     func searchArea(around coordinate: GeoCoordinate) {
         guard coordinate.isValid else { return }
+        // Panned away, so the results are no longer "around" that address.
+        anchorName = nil
+        center = coordinate
+        refresh()
+    }
+
+    /// Centres on an address somebody picked from the suggestions, and asks
+    /// what is around it — **one** lookup, not the two that clearing the
+    /// search box and then moving the centre would each have made.
+    ///
+    /// The typed text is cleared rather than searched: "155 Mitchell St" is
+    /// where to look, not what to look for.
+    func showAround(_ coordinate: GeoCoordinate, named name: String) {
+        guard coordinate.isValid else { return }
+        searchText = ""
+        activeQuery = nil
+        isShowingWatchedOnly = false
+        anchorName = name
         center = coordinate
         refresh()
     }

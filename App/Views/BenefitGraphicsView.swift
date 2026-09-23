@@ -8,9 +8,16 @@ struct BenefitGraphicsView: View {
     private var currencies: [String] { Array(Set(wallet.cards.map { $0.currency.name })).sorted() }
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            Button("Add a reward or offer", systemImage: "plus") { adding = true }.buttonStyle(.cardWisePrimary)
-            NavigationLink { PersonalOffersView() } label: {
-                Label("Manage personal offers", systemImage: "tag")
+            // The two things this screen lets you *do*, together at the top.
+            // Adding is the main action; looking after what you have already
+            // added is the occasional one, so it wears the quieter style — the
+            // same blue family, a pale tinted bubble instead of a filled one.
+            VStack(spacing: Metric.tight) {
+                Button("Add a reward or offer", systemImage: "plus") { adding = true }.buttonStyle(.cardWisePrimary)
+                NavigationLink { PersonalOffersView() } label: {
+                    Label("Manage personal offers", systemImage: "tag")
+                }
+                .buttonStyle(.cardWiseSecondary)
             }
             Text("Standard benefits & your adjustments").font(.title2.bold())
             Text("Rates describe eligible purchases. Map categories do not establish issuer eligibility.").font(.footnote).foregroundStyle(.secondary)

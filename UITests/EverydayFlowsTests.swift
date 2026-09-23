@@ -17,7 +17,7 @@ final class EverydayFlowsTests: XCTestCase {
         app.buttons["Apply filters"].tap()
         let empty = app.staticTexts["Select a category to see nearby places"].firstMatch
         XCTAssertTrue(empty.waitForExistence(timeout: 5))
-        let search = app.textFields["Search places, stores or categories"]
+        let search = app.textFields["Search an address, place or category"]
         search.tap(); search.typeText("coffee\n")
         XCTAssertTrue(empty.exists)
         app.buttons["Clear search"].tap()

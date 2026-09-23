@@ -154,7 +154,22 @@ thing goes inside More, the way Impact did.
    `NearbyPlacesStore` owns the state; everything that could be *wrong* about
    it is in CardKit (`NearbyPlaces.results`, `pinGroups`) and tested on Linux.
    `MapFiltersView` is the sheet, `MapSettingsView` the standing preferences
-   under Settings, `PlaceDetailView` one place opened.
+   (a gear beside the Filters button — **not** in Settings, see below),
+   `PlaceDetailView` one place opened. Typing in the search box offers
+   **address suggestions** from Apple's `MKLocalSearchCompleter`
+   (`AddressSuggestions.swift`); picking one recentres the map there via
+   `NearbyPlacesStore.showAround`. Apple and not Google because suggestions
+   fire on every keystroke and Google's lookups are billed per request —
+   Return still runs the Google place search, once.
+
+**Settings is deliberately short, and Oren asked for it to stay that way
+(2026-09-23): "if a separate section is not needed, don't add it."** A
+setting that only affects one screen lives on that screen — the map's
+settings moved to the map for exactly this reason. Settings is now Greeting,
+points valuation, Reminders (location, notifications, how much to say),
+Recent activity (the last three geofence events inline, "See all" to
+`RecentActivityView`), Appearance, Your data. Before adding a section, find
+the screen it belongs on.
 3. **Wallet** (`WalletStackView`) — the stack, and a plus. Nothing else. It no
    longer owns a `NavigationStack` (the tab does) and no longer carries the
    settings gear or the "Why this card" bar.

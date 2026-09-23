@@ -52,11 +52,23 @@ struct NearbyMapView: View {
     /// Only ever read, and only for one thing: which of these shops already
     /// has a geofence around it. See `watchedIDs`.
     @Environment(RegionMonitor.self) private var monitor
+    /// For the map's own settings, which show where the location permission
+    /// stands. Passed in rather than read from the environment, the same way
+    /// Home and More receive it.
+    let auth: LocationAuthorization
 
     @State private var camera: MapCameraPosition = .userLocation(fallback: .automatic)
     @State private var selectedID: String?
     @State private var openPlace: MapPlace?
     @State private var isFiltering = false
+    /// **On the map, not in Settings.** The distance and the kinds of place
+    /// are the map's own business, and a Settings row that only ever changed
+    /// the map was one more thing on a list that was already too long.
+    @State private var isShowingMapSettings = false
+    @State private var addresses = AddressCompleter()
+    /// Said under the field when a picked address cannot be placed, rather
+    /// than the map silently staying where it was.
+    @State private var addressProblem: String?
     /// Where the camera is now, as opposed to where the results were measured
     /// from. The gap between the two is what raises "Search this area".
     @State private var cameraCenter: GeoCoordinate?
@@ -101,11 +113,28 @@ struct NearbyMapView: View {
         .sheet(isPresented: $isFiltering) {
             MapFiltersView(filter: $places.filter)
         }
+        .sheet(isPresented: $isShowingMapSettings) {
+            NavigationStack {
+                MapSettingsView(auth: auth)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { isShowingMapSettings = false }
+                                .fontWeight(.semibold)
+                        }
+                    }
+            }
+            .environment(places)
+        }
+        .onChange(of: places.searchText) { _, text in
+            addressProblem = nil
+            addresses.update(text, near: places.userLocation ?? places.center)
+        }
         .navigationDestination(item: $openPlace) { place in
             PlaceDetailView(place: place)
         }
         .onAppear {
             if DemoSeed.requestedTab == "mapfilters" { isFiltering = true }
+            if DemoSeed.requestedTab == "mapsettings" { isShowingMapSettings = true }
             // CI photographs one screen per launch because `simctl` cannot
             // tap, so the watched view has to be reachable from a launch
             // argument. Same arrangement as `MoreView.startOnImpact`.
@@ -254,6 +283,16 @@ struct NearbyMapView: View {
                     .foregroundStyle(InterfacePalette.ink)
                 Spacer(minLength: Metric.tight)
                 Button {
+                    isShowingMapSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.headline)
+                        .foregroundStyle(InterfacePalette.blue)
+                        .frame(width: 44, height: 44)
+                        .background(InterfacePalette.wash, in: Circle())
+                }
+                .accessibilityLabel("Map settings")
+                Button {
                     isFiltering = true
                 } label: {
                     Image(systemName: "slider.horizontal.3")
@@ -266,18 +305,34 @@ struct NearbyMapView: View {
             }
             .padding(.horizontal, Metric.margin)
 
+            // Return still searches for *what* — a shop, a kind of place.
+            // Picking a suggestion says *where*, and moves the map there.
             CardWiseSearchField(
-                placeholder: "Search places, stores or categories",
+                placeholder: "Search an address, place or category",
                 text: $places.searchText,
-                onSubmit: { places.runSearch() },
-                onClear: { places.clearSearch() },
+                onSubmit: {
+                    addresses.clear()
+                    places.runSearch()
+                },
+                onClear: {
+                    addresses.clear()
+                    places.clearSearch()
+                },
                 ground: .tinted
             )
             .padding(.horizontal, Metric.margin)
 
+            if !addresses.suggestions.isEmpty {
+                AddressSuggestionList(suggestions: addresses.suggestions) { suggestion in
+                    pickAddress(suggestion)
+                }
+                .padding(.horizontal, Metric.margin)
+            }
+
             HStack {
-                Text(places.activeQuery.map { "Results for \"\($0)\" · \(places.filter.distance.shortName) from search center" } ?? places.filter.summary)
-                    .font(.caption).foregroundStyle(.secondary)
+                Text(addressProblem ?? summaryLine)
+                    .font(.caption)
+                    .foregroundStyle(addressProblem == nil ? Color.secondary : Color.cardWiseWarning)
                 if places.activeQuery != nil { Button("Cancel search") { places.clearSearch() } }
             }.padding(.horizontal, Metric.margin)
             chips
@@ -285,6 +340,32 @@ struct NearbyMapView: View {
         .padding(.top, Metric.tight)
         .padding(.bottom, Metric.tight)
         .background { InterfacePalette.page.ignoresSafeArea(edges: .top) }
+    }
+
+    /// What the results under the field are measured from. Names the address
+    /// when there is one, because a list of shops "nearby" that is actually
+    /// near somewhere else has to say so.
+    private var summaryLine: String {
+        if let query = places.activeQuery {
+            return "Results for \"\(query)\" · \(places.filter.distance.shortName) from search center"
+        }
+        if let anchor = places.anchorName {
+            return "Around \(anchor) · \(places.filter.summary)"
+        }
+        return places.filter.summary
+    }
+
+    private func pickAddress(_ suggestion: MKLocalSearchCompletion) {
+        let name = suggestion.title
+        addresses.clear()
+        KeyboardDismiss.now()
+        Task {
+            guard let coordinate = await addresses.coordinate(for: suggestion) else {
+                addressProblem = "Could not find \(name) on the map. Try adding the city."
+                return
+            }
+            places.showAround(coordinate, named: name)
+        }
     }
 
     private var chips: some View {
@@ -825,7 +906,7 @@ struct WatchingMark: View {
 
 #Preview {
     NavigationStack {
-        NearbyMapView()
+        NearbyMapView(auth: LocationAuthorization())
     }
     .environment(WalletStore.previewStore())
     .environment(NearbyPlacesStore())

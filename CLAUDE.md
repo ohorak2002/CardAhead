@@ -894,6 +894,14 @@ keeping:
 
 ## Working with this repo as Claude
 
+- **Start every change from `main`:** run `git checkout main && git pull`
+  before creating work. Never commit on a branch you did not create.
+- **Use a dedicated `codex/<short-name>` branch for every change.** Commit and
+  push that branch, then open a pull request into `main`; never push directly
+  to `main`.
+- **Do not merge a pull request until CI passes.** A green Screenshots job is
+  not sufficient: inspect its `Exercise everyday flows` step as well, because
+  UI-test failures can otherwise be masked by the screenshot artifact.
 - Windows dev machine (git-bash `Bash` tool + PowerShell both available; CRLF
   warnings on `git add` are expected and harmless).
 - **The Bash tool's heredocs eat backslashes, even quoted ones.** Writing Swift

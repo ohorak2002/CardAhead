@@ -792,6 +792,12 @@ not go back there.
   that. `NumberField` clears the field on focus **only when the value is the
   zero it was born with**; a non-zero number is something somebody typed and
   clearing it on a stray tap loses it.
+- **Three places describe what leaves the phone, and they change together.**
+  More › Privacy & legal (`PrivacyAndLegalView`), `App/PrivacyInfo.xcprivacy`
+  and `docs/privacy-policy.md`. A new network call, SDK or stored field means
+  editing all three in the same commit, plus the App Privacy answers in
+  `docs/app-store-submission.md`. Copy anywhere in the app must not say
+  location stays on the device: nearby lookups send it to Google Places.
 - **`python scripts/brace-scan.py <files>` before pushing.** CI is the
   compiler, and a missing brace otherwise costs a full round trip to find. It
   understands comments, multiline strings, escapes and interpolation. OK does
@@ -891,6 +897,13 @@ keeping:
   `ShapeStyle` and `cardWiseWarning` is only declared on `Color`. CI caught it;
   it would not have been caught by reading the diff. Read this bullet before
   writing a color ternary in a SwiftUI modifier, not after CI fails on it.
+
+- **An unreadable wallet is not an empty one.** `WalletStore.load()` used to
+  fall back to `[]` on any failure; the launch-time photo sweep then deleted
+  every card photo as orphaned and the next save wrote `[]` over the file. A
+  geofence launch on a phone locked since a restart is enough to cause it.
+  `loadFailed` now blocks the sweep and the empty save, keeps a copy of
+  undecodable bytes, and `reloadIfLoadFailed()` retries on foreground.
 
 ## Working with this repo as Claude
 

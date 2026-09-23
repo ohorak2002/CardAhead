@@ -43,14 +43,18 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
     /// Set when somebody taps a reminder. The wallet screen consumes it and
     /// puts it back to nil.
     var cardToOpen: UUID?
+    /// Also set by a tap: the suggestion to ask "what did you spend?" about.
+    /// The wallet screen consumes it and puts it back to nil.
+    var recommendationToPrice: UUID?
 
     @ObservationIgnored var walletCards: () -> [Card] = { [] }
 
-    /// Told when somebody taps a reminder, with the suggestion they tapped.
-    /// A closure rather than a reference to the impact store for the same
-    /// reason `walletCards` is one: this class owns notifications, and what
-    /// anybody else does about them is not its business.
-    @ObservationIgnored var onOpened: (UUID) -> Void = { _ in }
+    /// Told when somebody taps a reminder, with the suggestion they tapped,
+    /// the region it was for and when it was delivered. A closure rather than
+    /// a reference to the impact store for the same reason `walletCards` is
+    /// one: this class owns notifications, and what anybody else does about
+    /// them is not its business.
+    @ObservationIgnored var onOpened: (_ recommendationID: UUID, _ regionID: String, _ deliveredAt: Date) -> Void = { _, _, _ in }
 
     private let center = UNUserNotificationCenter.current()
     private let engine = RecommendationEngine()
@@ -258,7 +262,9 @@ final class ReminderCenter: NSObject, UNUserNotificationCenterDelegate, ArrivalN
         // been removed in the meantime, and that case is exactly the one
         // worth being able to count.
         if let recommendationID {
-            onOpened(recommendationID)
+            let notification = response.notification
+            onOpened(recommendationID, notification.request.identifier, notification.date)
+            recommendationToPrice = recommendationID
         }
 
         guard let raw = userInfo[Self.cardIDKey] as? String,

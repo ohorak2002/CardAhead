@@ -94,7 +94,12 @@ struct WalletStackView: View {
             }
             .sheet(item: $pricing) { followUp in
                 PurchaseAmountView(followUp: followUp) { amount in
-                    impact.recordPurchase(amount, for: followUp.id)
+                    // From a tapped reminder, nobody has answered "did you
+                    // use it?" — and entering what you spent says yes.
+                    if impact.ledger.open.first(where: { $0.id == followUp.id })?.answeredAt == nil {
+                        impact.recordAnswer(.recommendationAccepted, for: followUp.id)
+                    }
+                    return impact.recordPurchase(amount, for: followUp.id)
                 }
             }
             .sheet(isPresented: $isShowingLocationPrimer) {
@@ -112,6 +117,10 @@ struct WalletStackView: View {
                 else { return }
                 shouldOfferPrimer = true
             }
+            // Both, for the same reason as `cardToOpen` below: the tap may
+            // wake this screen or launch the app onto it.
+            .onChange(of: reminders.recommendationToPrice) { _, id in askWhatWasSpent(id) }
+            .onAppear { askWhatWasSpent(reminders.recommendationToPrice) }
             .onChange(of: store.cards.map(\.id)) { _, ids in
                 if let expandedCardID, !ids.contains(expandedCardID) {
                     self.expandedCardID = nil
@@ -165,6 +174,16 @@ struct WalletStackView: View {
             proxy.scrollTo(id, anchor: .top)
         }
         reminders.cardToOpen = nil
+    }
+
+    /// A tapped reminder also asks what was spent, so the purchase counts
+    /// toward your impact without waiting for the "did you use it?" banner.
+    /// Skip leaves the suggestion open, and the banner asks again later.
+    private func askWhatWasSpent(_ id: UUID?) {
+        guard let id else { return }
+        reminders.recommendationToPrice = nil
+        guard let open = impact.ledger.open.first(where: { $0.id == id }) else { return }
+        pricing = open
     }
 
     // MARK: - The stack

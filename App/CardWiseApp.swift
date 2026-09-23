@@ -69,7 +69,15 @@ struct CardWiseApp: App {
         let photos = PlacePhotoLoader(source: placeSource)
 
         reminders.walletCards = { store.cards }
-        reminders.onOpened = { [weak impact] id in impact?.recordOpened(id) }
+        // A tap can launch the app before it has noticed the reminder came
+        // due, so the suggestion may not be in the ledger yet. Recording it
+        // as shown first is a no-op when it already is, and without it the
+        // open — and the "what did you spend?" the tap asks — would find
+        // nothing to attach to.
+        reminders.onOpened = { [weak impact] id, regionID, deliveredAt in
+            impact?.recordShown(regionID: regionID, at: deliveredAt)
+            impact?.recordOpened(id)
+        }
         // Two ledgers, on purpose. The policy store needs the answer to
         // enforce a mute and to show it on the debug screen; the impact ledger
         // needs it to count whether this app's advice is any use. Neither can

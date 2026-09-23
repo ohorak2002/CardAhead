@@ -278,8 +278,8 @@ final class RecommendationEngineTests: XCTestCase {
             from: [CardCatalog.amexGold],
             in: context(.dining, merchant: "ABC Restaurant")
         )
-        XCTAssertEqual(recommendation?.headline, "🍽️ ABC Restaurant")
-        XCTAssertEqual(recommendation?.detail, "Use Amex Gold for 4x at restaurants.")
+        XCTAssertEqual(recommendation?.headline, "ABC Restaurant 🍽️")
+        XCTAssertEqual(recommendation?.detail, "Use Amex Gold here for 4x at restaurants!")
     }
 
     /// The two lines must not both spend themselves on the same fact. The
@@ -304,7 +304,7 @@ final class RecommendationEngineTests: XCTestCase {
             )
             let headline = recommendation?.headline ?? ""
             XCTAssertLessThanOrEqual(headline.count, 40, headline)
-            XCTAssertTrue(headline.hasPrefix(category.emoji), headline)
+            XCTAssertTrue(headline.hasSuffix(category.emoji), headline)
         }
     }
 
@@ -314,8 +314,8 @@ final class RecommendationEngineTests: XCTestCase {
             from: [CardCatalog.amexGold],
             in: context(.dining, merchant: "ABC Restaurant", confidence: .categoryOnly)
         )
-        XCTAssertEqual(recommendation?.headline, "🍽️ Restaurant nearby")
-        XCTAssertEqual(recommendation?.detail, "Use Amex Gold for 4x at restaurants.")
+        XCTAssertEqual(recommendation?.headline, "Restaurant nearby 🍽️")
+        XCTAssertEqual(recommendation?.detail, "Use Amex Gold for 4x at restaurants!")
         XCTAssertFalse(recommendation?.headline.contains("ABC Restaurant") ?? true)
     }
 

@@ -114,18 +114,22 @@ extension RecommendationEngine {
         decide(for: arrival, cards: cards, asOf: date).reminder
     }
 
-    /// One sentence for what to do, and at most one more for what would
+    /// One sentence for what to do, and one more only when money would
     /// otherwise be lost. A lock screen is not the place for a list.
     ///
     /// The nudge is the *short* form here. On a card screen it explains
     /// itself in full; on a lock screen the full version ran to a third line
     /// and pushed the instruction it was qualifying out of sight.
+    ///
+    /// **Caveats stay off the lock screen.** This used to add the card's first
+    /// one, and for nearly every capped card that was "Cap usage is unknown
+    /// for this period. Enter current spend before relying on the bonus." —
+    /// two lines of small print under every reminder, which read as a warning
+    /// label rather than a tip. The card the tap opens still shows all of them.
     private func body(for recommendation: Recommendation) -> String {
         var sentences = [recommendation.detail]
         if let nudge = recommendation.activationNudge {
             sentences.append(nudge.shortSentence)
-        } else if let caveat = recommendation.best.caveats.first {
-            sentences.append(caveat)
         }
         return sentences.joined(separator: " ")
     }

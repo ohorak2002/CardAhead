@@ -271,25 +271,34 @@ public struct RecommendationEngine: Sendable {
     /// reason: it is what makes the reminder *make sense*. "Use Capital One
     /// Savor" arriving out of nowhere is a demand; "Restaurant nearby" is an
     /// observation the reader can check against the building in front of them.
+    ///
+    /// The emoji goes **after** the name — "Chick-fil-A 🍽️" — so the name is
+    /// the first thing read, and the emoji decorates it rather than leading.
     private func headline(for best: CardScore, in context: PurchaseContext) -> String {
         let emoji = context.category.emoji
-        if context.confidence == .exact, let merchant = context.merchantName, !merchant.isEmpty {
-            return "\(emoji) \(merchant)"
+        if namesThePlace(context), let merchant = context.merchantName {
+            return "\(merchant) \(emoji)"
         }
-        return "\(emoji) \(context.category.placePhrase) nearby"
+        return "\(context.category.placePhrase) nearby \(emoji)"
     }
 
     /// The body: one instruction, in the shape somebody would say it out
-    /// loud. "Use Amex Gold for 4x at restaurants."
+    /// loud. "Use Amex Gold here for 4x at restaurants!"
     ///
     /// The card name has to be here rather than the title because it is the
     /// thing being asked for, and a truncated card name is a reminder that
     /// failed. The merchant is deliberately *not* repeated — the title just
-    /// said it, and a notification that says the same thing twice has spent
-    /// its second line on nothing.
+    /// said it, so "here" stands in for it. "Here" only when the title named
+    /// one place: "Restaurant nearby" has not said where "here" is.
     private func detail(for best: CardScore, in context: PurchaseContext) -> String {
-        if best.includesPersonalOffer { return "Use \(best.card.displayName): estimated rewards include your personal offer. Review its conditions below." }
-        return "Use \(best.card.displayName) for \(rewardPhrase(for: best, in: context))."
+        let card = best.card.displayName
+        let here = namesThePlace(context) ? " here" : ""
+        if best.includesPersonalOffer { return "Use \(card)\(here) to get your personal offer!" }
+        return "Use \(card)\(here) for \(rewardPhrase(for: best, in: context))!"
+    }
+
+    private func namesThePlace(_ context: PurchaseContext) -> Bool {
+        context.confidence == .exact && !(context.merchantName ?? "").isEmpty
     }
 
     /// The tail of that sentence: the rate, and what it is a rate *on*.
@@ -298,8 +307,12 @@ public struct RecommendationEngine: Sendable {
     /// ("4x dining") and reads like a fragment once "Use Amex Gold for" is in
     /// front of it. `benefitPhrase` is the form that was already written to
     /// be the tail of a sentence.
+    ///
+    /// A percent is cash back, so it says "back" — "6% back at supermarkets".
+    /// A multiplier is points, where "4x back" is not how anyone talks.
     private func rewardPhrase(for best: CardScore, in context: PurchaseContext) -> String {
-        let rate = best.card.currency.formatted(rate: best.appliedRate)
+        var rate = best.card.currency.formatted(rate: best.appliedRate)
+        if best.card.currency.style == .percent { rate += " back" }
         switch best.source {
         case .base:
             return "\(rate) on everything"

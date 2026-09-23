@@ -3,6 +3,11 @@
 Orientation for whoever (human or Claude) picks this up next. The README is
 for people evaluating the project; this file is for people about to edit it.
 
+**Git workflow rules live in `AGENTS.md` and bind Claude as much as Codex:**
+branch from `main`, pull request, never push to `main`, merge only after CI.
+Both agents share this folder, so check `git status` before touching anything
+and leave changes you did not make alone.
+
 ## The one fact that shapes everything else
 
 **Development happens on Windows. There is no Swift toolchain on this

@@ -45,6 +45,11 @@ targets:
         GOOGLE_PLACES_API_KEY: ""
         IMPACT_SERVICE_URL: ""
         IMPACT_PUBLIC_KEY: ""
+        # Public web pages, not secrets. Empty hides their rows in More >
+        # Privacy & legal rather than showing a dead link. Set both before an
+        # App Store build; the same addresses go in App Store Connect.
+        PRIVACY_POLICY_URL: ""
+        SUPPORT_URL: ""
     info:
       path: Supporting/Info.plist
       properties:
@@ -54,18 +59,25 @@ targets:
         GooglePlacesAPIKey: $(GOOGLE_PLACES_API_KEY)
         ImpactServiceURL: $(IMPACT_SERVICE_URL)
         ImpactPublicKey: $(IMPACT_PUBLIC_KEY)
+        PrivacyPolicyURL: $(PRIVACY_POLICY_URL)
+        SupportURL: $(SUPPORT_URL)
+        # Only HTTPS and the Keychain, both exempt from US export
+        # documentation. Saying so here stops App Store Connect asking the
+        # encryption question on every upload.
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         # Wired up in build step 4. The copy is deliberately plain: the Always
         # prompt is the biggest drop-off in the funnel and a vague string loses it.
         NSLocationWhenInUseUsageDescription: >-
-          Used to tell which shop you are in, so we can name the card that earns
-          the most there.
+          Used to show shops near you on the map and tell which shop you are
+          in, so CardWise can name the card that earns the most there.
         NSLocationAlwaysAndWhenInUseUsageDescription: >-
           Used to notice when you arrive somewhere and remind you which card to
-          pay with, before you take out your phone. Your location stays on this
-          device apart from an anonymous lookup of the shop you are at.
+          pay with, before you take out your phone. Your position is sent to
+          Google Places only to find shops nearby; CardWise never uploads a
+          history of where you have been.
         # Asked for only when somebody taps "Take a photo" on the card photo
         # screen — never at launch. The string says what the photo is *not*
         # used for as well, because a credit-card app asking for the camera is

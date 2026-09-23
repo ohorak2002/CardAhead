@@ -163,6 +163,9 @@ jobs:
           shoot why 23
           shoot settings 24
           shoot mapsettings 25
+          # More > Privacy & legal: the in-app privacy summary and the
+          # not-financial-advice notice App Review looks for.
+          shoot privacy 26
 
       # A palette that works on white paper is not automatically the one that
       # works at night, and nobody has ever seen this app at night.

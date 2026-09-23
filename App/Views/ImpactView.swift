@@ -35,7 +35,13 @@ struct ImpactView: View {
                         nothingYet
                     }
                 }
-                NavigationLink("Impact sharing & account") { ImpactSharingView() }
+                // Only in a build that can actually share. Without a service
+                // this screen is a disabled switch and an account form that
+                // cannot submit — a dead end for a user, and the first thing
+                // App Review flags as an unfinished feature.
+                if ImpactCloudStore.shared.configured || ImpactCloudStore.shared.signedIn {
+                    NavigationLink("Impact sharing & account") { ImpactSharingView() }
+                }
                 if !impact.receivedRewards.isEmpty {
                     Text("Reported received: " + CardWiseFormat.money(impact.receivedRewards.reduce(Decimal.zero) { $0 + $1.receivedDollars }))
                     Text("User-reported rewards and credits; not independently verified.").font(.caption)

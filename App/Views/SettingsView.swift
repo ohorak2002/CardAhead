@@ -51,9 +51,14 @@ struct SettingsView: View {
                 store.eraseEverything()
                 impact.erase()
                 organization.erase()
+                // Both name places somebody has been: the arrival log says
+                // "Arrived at <shop>", the decision history holds each
+                // reminder's place id. Erasing everything has to mean them too.
+                monitor.clearEvents()
+                notifications.clearHistory()
             }
         } message: {
-            Text("Removes every card, every photo, and the record of what these reminders earned you. Local deletion cannot be undone. Shared Impact deletion is also requested; reconnect while signed in to complete it. Your optional sign-in account remains.")
+            Text("Removes every card, every photo, the record of what these reminders earned you, and the list of places they noticed you arriving. Local deletion cannot be undone. Shared Impact deletion is also requested; reconnect while signed in to complete it. Your optional sign-in account remains.")
         }
     }
 
@@ -263,7 +268,7 @@ struct SettingsView: View {
         } header: {
             Text("Your data").textCase(nil)
         } footer: {
-            Text("No account, no sync, and nothing uploaded anywhere. Everything — your cards, your photos, and the record of what these reminders earned you — lives in this app on this device, and deleting the app takes it with it.")
+            Text("No account needed and no sync. Your cards, your photos, and the record of what these reminders earned you live in this app on this device, and deleting the app takes them with it. Nearby-place lookups send your position to Google Places — see More › Privacy & legal.")
         }
     }
 }

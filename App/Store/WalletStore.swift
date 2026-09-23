@@ -56,6 +56,16 @@ final class WalletStore {
     @ObservationIgnored var onChange: (WalletChange) -> Void = { _ in }
 
     private let fileURL: URL
+
+    /// True when a wallet file exists but could not be read or decoded.
+    ///
+    /// **An unreadable wallet is not an empty one.** Treating it as empty
+    /// used to cost everything: the photo sweep deleted every card photo as
+    /// orphaned, and the next save wrote `[]` over the file. Two real routes
+    /// here — a decoding bug after a model change, and a geofence waking the
+    /// app on a phone still locked since a restart, when the file is
+    /// encrypted and cannot be opened at all.
+    @ObservationIgnored private var loadFailed = false
     private let engine = RecommendationEngine()
 
     init(fileURL: URL? = nil) {
@@ -64,7 +74,8 @@ final class WalletStore {
         // Anything left over from a session that ended before its undo window
         // closed — the app was killed, not just backgrounded — is genuinely
         // orphaned now. See `remove(_:)` for why the file survives that long.
-        sweepOrphanedPhotos()
+        // Never after a failed load: every photo would look orphaned.
+        if !loadFailed { sweepOrphanedPhotos() }
     }
 
     // MARK: - Reading
@@ -264,10 +275,14 @@ final class WalletStore {
     /// Everything, including the photos. There is no account and no backup, so
     /// this is genuinely irreversible — the caller must confirm first.
     func eraseEverything() {
-        for card in cards {
-            if let name = card.photoFilename { deletePhoto(named: name) }
-        }
+        // Deliberate, confirmed, and total: this is the one path allowed to
+        // replace a wallet that failed to load.
+        loadFailed = false
         cards = []
+        // Includes a card removed seconds ago and still undoable, whose photo
+        // `remove(_:)` keeps on purpose.
+        lastRemoved = nil
+        sweepOrphanedPhotos()
         save()
     }
 
@@ -382,14 +397,47 @@ final class WalletStore {
         return directory.appendingPathComponent("wallet.json")
     }
 
+    /// Tries again after a load that failed, once the app is in front of
+    /// somebody. A geofence launch on a phone locked since a restart stays
+    /// alive into the unlock; without this it would show an empty wallet
+    /// until the next relaunch.
+    func reloadIfLoadFailed() {
+        guard loadFailed, cards.isEmpty else { return }
+        loadFailed = false
+        load()
+        if !loadFailed { sweepOrphanedPhotos() }
+    }
+
     private func load() {
-        guard let data = try? Data(contentsOf: fileURL) else { return }
+        let data: Data
+        do {
+            data = try Data(contentsOf: fileURL)
+        } catch {
+            // No file at all is a fresh install. A file that is there and
+            // cannot be opened is a locked phone, not an empty wallet.
+            loadFailed = FileManager.default.fileExists(atPath: fileURL.path)
+            return
+        }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        cards = (try? decoder.decode([Card].self, from: data)) ?? []
+        do {
+            cards = try decoder.decode([Card].self, from: data)
+        } catch {
+            // Keep the bytes before anything can save over them, so the
+            // wallet is recoverable from a later build that reads it.
+            let stamp = Int(Date().timeIntervalSince1970)
+            let copy = fileURL.deletingPathExtension()
+                .appendingPathExtension("unreadable-\(stamp).json")
+            try? FileManager.default.copyItem(at: fileURL, to: copy)
+            loadFailed = true
+            cards = []
+        }
     }
 
     func save() {
+        // Nothing has changed since a load that failed: do not replace a
+        // wallet that could not be read with an empty one.
+        if loadFailed && cards.isEmpty { return }
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

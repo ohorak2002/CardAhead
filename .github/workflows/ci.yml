@@ -46,8 +46,20 @@ jobs:
             -project CardWise.xcodeproj \
             -scheme CardWise \
             -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/dd \
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             CODE_SIGNING_ALLOWED=NO
+      # App Store Connect rejects an upload with no privacy manifest, and
+      # XcodeGen decides by file extension whether a file is bundled. Check
+      # the built app rather than trusting either.
+      - name: Check what App Store Connect will look for
+        run: |
+          APP=$(find build/dd/Build/Products -name 'CardWise.app' | head -1)
+          test -f "$APP/PrivacyInfo.xcprivacy" || { echo "PrivacyInfo.xcprivacy is not in the app bundle"; exit 1; }
+          plutil -lint "$APP/PrivacyInfo.xcprivacy"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$APP/Info.plist")" = "false" \
+            || { echo "ITSAppUsesNonExemptEncryption is missing from Info.plist"; exit 1; }
+          echo "Privacy manifest bundled; export-compliance key set."
 
   # Pictures of the app, from a machine that cannot run it.
   #
@@ -163,6 +175,9 @@ jobs:
           shoot why 23
           shoot settings 24
           shoot mapsettings 25
+          # More > Privacy & legal: the in-app privacy summary and the
+          # not-financial-advice notice App Review looks for.
+          shoot privacy 26
 
       # A palette that works on white paper is not automatically the one that
       # works at night, and nobody has ever seen this app at night.

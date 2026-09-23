@@ -30,6 +30,9 @@ never written to disk by the app.
      sideloading for testing — a sideload tool may rewrite the bundle ID, and a
      restriction that no longer matches fails every lookup with a permission
      error that looks nothing like its cause. Turn it on before release.
+     The app sends `X-Ios-Bundle-Identifier` on every Places request
+     (`URLSessionTransport`), which is what Google checks this restriction
+     against on a REST call — without it the restriction refuses everything.
 
 ## Building with it
 

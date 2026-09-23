@@ -153,7 +153,7 @@ struct WalletStackView: View {
     /// is the same outcome for the user — no reminder arrives — so it is the
     /// same banner.
     private var remindersAreOff: Bool {
-        !locationAuth.hasAlways || !reminders.isAuthorized
+        !locationAuth.remindersCanWork || !reminders.isAuthorized
     }
 
     /// A tap on a reminder should land on the card it named, open, not on a
@@ -347,8 +347,11 @@ struct WalletStackView: View {
     }
 
     private var locationRowDetail: String {
-        if !locationAuth.hasAlways {
-            return locationAuth.isBlocked
+        if !locationAuth.remindersCanWork {
+            if locationAuth.hasAlways && locationAuth.isApproximate {
+                return "Precise Location is off. Arrivals need it on, in Settings."
+            }
+            return locationAuth.needsSettings
                 ? "iOS has already asked, so the switch lives in Settings now."
                 : "Let us see where you are and we will name the card to use."
         }

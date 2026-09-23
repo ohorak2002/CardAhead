@@ -31,6 +31,15 @@ struct URLSessionTransport: HTTPTransport {
         for (field, value) in request.headers {
             urlRequest.setValue(value, forHTTPHeaderField: field)
         }
+        // **Without this, restricting the key to this app breaks every
+        // lookup.** A Google key limited to "iOS apps" is checked against
+        // this header on a plain REST call — only Google's own SDK sends it
+        // for you. `docs/places-api.md` says to turn that restriction on
+        // before release, and with no header here doing so would have
+        // silently ended every geofence and emptied the map.
+        if request.headers["X-Goog-Api-Key"] != nil, let bundleID = Bundle.main.bundleIdentifier {
+            urlRequest.setValue(bundleID, forHTTPHeaderField: "X-Ios-Bundle-Identifier")
+        }
 
         let (data, response) = try await session.data(for: urlRequest)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0

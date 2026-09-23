@@ -163,6 +163,14 @@ final class RegionMonitor: NSObject, CLLocationManagerDelegate {
             isMonitoring = false
             return
         }
+        // Approximate Location: iOS accepts the regions and never reports a
+        // crossing, so registering twenty would be twenty silent promises.
+        // Settings and Home say so and point at the switch.
+        guard manager.accuracyAuthorization == .fullAccuracy else {
+            log.notice("not starting: approximate location, so geofences would never fire")
+            if isMonitoring { stop() }
+            return
+        }
 
         isMonitoring = true
         manager.startMonitoringSignificantLocationChanges()

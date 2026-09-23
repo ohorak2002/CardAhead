@@ -52,7 +52,7 @@ struct RootTabView: View {
             // "notificationlab" are one level deeper still — inside Settings
             // — and are pushed straight from More rather than through it, the
             // same shortcut "impact" takes.
-            case "impact", "notifications", "notificationlab", "compare", "timeline", "why", "settings": return .more
+            case "impact", "notifications", "notificationlab", "compare", "timeline", "why", "settings", "privacy": return .more
             // All three are the Map tab: "watching" is a chip on it,
             // "placecard" selects a pin, and "placedetail" opens one. None of
             // the three is reachable by `simctl`, which cannot tap.
@@ -181,6 +181,7 @@ struct MoreView: View {
     @State private var isShowingTimeline = false
     @State private var isShowingWhy = false
     @State private var isShowingSettings = false
+    @State private var isShowingPrivacy = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -218,6 +219,11 @@ struct MoreView: View {
                 } label: {
                     Label("Settings", systemImage: "gearshape")
                 }
+                NavigationLink {
+                    PrivacyAndLegalView()
+                } label: {
+                    Label("Privacy & legal", systemImage: "hand.raised")
+                }
             } footer: {
                 Text("How the ranking behind these reminders works, and everything else.")
             }
@@ -247,6 +253,7 @@ struct MoreView: View {
         .navigationDestination(isPresented: $isShowingTimeline) { BenefitTimelineView() }
         .navigationDestination(isPresented: $isShowingWhy) { WhyThisCardView() }
         .navigationDestination(isPresented: $isShowingSettings) { SettingsView(auth: auth) }
+        .navigationDestination(isPresented: $isShowingPrivacy) { PrivacyAndLegalView() }
         .navigationDestination(isPresented: $isShowingNotifications) {
             NotificationSettingsView()
         }
@@ -266,6 +273,7 @@ struct MoreView: View {
         case "timeline" where !isShowingTimeline: isShowingTimeline = true
         case "why" where !isShowingWhy: isShowingWhy = true
         case "settings" where !isShowingSettings: isShowingSettings = true
+        case "privacy" where !isShowingPrivacy: isShowingPrivacy = true
         case "impact" where !isShowingImpact:
             isShowingImpact = true
         case "notifications" where !isShowingNotifications:

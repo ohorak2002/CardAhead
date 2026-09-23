@@ -397,6 +397,17 @@ final class WalletStore {
         return directory.appendingPathComponent("wallet.json")
     }
 
+    /// Tries again after a load that failed, once the app is in front of
+    /// somebody. A geofence launch on a phone locked since a restart stays
+    /// alive into the unlock; without this it would show an empty wallet
+    /// until the next relaunch.
+    func reloadIfLoadFailed() {
+        guard loadFailed, cards.isEmpty else { return }
+        loadFailed = false
+        load()
+        if !loadFailed { sweepOrphanedPhotos() }
+    }
+
     private func load() {
         let data: Data
         do {

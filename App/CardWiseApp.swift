@@ -126,6 +126,7 @@ struct CardWiseApp: App {
                     // either can be changed in Settings behind our back, and
                     // closes the books on any arrival whose few minutes elapsed
                     // while the app was suspended.
+                    store.reloadIfLoadFailed()
                     ImpactCloudStore.shared.flush()
                     monitor.start()
                     monitor.settleOutstandingArrivals()

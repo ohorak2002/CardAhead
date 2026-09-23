@@ -25,6 +25,18 @@ final class LocationAuthorization: NSObject, CLLocationManagerDelegate {
 
     private(set) var status: CLAuthorizationStatus = .notDetermined
 
+    /// Approximate Location. **Geofences do not fire with it**, so Always
+    /// without Precise is not enough for reminders — iOS accepts the regions
+    /// and never reports a crossing. The map still works.
+    private(set) var isApproximate = false
+
+    /// Whether the Always prompt has already been shown. iOS shows it once;
+    /// after "Keep Only While Using" another request is silently ignored, so
+    /// a button that asked again would do nothing at all. Stored in
+    /// `UserDefaults` because the app holds more than one of these.
+    private(set) var hasAskedForAlways = UserDefaults.standard.bool(forKey: LocationAuthorization.askedForAlwaysKey)
+    private static let askedForAlwaysKey = "CardWise.location.askedForAlways"
+
     /// Set while we are mid-escalation, so the When In Use answer can be
     /// followed straight away by the Always ask.
     private var isSeekingAlways = false
@@ -33,6 +45,7 @@ final class LocationAuthorization: NSObject, CLLocationManagerDelegate {
         super.init()
         manager.delegate = self
         status = manager.authorizationStatus
+        isApproximate = manager.accuracyAuthorization == .reducedAccuracy
     }
 
     // MARK: - What the UI needs to know
@@ -42,15 +55,23 @@ final class LocationAuthorization: NSObject, CLLocationManagerDelegate {
         status == .authorizedAlways
     }
 
-    /// True when iOS will still show a prompt. Once this is false the only way
-    /// to change the answer is the Settings app.
-    var canStillPrompt: Bool {
-        status == .notDetermined || status == .authorizedWhenInUse
+    /// Everything reminders need: Always, and Precise.
+    var remindersCanWork: Bool {
+        hasAlways && !isApproximate
     }
 
     /// The user turned it down. Nothing we do in-app can re-ask.
     var isBlocked: Bool {
         status == .denied || status == .restricted
+    }
+
+    /// Nothing an in-app button can fix: the only route left is Settings.
+    /// Denied, restricted, While Using after the Always prompt was already
+    /// answered, or Approximate Location.
+    var needsSettings: Bool {
+        isBlocked
+            || (status == .authorizedWhenInUse && hasAskedForAlways)
+            || (status != .notDetermined && isApproximate)
     }
 
     // MARK: - Asking
@@ -62,15 +83,22 @@ final class LocationAuthorization: NSObject, CLLocationManagerDelegate {
         case .notDetermined:
             isSeekingAlways = true
             manager.requestWhenInUseAuthorization()
-        case .authorizedWhenInUse:
+        case .authorizedWhenInUse where !hasAskedForAlways:
             isSeekingAlways = true
-            manager.requestAlwaysAuthorization()
-        case .authorizedAlways:
+            askForAlways()
+        case .authorizedAlways where !isApproximate:
             isSeekingAlways = false
         default:
-            // Denied or restricted: iOS will not prompt again.
+            // Denied, restricted, Always already asked once, or Approximate
+            // Location: iOS will not prompt again.
             openSettings()
         }
+    }
+
+    private func askForAlways() {
+        hasAskedForAlways = true
+        UserDefaults.standard.set(true, forKey: Self.askedForAlwaysKey)
+        manager.requestAlwaysAuthorization()
     }
 
     /// Opens this app's page in Settings. iOS does not allow deep-linking to a
@@ -87,11 +115,13 @@ final class LocationAuthorization: NSObject, CLLocationManagerDelegate {
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         status = manager.authorizationStatus
+        isApproximate = manager.accuracyAuthorization == .reducedAccuracy
+        hasAskedForAlways = UserDefaults.standard.bool(forKey: Self.askedForAlwaysKey)
 
         // Prompt 1 was just answered with While Using. Go straight for Always
         // while the user still remembers agreeing to something.
-        if isSeekingAlways, status == .authorizedWhenInUse {
-            manager.requestAlwaysAuthorization()
+        if isSeekingAlways, status == .authorizedWhenInUse, !hasAskedForAlways {
+            askForAlways()
         }
         if status == .authorizedAlways || isBlocked {
             isSeekingAlways = false

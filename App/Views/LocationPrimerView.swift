@@ -29,7 +29,7 @@ struct LocationPrimerView: View {
     }
 
     private var step: Step {
-        if !auth.hasAlways { return .location }
+        if !auth.remindersCanWork { return .location }
         if !reminders.isAuthorized { return .notifications }
         return .done
     }
@@ -41,7 +41,7 @@ struct LocationPrimerView: View {
                     header
                     switch step {
                     case .location:
-                        if auth.isBlocked { locationBlockedBody } else { locationAskBody }
+                        if auth.needsSettings { locationBlockedBody } else { locationAskBody }
                     case .notifications:
                         if reminders.isBlocked { notificationsBlockedBody } else { notificationsAskBody }
                     case .done:
@@ -75,7 +75,7 @@ struct LocationPrimerView: View {
 
     private var headerIcon: String {
         switch step {
-        case .location: return auth.isBlocked ? "gearshape" : "location.circle.fill"
+        case .location: return auth.needsSettings ? "gearshape" : "location.circle.fill"
         case .notifications: return reminders.isBlocked ? "gearshape" : "bell.badge"
         case .done: return "checkmark.circle.fill"
         }
@@ -83,7 +83,7 @@ struct LocationPrimerView: View {
 
     private var headerTitle: String {
         switch step {
-        case .location: return auth.isBlocked ? "Turn it on in Settings" : "Get told before you pay"
+        case .location: return auth.needsSettings ? "Turn it on in Settings" : "Get told before you pay"
         case .notifications: return reminders.isBlocked ? "Let the reminder appear" : "One more switch"
         case .done: return "You are all set"
         }
@@ -92,7 +92,10 @@ struct LocationPrimerView: View {
     private var headerSubtitle: String {
         switch step {
         case .location:
-            return auth.isBlocked
+            if auth.isApproximate && auth.status != .notDetermined {
+                return "Precise Location is off. iOS only reports arriving somewhere when it is on."
+            }
+            return auth.needsSettings
                 ? "iOS only asks once, and it has already asked. The switch lives in Settings now."
                 : "For the reminder to beat you to the till, iOS needs to let us notice where you are while the app is closed."
         case .notifications:
@@ -115,8 +118,8 @@ struct LocationPrimerView: View {
             )
             point(
                 icon: "iphone",
-                title: "Your location stays on your iPhone",
-                detail: "We look up the shop by coordinates alone. Nothing that identifies you is attached to it, and no location leaves the device."
+                title: "Your location is not stored or shared",
+                detail: "To find shops nearby, CardWise sends your position to Google Places. No name, account or card details go with it, and CardWise never uploads a history of where you have been."
             )
             point(
                 icon: "battery.100",
@@ -136,6 +139,7 @@ struct LocationPrimerView: View {
             numberedStep(1, "Open Settings below")
             numberedStep(2, "Tap Location")
             numberedStep(3, "Choose Always")
+            numberedStep(4, "Leave Precise Location switched on")
 
             calloutBox(
                 "Apple does not let apps jump to a single switch.",
@@ -216,7 +220,7 @@ struct LocationPrimerView: View {
 
     private var primaryTitle: String {
         switch step {
-        case .location: return auth.isBlocked ? "Open Settings" : "Turn on reminders"
+        case .location: return auth.needsSettings ? "Open Settings" : "Turn on reminders"
         case .notifications: return reminders.isBlocked ? "Open Settings" : "Allow notifications"
         case .done: return "Done"
         }

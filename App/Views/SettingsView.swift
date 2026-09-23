@@ -108,9 +108,9 @@ struct SettingsView: View {
                 Text("Location")
                 Spacer(minLength: 8)
                 Text(locationStateText)
-                    .foregroundStyle(auth.hasAlways ? Color.secondary : Color.cardWiseWarning)
+                    .foregroundStyle(auth.remindersCanWork ? Color.secondary : Color.cardWiseWarning)
             }
-            if !auth.hasAlways {
+            if !auth.remindersCanWork {
                 Button("Open Settings") { auth.openSettings() }
             }
             HStack {
@@ -152,6 +152,9 @@ struct SettingsView: View {
         if !auth.hasAlways {
             return "Without Always, the app cannot notice you have arrived somewhere while it is closed, which is the only moment a reminder is any use."
         }
+        if auth.isApproximate {
+            return "Approximate Location is on. iOS does not report arriving somewhere without Precise Location, so reminders cannot fire. Switch on Precise Location in Settings."
+        }
         if !reminders.isAuthorized {
             return "The app can see when you arrive somewhere. It just has no way to tell you about it."
         }
@@ -159,7 +162,7 @@ struct SettingsView: View {
     }
 
     private var locationStateText: String {
-        if auth.hasAlways { return "Always" }
+        if auth.hasAlways { return auth.isApproximate ? "Always, approximate" : "Always" }
         if auth.isBlocked { return "Off" }
         if auth.status == .authorizedWhenInUse { return "Only while open" }
         return "Not set"

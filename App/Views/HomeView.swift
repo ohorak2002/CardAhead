@@ -141,7 +141,7 @@ struct HomeView: View {
     /// declined three weeks ago.
     @ViewBuilder
     private var watchingBanner: some View {
-        if !auth.hasAlways || !reminders.isAuthorized {
+        if !auth.remindersCanWork || !reminders.isAuthorized {
             HomeBanner(
                 symbolName: "bell.badge",
                 tint: .cardWiseWarning,
@@ -168,6 +168,9 @@ struct HomeView: View {
     private var missingPermission: String {
         if !auth.hasAlways {
             return "CardWise needs Always location to notice you have arrived."
+        }
+        if auth.isApproximate {
+            return "Precise Location is off, so iOS cannot tell when you arrive."
         }
         return "It can see where you are. It just cannot tell you about it."
     }

@@ -39,7 +39,7 @@ struct ImpactView: View {
                 // this screen is a disabled switch and an account form that
                 // cannot submit — a dead end for a user, and the first thing
                 // App Review flags as an unfinished feature.
-                if ImpactCloudStore.shared.configured || ImpactCloudStore.shared.signedIn {
+                if sharingOffered {
                     NavigationLink("Impact sharing & account") { ImpactSharingView() }
                 }
                 if !impact.receivedRewards.isEmpty {
@@ -187,6 +187,11 @@ struct ImpactView: View {
             .cardWisePanel()
     }
 
+    /// Whether this build can share at all. See the link in `body`.
+    private var sharingOffered: Bool {
+        ImpactCloudStore.shared.configured || ImpactCloudStore.shared.signedIn
+    }
+
     // MARK: - The switch
 
     private var recordingControls: some View {
@@ -197,7 +202,9 @@ struct ImpactView: View {
             ))
             .font(.subheadline.weight(.medium))
 
-            Text("Local tracking works without sharing. Optional Impact sharing requires separate consent under Impact sharing & account. No bank account is read; amounts are your reports. Switching local tracking off erases local Impact and stops new sharing. Previously shared records remain until deleted through Impact sharing.")
+            Text(sharingOffered
+                 ? "Local tracking works without sharing. Optional Impact sharing requires separate consent under Impact sharing & account. No bank account is read; amounts are your reports. Switching local tracking off erases local Impact and stops new sharing. Previously shared records remain until deleted through Impact sharing."
+                 : "Kept only on this iPhone. No bank account is read; amounts are your reports. Switching this off erases it.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

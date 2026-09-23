@@ -163,4 +163,31 @@ final class EverydayFlowsTests: XCTestCase {
         XCTAssertEqual(percent.value as? String, "5")
         app.buttons["Cancel"].tap()
     }
+
+    /// App Review looks for the privacy summary and a not-financial-advice
+    /// notice inside the app, and taps anything that looks unfinished.
+    @MainActor
+    func testPrivacyAndLegalIsReachableFromMore() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "more"]
+        app.launch()
+        let row = app.buttons["Privacy & legal"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 15))
+        row.tap()
+        let advice = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "not financial, credit or tax advice")).firstMatch
+        XCTAssertTrue(advice.waitForExistence(timeout: 5))
+        let google = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Google Places")).firstMatch
+        XCTAssertTrue(google.exists)
+    }
+
+    /// With no sharing service in the build, the account screen would be a
+    /// disabled switch and a form that cannot submit, so it is not offered.
+    @MainActor
+    func testImpactSharingIsHiddenWithoutAService() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "impact"]
+        app.launch()
+        XCTAssertTrue(app.switches["Keep track of this"].firstMatch.waitForExistence(timeout: 15))
+        XCTAssertFalse(app.buttons["Impact sharing & account"].exists)
+    }
 }

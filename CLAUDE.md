@@ -400,9 +400,15 @@ not go back there.
   speed for three minutes and reports `.unknown` beyond that. `unknown` scores
   zero either way. **Do not build a motion subsystem for this** — a whole
   framework and a whole permission for one input to one score.
-- **A reminder is an emoji and a place, then a card and a rate, and nothing
-  else.** The title is `<emoji> <shop>` or `<emoji> <kind of place> nearby`;
-  the body is "Use <card> for <rate> <where it applies>." It used to be
+- **A reminder is a place and an emoji, then a card and a rate, and nothing
+  else.** The title is `<shop> <emoji>` or `<kind of place> nearby <emoji>`;
+  the body is "Use <card> here for <rate> <where it applies>!" ("here" only
+  when the title named a shop; a percent says "6% back"). **No caveats on the
+  lock screen** — only an activation nudge, because that one is money about
+  to be lost. The first caveat used to ride along, and for nearly every capped
+  card it was two lines of "cap usage is unknown"; the card screen has them
+  all. **A tap also opens "What did you spend?"** for that suggestion, so
+  Impact gets the amount without waiting for the next-day banner. It used to be
   "Transit nearby. Use Capital One S…" over three lines of body, and the
   ellipsis was iOS cutting off **the card**, which is the one thing the
   reminder exists to say. A notification title holds roughly forty characters;

@@ -89,26 +89,28 @@ final class ArrivalReminderTests: XCTestCase {
         XCTAssertLessThanOrEqual(reminder.title.count, 40, reminder.title)
     }
 
-    /// A category's emoji leads the title, so the kind of place registers
-    /// before a word of it is read.
-    func testTheTitleLeadsWithTheCategoryEmoji() throws {
+    /// The place's name comes first and the category's emoji follows it, and
+    /// cash back says "back".
+    func testTheTitleEndsWithTheCategoryEmoji() throws {
         let reminder = try XCTUnwrap(engine.reminder(
             for: arrival(at: market),
             cards: [CardCatalog.amexBlueCashPreferred, CardCatalog.citiDoubleCash],
             asOf: Fixture.inQ3
         ))
-        XCTAssertTrue(reminder.title.hasPrefix(SpendingCategory.groceries.emoji), reminder.title)
+        XCTAssertTrue(reminder.title.hasSuffix(SpendingCategory.groceries.emoji), reminder.title)
+        XCTAssertTrue(reminder.body.contains("% back at supermarkets!"), reminder.body)
     }
 
-    /// One instruction, in the shape somebody would say it out loud.
+    /// One instruction, in the shape somebody would say it out loud — and
+    /// not the cap small print, which used to follow almost every reminder.
     func testTheBodyIsOneInstruction() throws {
         let reminder = try XCTUnwrap(engine.reminder(
             for: arrival(at: bistro),
             cards: [CardCatalog.amexGold],
             asOf: Fixture.inQ3
         ))
-        XCTAssertTrue(reminder.body.hasPrefix("Use Amex Gold for 4x at restaurants."))
-        XCTAssertTrue(reminder.body.contains("usage is unknown"))
+        XCTAssertEqual(reminder.body, "Use Amex Gold here for 4x at restaurants!")
+        XCTAssertFalse(reminder.body.contains("usage is unknown"), reminder.body)
     }
 
     // MARK: - Saying nothing
@@ -271,39 +273,22 @@ final class ArrivalReminderTests: XCTestCase {
         XCTAssertFalse(reminder.body.contains("Activate"), reminder.body)
     }
 
-    /// With nothing about to be lost, the spare sentence goes to the coding
-    /// quirk that would otherwise make the reminder wrong.
-    func testACaveatTakesTheSecondSentenceWhenNothingIsAtStake() throws {
-        let costco = Fixture.merchant(
-            "costco",
-            category: .warehouseClub,
-            metersNorth: 20,
-            name: "Costco Wholesale"
-        )
-        let reminder = try XCTUnwrap(engine.reminder(
-            for: arrival(at: costco),
-            cards: [CardCatalog.costcoAnywhereVisa, CardCatalog.amexBlueCashPreferred],
-            asOf: Fixture.inQ3
-        ))
-        XCTAssertTrue(reminder.body.contains("certificate"), reminder.body)
-    }
-
-    /// One caveat is the ceiling. A lock screen truncates, and the truncated
-    /// half is always the part that mattered.
-    func testOnlyOneCaveatMakesItOntoTheLockScreen() throws {
+    /// Small print stays on the card, not the lock screen. This used to allow
+    /// one caveat, and in practice that meant two lines of "cap usage is
+    /// unknown" under nearly every reminder.
+    func testCaveatsStayOffTheLockScreen() throws {
         var chatty = CardCatalog.capitalOneSavor
         chatty.notes = [
             CategoryNote(category: .dining, text: "First thing."),
-            CategoryNote(category: .dining, text: "Second thing."),
-            CategoryNote(category: .dining, text: "Third thing.")
+            CategoryNote(category: .dining, text: "Second thing.")
         ]
         let reminder = try XCTUnwrap(engine.reminder(
             for: arrival(at: bistro),
             cards: [chatty],
             asOf: Fixture.inQ3
         ))
-        XCTAssertTrue(reminder.body.contains("First thing."), reminder.body)
+        XCTAssertFalse(reminder.body.contains("First thing."), reminder.body)
         XCTAssertFalse(reminder.body.contains("Second thing."), reminder.body)
-        XCTAssertFalse(reminder.body.contains("Third thing."), reminder.body)
+        XCTAssertFalse(reminder.body.contains("Map categories"), reminder.body)
     }
 }

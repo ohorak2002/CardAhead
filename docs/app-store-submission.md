@@ -14,7 +14,7 @@ in App Store Connect, Google Cloud, or on a real iPhone.
 2. **Support URL: hosted, and linked in the app.** It lives at
    https://ohorak2002.github.io/portfolio/cardahead/support/. Still to do:
    paste it into App Store Connect. The contact on both pages is
-   CardWise.help@outlook.com; use the same address as the App Store
+   CardAhead.help@outlook.com; use the same address as the App Store
    Connect contact email.
 3. **Places key restricted and quota-capped.** In Google Cloud: API
    restriction = Places API (New) only; Application restriction = iOS apps,

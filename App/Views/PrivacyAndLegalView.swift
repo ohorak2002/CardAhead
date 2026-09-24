@@ -12,7 +12,8 @@ import SwiftUI
 /// App Review taps first.
 ///
 /// Every sentence here must stay true of the code. If a new network call, SDK
-/// or stored field is added, this screen, `docs/privacy-policy.md` and
+/// or stored field is added, this screen, the live policy page (portfolio
+/// repo, `cardwise/privacy/index.html`) and
 /// `App/PrivacyInfo.xcprivacy` change in the same commit.
 struct PrivacyAndLegalView: View {
 

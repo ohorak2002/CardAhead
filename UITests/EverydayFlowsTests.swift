@@ -178,6 +178,13 @@ final class EverydayFlowsTests: XCTestCase {
         XCTAssertTrue(advice.waitForExistence(timeout: 5))
         let google = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Google Places")).firstMatch
         XCTAssertTrue(google.exists)
+        // The hosted policy and support page, which App Review opens. A
+        // SwiftUI Link can surface as a link or a button, so ask for either.
+        app.swipeUp()
+        for label in ["Full privacy policy", "Help and support"] {
+            let link = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
+            XCTAssertTrue(link.waitForExistence(timeout: 5), "\(label) is missing")
+        }
     }
 
     /// With no sharing service in the build, the account screen would be a

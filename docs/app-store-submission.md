@@ -7,12 +7,14 @@ in App Store Connect, Google Cloud, or on a real iPhone.
 
 ## Blockers — do these before submitting
 
-1. **Host the privacy policy.** Fill in `docs/privacy-policy.md`, publish it
-   at an https address, and set it in App Store Connect › App Privacy
-   (5.1.1(i)). Put the same address in the `PRIVACY_POLICY_URL` build
-   setting so More › Privacy & legal links to it.
-2. **Support URL.** App Store Connect requires one. A simple page with a
-   contact email is enough. Set `SUPPORT_URL` to it too.
+1. **Privacy policy: hosted, and linked in the app.** It lives at
+   https://ohorak2002.github.io/portfolio/cardwise/privacy/ and is linked
+   from More › Privacy & legal (**code**). Still to do: paste that address
+   into App Store Connect › App Privacy (5.1.1(i)).
+2. **Support URL: hosted, and linked in the app.** It lives at
+   https://ohorak2002.github.io/portfolio/cardwise/support/. Still to do:
+   paste it into App Store Connect. The contact on both pages is the GitHub
+   Issues page until a CardWise email exists; swap it in before submitting.
 3. **Places key restricted and quota-capped.** In Google Cloud: API
    restriction = Places API (New) only; Application restriction = iOS apps,
    bundle ID `com.ohorak.cardrewards`; usage alerts at 2% of each daily

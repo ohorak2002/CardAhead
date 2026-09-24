@@ -800,7 +800,9 @@ not go back there.
   clearing it on a stray tap loses it.
 - **Three places describe what leaves the phone, and they change together.**
   More › Privacy & legal (`PrivacyAndLegalView`), `App/PrivacyInfo.xcprivacy`
-  and `docs/privacy-policy.md`. A new network call, SDK or stored field means
+  and the live policy page (the portfolio repo's `cardwise/privacy/index.html`,
+  served at ohorak2002.github.io/portfolio/cardwise/privacy/). A new network
+  call, SDK or stored field means
   editing all three in the same commit, plus the App Privacy answers in
   `docs/app-store-submission.md`. Copy anywhere in the app must not say
   location stays on the device: nearby lookups send it to Google Places.

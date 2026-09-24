@@ -45,11 +45,12 @@ targets:
         GOOGLE_PLACES_API_KEY: ""
         IMPACT_SERVICE_URL: ""
         IMPACT_PUBLIC_KEY: ""
-        # Public web pages, not secrets. Empty hides their rows in More >
-        # Privacy & legal rather than showing a dead link. Set both before an
-        # App Store build; the same addresses go in App Store Connect.
-        PRIVACY_POLICY_URL: ""
-        SUPPORT_URL: ""
+        # Public web pages, not secrets, shown as links in More > Privacy &
+        # legal (an empty value hides the row). Hosted on the portfolio site;
+        # the same two addresses go in App Store Connect. If they ever move,
+        # leave the old pages redirecting, because shipped builds keep these.
+        PRIVACY_POLICY_URL: "https://ohorak2002.github.io/portfolio/cardwise/privacy/"
+        SUPPORT_URL: "https://ohorak2002.github.io/portfolio/cardwise/support/"
     info:
       path: Supporting/Info.plist
       properties:

@@ -13,8 +13,9 @@ in App Store Connect, Google Cloud, or on a real iPhone.
    into App Store Connect › App Privacy (5.1.1(i)).
 2. **Support URL: hosted, and linked in the app.** It lives at
    https://ohorak2002.github.io/portfolio/cardwise/support/. Still to do:
-   paste it into App Store Connect. The contact on both pages is the GitHub
-   Issues page until a CardWise email exists; swap it in before submitting.
+   paste it into App Store Connect. The contact on both pages is
+   CardWise.help@outlook.com; use the same address as the App Store
+   Connect contact email.
 3. **Places key restricted and quota-capped.** In Google Cloud: API
    restriction = Places API (New) only; Application restriction = iOS apps,
    bundle ID `com.ohorak.cardrewards`; usage alerts at 2% of each daily

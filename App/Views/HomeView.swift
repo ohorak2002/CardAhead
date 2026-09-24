@@ -73,7 +73,7 @@ struct HomeView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 3) {
                     (Text("Card").foregroundColor(.white)
-                     + Text("Wise").foregroundColor(InterfacePalette.cyan))
+                     + Text("Ahead").foregroundColor(InterfacePalette.cyan))
                         .font(.title.weight(.bold))
                         .minimumScaleFactor(0.85)
                         .lineLimit(1)

@@ -16,7 +16,7 @@ import CardKit
 ///
 /// **The artwork is drawn by `CardFaceView` through the usual resolver**,
 /// which means licensed art where a licence is recorded, the user's own
-/// photograph where they have taken one, and CardWise's own rendering
+/// photograph where they have taken one, and CardAhead's own rendering
 /// otherwise. Nothing on this screen reaches for an issuer's image, and the
 /// screen looks finished in all three cases — which is the test of whether the
 /// drawn fallback is good enough to ship.
@@ -71,7 +71,7 @@ struct CardPreviewView: View {
                 .scaleEffect(hasSettled ? 1 : 0.94)
                 .opacity(hasSettled ? 1 : 0)
                 .shadow(
-                    color: Color.cardWiseNavy.opacity(Metric.liftedShadow.opacity),
+                    color: Color.cardAheadNavy.opacity(Metric.liftedShadow.opacity),
                     radius: Metric.liftedShadow.radius,
                     x: 0,
                     y: Metric.liftedShadow.y
@@ -92,7 +92,7 @@ struct CardPreviewView: View {
         .padding(.top, Metric.loose)
         .padding(.bottom, Metric.loose)
         .frame(maxWidth: .infinity)
-        .background(Color.cardWiseCanvas)
+        .background(Color.cardAheadCanvas)
         .onAppear {
             guard !hasSettled else { return }
             if reduceMotion {
@@ -112,7 +112,7 @@ struct CardPreviewView: View {
             if isAlreadyHeld {
                 HStack(spacing: Metric.tight) {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Color.cardWiseSuccess)
+                        .foregroundStyle(Color.cardAheadSuccess)
                     Text("This one is already in your wallet. Adding it again is fine if you hold two.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -121,7 +121,7 @@ struct CardPreviewView: View {
                 .padding(Metric.snug)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
-                    Color.cardWiseSuccess.opacity(0.10),
+                    Color.cardAheadSuccess.opacity(0.10),
                     in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
                 )
             }
@@ -131,7 +131,7 @@ struct CardPreviewView: View {
 
             Text(card.annualFeeDollars == 0
                  ? "No annual fee"
-                 : "\(CardWiseFormat.money(card.annualFeeDollars)) a year")
+                 : "\(CardAheadFormat.money(card.annualFeeDollars)) a year")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -156,7 +156,7 @@ struct CardPreviewView: View {
             Button(replacing == nil ? "Add to Wallet" : "Use this card instead") {
                 addToWallet()
             }
-            .buttonStyle(.cardWisePrimary)
+            .buttonStyle(.cardAheadPrimary)
 
             NavigationLink {
                 CardBenefitsView(
@@ -168,7 +168,7 @@ struct CardPreviewView: View {
             } label: {
                 Text("Check what it earns first")
             }
-            .buttonStyle(.cardWiseSecondary)
+            .buttonStyle(.cardAheadSecondary)
         }
         .padding(.horizontal, Metric.margin)
         .padding(.vertical, Metric.snug)

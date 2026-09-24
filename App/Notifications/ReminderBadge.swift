@@ -9,7 +9,7 @@ import CardKit
 ///
 /// **Why this exists at all.** A lock screen is a stack of grey rectangles
 /// that all look alike, and the app icon does not help — it is the same icon
-/// on every CardWise reminder, so it identifies the app and says nothing
+/// on every CardAhead reminder, so it identifies the app and says nothing
 /// about *this* arrival. Snapchat's red square is the reference: a notification
 /// with one saturated block of colour in it gets looked at, and the colour
 /// itself carries the first piece of meaning before a word is read.

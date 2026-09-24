@@ -55,7 +55,7 @@ struct HomeAtmosphere: View {
         )
         .overlay {
             RadialGradient(
-                colors: [Color.cardWiseBlue.opacity(0.45), .clear],
+                colors: [Color.cardAheadBlue.opacity(0.45), .clear],
                 center: .topTrailing, startRadius: 0, endRadius: 350
             )
         }

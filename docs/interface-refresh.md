@@ -1,4 +1,4 @@
-# CardWise interface refresh — September 19, 2026
+# CardAhead interface refresh — September 19, 2026
 
 Requested direction: the supplied navy / blue / white iPhone references, with
 an emphasis on user friendliness and recognizable issuer logos in Add a Card.
@@ -18,7 +18,7 @@ dashboard, new recommendation policy, or notification redesign is included.
   Review progress. Search, duplicate guidance, and manual entry still work.
 - Impact: lighter surfaces and refined presentation of the existing measured values.
 
-`App/Theme/CardWiseInterface.swift` defines adaptive presentation roles for the
+`App/Theme/CardAheadInterface.swift` defines adaptive presentation roles for the
 changed screens. Existing shared card-art colors, category palettes, notification
 badge rendering, policies, permission prompts, and notification settings are unchanged.
 Native tabs and navigation remain native. Content retains Dynamic Type and VoiceOver.

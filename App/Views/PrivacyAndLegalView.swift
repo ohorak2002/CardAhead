@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// What CardWise does with data, what its recommendations are and are not, and
+/// What CardAhead does with data, what its recommendations are and are not, and
 /// who it is not affiliated with — in the app, where App Review and a careful
 /// user both look for it.
 ///
@@ -13,7 +13,7 @@ import SwiftUI
 ///
 /// Every sentence here must stay true of the code. If a new network call, SDK
 /// or stored field is added, this screen, the live policy page (portfolio
-/// repo, `cardwise/privacy/index.html`) and
+/// repo, `cardahead/privacy/index.html`) and
 /// `App/PrivacyInfo.xcprivacy` change in the same commit.
 struct PrivacyAndLegalView: View {
 
@@ -21,7 +21,7 @@ struct PrivacyAndLegalView: View {
         List {
             Section {
                 Label("Your cards, card photos, reminder history and Impact record are stored only on this iPhone.", systemImage: "iphone")
-                Label("CardWise never asks for, reads or stores a card number, security code, expiry date or bank login.", systemImage: "creditcard")
+                Label("CardAhead never asks for, reads or stores a card number, security code, expiry date or bank login.", systemImage: "creditcard")
                 Label("To find shops nearby, your position — and anything you type in the map's search — is sent to Google Places. Address suggestions come from Apple Maps. No name, account or card details go with either.", systemImage: "location")
                 Label("No advertising, no tracking across apps, and no analytics service.", systemImage: "hand.raised")
                 Label("Erase everything in Settings deletes all of it from this iPhone. So does deleting the app.", systemImage: "trash")
@@ -32,14 +32,14 @@ struct PrivacyAndLegalView: View {
             }
 
             Section {
-                Text("CardWise suggests which of your own cards is likely to earn the most, using published card terms and the values you set. It is for information only and is not financial, credit or tax advice. Rates, caps and offers change and can be wrong here — your card issuer's terms always decide what you actually earn.")
+                Text("CardAhead suggests which of your own cards is likely to earn the most, using published card terms and the values you set. It is for information only and is not financial, credit or tax advice. Rates, caps and offers change and can be wrong here — your card issuer's terms always decide what you actually earn.")
                     .font(.subheadline)
             } header: {
                 Text("Recommendations are estimates").textCase(nil)
             }
 
             Section {
-                Text("CardWise is independent and is not affiliated with, endorsed by or sponsored by any bank, card issuer or card network. Card and issuer names are used only to identify the cards you hold.")
+                Text("CardAhead is independent and is not affiliated with, endorsed by or sponsored by any bank, card issuer or card network. Card and issuer names are used only to identify the cards you hold.")
                     .font(.subheadline)
             } header: {
                 Text("Not affiliated").textCase(nil)

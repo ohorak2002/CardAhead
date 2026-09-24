@@ -91,7 +91,7 @@ struct CardFaceView: View {
                 Text(preferredName.trimmingCharacters(in: .whitespacesAndNewlines))
                     .lineLimit(1)
                 Spacer(minLength: Metric.tight)
-                Text(isRecommended ? "Use this card" : "CardWise")
+                Text(isRecommended ? "Use this card" : "CardAhead")
             }
             .font(.system(size: 11, weight: .medium))
         }

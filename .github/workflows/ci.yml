@@ -43,8 +43,8 @@ jobs:
       - name: Build for simulator
         run: |
           xcodebuild build \
-            -project CardWise.xcodeproj \
-            -scheme CardWise \
+            -project CardAhead.xcodeproj \
+            -scheme CardAhead \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/dd \
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
@@ -54,7 +54,7 @@ jobs:
       # the built app rather than trusting either.
       - name: Check what App Store Connect will look for
         run: |
-          APP=$(find build/dd/Build/Products -name 'CardWise.app' | head -1)
+          APP=$(find build/dd/Build/Products -name 'CardAhead.app' | head -1)
           test -f "$APP/PrivacyInfo.xcprivacy" || { echo "PrivacyInfo.xcprivacy is not in the app bundle"; exit 1; }
           plutil -lint "$APP/PrivacyInfo.xcprivacy"
           test "$(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$APP/Info.plist")" = "false" \
@@ -66,7 +66,7 @@ jobs:
   # This is the answer to the fact at the top of CLAUDE.md: development happens
   # on Windows, there is no Xcode, and until this job existed nobody could see a
   # single screen. A macOS runner has simulators, so it boots one, installs a
-  # debug build, and photographs it. The app is launched with -CardWiseDemoSeed
+  # debug build, and photographs it. The app is launched with -CardAheadDemoSeed
   # so the wallet has cards in it — see App/Store/DemoSeed.swift.
   #
   # Deliberately not required to pass. A screenshot job is a convenience, and a
@@ -88,7 +88,7 @@ jobs:
 
       - name: Build for the simulator
         run: |
-          xcodebuild build             -project CardWise.xcodeproj             -scheme CardWise             -configuration Debug             -destination 'generic/platform=iOS Simulator'             -derivedDataPath build/dd             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"             CODE_SIGNING_ALLOWED=NO
+          xcodebuild build             -project CardAhead.xcodeproj             -scheme CardAhead             -configuration Debug             -destination 'generic/platform=iOS Simulator'             -derivedDataPath build/dd             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"             CODE_SIGNING_ALLOWED=NO
 
       - name: Boot a phone
         run: |
@@ -102,7 +102,7 @@ jobs:
 
       - name: Install it
         run: |
-          APP=$(find build/dd/Build/Products -name 'CardWise.app' | head -1)
+          APP=$(find build/dd/Build/Products -name 'CardAhead.app' | head -1)
           test -n "$APP" || { echo "No app was built"; exit 1; }
           echo "Installing $APP"
           xcrun simctl install "$DEVICE" "$APP"
@@ -120,7 +120,7 @@ jobs:
           mkdir -p screenshots
           shoot () {
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
-            xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$1"
+            xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardAheadDemoSeed -CardAheadDemoTab "$1"
             sleep 6
             xcrun simctl io "$DEVICE" screenshot "screenshots/$2-$1.png"
           }
@@ -186,7 +186,7 @@ jobs:
           xcrun simctl ui "$DEVICE" appearance dark
           for TAB in home map wallet benefits impact watching cardphoto cardbenefits placecard carddetail addcard notifications notificationlab reorder mapfilters today timeline compare organize settings mapsettings; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
-            xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
+            xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardAheadDemoSeed -CardAheadDemoTab "$TAB"
             sleep 6
             xcrun simctl io "$DEVICE" screenshot "screenshots/dark-$TAB.png"
           done
@@ -213,7 +213,7 @@ jobs:
           xcrun simctl ui "$DEVICE" content_size accessibility-extra-extra-extra-large
           for TAB in home wallet benefits more carddetail reorder addcard mapfilters today timeline compare organize; do
             xcrun simctl terminate "$DEVICE" com.ohorak.cardrewards || true
-            xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
+            xcrun simctl launch "$DEVICE" com.ohorak.cardrewards -CardAheadDemoSeed -CardAheadDemoTab "$TAB"
             sleep 6
             xcrun simctl io "$DEVICE" screenshot "screenshots/huge-$TAB.png"
           done
@@ -225,14 +225,14 @@ jobs:
         run: |
           TYPE=$(xcrun simctl list devicetypes -j | python3 -c 'import json,sys; types=json.load(sys.stdin)["devicetypes"]; matches=[t for t in types if "iPhone SE (3rd generation)" in t["name"] or "iPhone 16e" in t["name"]]; print(matches[0]["identifier"] if matches else "")')
           test -n "$TYPE" || { echo "No supported small iPhone device type"; exit 1; }
-          SMALL=$(xcrun simctl create "CardWise Small" "$TYPE")
+          SMALL=$(xcrun simctl create "CardAhead Small" "$TYPE")
           xcrun simctl boot "$SMALL"
           xcrun simctl bootstatus "$SMALL" -b
-          APP=$(find build/dd/Build/Products -name 'CardWise.app' | head -1)
+          APP=$(find build/dd/Build/Products -name 'CardAhead.app' | head -1)
           xcrun simctl install "$SMALL" "$APP"
           for TAB in home benefits mapfilters; do
             xcrun simctl terminate "$SMALL" com.ohorak.cardrewards || true
-            xcrun simctl launch "$SMALL" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
+            xcrun simctl launch "$SMALL" com.ohorak.cardrewards -CardAheadDemoSeed -CardAheadDemoTab "$TAB"
             sleep 5
             xcrun simctl io "$SMALL" screenshot "screenshots/small-$TAB.png"
           done
@@ -240,7 +240,7 @@ jobs:
           xcrun simctl ui "$SMALL" content_size accessibility-extra-extra-extra-large
           for TAB in home benefits; do
             xcrun simctl terminate "$SMALL" com.ohorak.cardrewards || true
-            xcrun simctl launch "$SMALL" com.ohorak.cardrewards -CardWiseDemoSeed -CardWiseDemoTab "$TAB"
+            xcrun simctl launch "$SMALL" com.ohorak.cardrewards -CardAheadDemoSeed -CardAheadDemoTab "$TAB"
             sleep 5
             xcrun simctl io "$SMALL" screenshot "screenshots/small-dark-huge-$TAB.png"
           done
@@ -249,8 +249,8 @@ jobs:
       - name: Exercise everyday flows
         run: |
           xcodebuild test \
-            -project CardWise.xcodeproj \
-            -scheme CardWise \
+            -project CardAhead.xcodeproj \
+            -scheme CardAhead \
             -destination "platform=iOS Simulator,id=$DEVICE" \
             -derivedDataPath build/dd \
             -resultBundlePath build/everyday-flows.xcresult \
@@ -261,7 +261,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: CardWise-UI-test-results
+          name: CardAhead-UI-test-results
           path: build/everyday-flows.xcresult
           if-no-files-found: ignore
           retention-days: 14
@@ -275,7 +275,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: CardWise-screenshots
+          name: CardAhead-screenshots
           path: screenshots
           retention-days: 14
           if-no-files-found: warn
@@ -310,10 +310,10 @@ jobs:
           IMPACT_KEY: ${{ vars.IMPACT_PUBLIC_KEY }}
         run: |
           xcodebuild archive \
-            -project CardWise.xcodeproj \
-            -scheme CardWise \
+            -project CardAhead.xcodeproj \
+            -scheme CardAhead \
             -destination 'generic/platform=iOS' \
-            -archivePath "$PWD/build/CardWise.xcarchive" \
+            -archivePath "$PWD/build/CardAhead.xcarchive" \
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             GOOGLE_PLACES_API_KEY="$PLACES_KEY" \
             IMPACT_SERVICE_URL="$IMPACT_URL" \
@@ -327,8 +327,8 @@ jobs:
       - name: Wrap it as an .ipa
         run: |
           mkdir -p Payload
-          cp -R build/CardWise.xcarchive/Products/Applications/CardWise.app Payload/
-          zip -qry CardWise-unsigned.ipa Payload
+          cp -R build/CardAhead.xcarchive/Products/Applications/CardAhead.app Payload/
+          zip -qry CardAhead-unsigned.ipa Payload
 
       - name: Say whether a Places key went in
         run: |
@@ -341,8 +341,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: CardWise-unsigned-ipa
-          path: CardWise-unsigned.ipa
+          name: CardAhead-unsigned-ipa
+          path: CardAhead-unsigned.ipa
           retention-days: 30
           if-no-files-found: error
 

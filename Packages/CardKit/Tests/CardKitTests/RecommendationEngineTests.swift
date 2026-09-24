@@ -128,7 +128,7 @@ final class RecommendationEngineTests: XCTestCase {
         XCTAssertFalse(inQ4.isRotatingMatch)
         XCTAssertEqual(inQ4.appliedRate, 3, "the permanent dining rule still applies")
         XCTAssertTrue(
-            inQ4.caveats.contains { $0.contains("CardWise has not verified") },
+            inQ4.caveats.contains { $0.contains("CardAhead has not verified") },
             "\(inQ4.caveats)"
         )
     }
@@ -139,7 +139,7 @@ final class RecommendationEngineTests: XCTestCase {
         let inQ4 = engine.score(discover, in: context(.dining, on: Fixture.makeDate(2026, 11, 10)))
 
         XCTAssertFalse(inQ4.isRotatingMatch)
-        XCTAssertTrue(inQ4.caveats.contains { $0.contains("CardWise has not verified") }, "\(inQ4.caveats)")
+        XCTAssertTrue(inQ4.caveats.contains { $0.contains("CardAhead has not verified") }, "\(inQ4.caveats)")
     }
 
     /// The differentiator in the product spec: tell the user they forgot to click activate.

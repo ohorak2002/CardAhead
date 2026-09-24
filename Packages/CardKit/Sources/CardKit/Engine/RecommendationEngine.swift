@@ -112,7 +112,7 @@ public struct RecommendationEngine: Sendable {
 
             case .unannounced:
                 let rate = card.currency.formatted(rate: program.rate)
-                caveats.append("CardWise has not verified what \(card.displayName) pays \(rate) on this quarter, so this leaves it out.")
+                caveats.append("CardAhead has not verified what \(card.displayName) pays \(rate) on this quarter, so this leaves it out.")
 
             default:
                 break

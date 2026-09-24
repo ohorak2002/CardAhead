@@ -75,14 +75,14 @@ private struct CardOrganizationEditor: View {
                     TextField("e.g. Everyday dining", text: $nickname)
                         .textInputAutocapitalization(.words)
                         .accessibilityIdentifier("card.nickname")
-                    Text("Only the label in CardWise changes. Your card's name and artwork stay as they are.")
+                    Text("Only the label in CardAhead changes. Your card's name and artwork stay as they are.")
                         .font(.caption).foregroundStyle(Color.secondary)
                 }
                 Section {
                     Toggle("Prefer this card", isOn: $preferred)
                         .accessibilityIdentifier("card.preferred")
                 } footer: {
-                    Text("Use this as your default when cards tie. CardWise still recommends a card with a better estimated value.")
+                    Text("Use this as your default when cards tie. CardAhead still recommends a card with a better estimated value.")
                 }
                 Section {
                     Toggle("Hide from wallet", isOn: $hidden)
@@ -90,7 +90,7 @@ private struct CardOrganizationEditor: View {
                 } footer: {
                     Text("Hides its face from Home and Wallet. Benefits and recommendations still include this card. You can show it again here anytime.")
                 }
-                if let failure = organization.failure { Section { Text(failure).foregroundStyle(Color.cardWiseError) } }
+                if let failure = organization.failure { Section { Text(failure).foregroundStyle(Color.cardAheadError) } }
             } else {
                 Text("This card was removed from your wallet.")
             }

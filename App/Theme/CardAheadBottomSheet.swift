@@ -17,9 +17,9 @@ import SwiftUI
 /// scrolls instead. Restricting it to the handle makes the two gestures
 /// unambiguous, at the cost of a slightly smaller target, which is why the
 /// grabber's tappable area is much larger than the grey pill drawn in it.
-struct CardWiseBottomSheet<Content: View>: View {
+struct CardAheadBottomSheet<Content: View>: View {
 
-    @Binding var detent: CardWiseSheetDetent
+    @Binding var detent: CardAheadSheetDetent
     /// The height the sheet is measured against — the tab's, not the screen's.
     let availableHeight: CGFloat
     @ViewBuilder var content: Content
@@ -29,8 +29,8 @@ struct CardWiseBottomSheet<Content: View>: View {
 
     private var height: CGFloat {
         let resting = detent.height(in: availableHeight)
-        let lowest = CardWiseSheetDetent.peek.height(in: availableHeight)
-        let highest = CardWiseSheetDetent.tall.height(in: availableHeight)
+        let lowest = CardAheadSheetDetent.peek.height(in: availableHeight)
+        let highest = CardAheadSheetDetent.tall.height(in: availableHeight)
         // Clamped rather than rubber-banded. Rubber-banding past the top of a
         // sheet that has a map above it just hides the map.
         return min(max(resting - drag, lowest), highest)
@@ -78,7 +78,7 @@ struct CardWiseBottomSheet<Content: View>: View {
                 style: .continuous
             )
             .fill(Color(.secondarySystemGroupedBackground))
-            .shadow(color: Color.cardWiseNavy.opacity(0.18), radius: 20, y: -6)
+            .shadow(color: Color.cardAheadNavy.opacity(0.18), radius: 20, y: -6)
             .ignoresSafeArea(edges: .bottom)
         }
         // Both branches spelled out as `Animation?`. A bare `nil` against a
@@ -114,7 +114,7 @@ struct CardWiseBottomSheet<Content: View>: View {
                     // though it only travelled twenty points.
                     let projected = detent.height(in: availableHeight) - value.predictedEndTranslation.height
                     drag = 0
-                    detent = CardWiseSheetDetent.nearest(to: projected, in: availableHeight)
+                    detent = CardAheadSheetDetent.nearest(to: projected, in: availableHeight)
                 }
         )
         .accessibilityElement()
@@ -137,7 +137,7 @@ struct CardWiseBottomSheet<Content: View>: View {
 /// go looks flexible and is actually worse: it ends up at some arbitrary
 /// height that shows two and a half rows, and every launch looks different.
 /// Three positions mean three legible screens — the map, both, the list.
-enum CardWiseSheetDetent: CaseIterable, Hashable {
+enum CardAheadSheetDetent: CaseIterable, Hashable {
     /// The map is the screen. Just the header of the list shows.
     case peek
     /// Both matter. The resting position, and where a selected place lands.
@@ -156,20 +156,20 @@ enum CardWiseSheetDetent: CaseIterable, Hashable {
         }
     }
 
-    static func nearest(to height: CGFloat, in available: CGFloat) -> CardWiseSheetDetent {
+    static func nearest(to height: CGFloat, in available: CGFloat) -> CardAheadSheetDetent {
         allCases.min { one, two in
             abs(one.height(in: available) - height) < abs(two.height(in: available) - height)
         } ?? .half
     }
 
-    var taller: CardWiseSheetDetent {
+    var taller: CardAheadSheetDetent {
         switch self {
         case .peek: return .half
         case .half, .tall: return .tall
         }
     }
 
-    var shorter: CardWiseSheetDetent {
+    var shorter: CardAheadSheetDetent {
         switch self {
         case .tall: return .half
         case .half, .peek: return .peek

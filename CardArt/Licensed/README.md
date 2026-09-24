@@ -1,11 +1,11 @@
 # Licensed issuer card artwork
 
 **This directory is empty, and that is the shipping state.** Nothing in it is
-licensed yet, because no issuer has granted CardWise anything yet.
+licensed yet, because no issuer has granted CardAhead anything yet.
 
 ## What may go in here
 
-Exactly one thing: an issuer's own card image that CardWise has **written
+Exactly one thing: an issuer's own card image that CardAhead has **written
 permission** to display, stored next to the permission that allows it.
 
 ```

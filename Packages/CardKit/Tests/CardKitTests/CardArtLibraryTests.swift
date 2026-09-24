@@ -112,8 +112,8 @@ final class CardArtLibraryTests: XCTestCase {
         let selected = CardArtSource.resolve(for: catalogCard(), in: [grant()], asOf: today)
         let displayed = selected.availableForDisplay(licensedImageAvailable: false, photoAvailable: true)
         XCTAssertEqual(displayed, .drawn)
-        XCTAssertEqual(displayed.shortLabel, "CardWise representation")
-        XCTAssertTrue(displayed.accessibilityDescription(for: catalogCard()).contains("CardWise representation"))
+        XCTAssertEqual(displayed.shortLabel, "CardAhead representation")
+        XCTAssertTrue(displayed.accessibilityDescription(for: catalogCard()).contains("CardAhead representation"))
     }
 
     func testLoadedLicensedPixelsKeepPriorityOverPhoto() {
@@ -360,12 +360,12 @@ final class CardArtLibraryTests: XCTestCase {
     /// The drawn face must never be described as the bank's.
     func testTheDrawnFaceIsNeverDescribedAsOfficial() {
         let line = CardArtSource.drawn.provenanceLine.lowercased()
-        XCTAssertTrue(line.contains("cardwise"))
+        XCTAssertTrue(line.contains("cardahead"))
         for word in ["official", "authentic", "exact", "genuine", "issued by"] {
             XCTAssertFalse(line.contains(word), "The drawn face described itself as \"\(word)\"")
         }
         XCTAssertTrue(line.contains("not the bank's artwork"), "It has to say so, not merely avoid saying otherwise")
-        XCTAssertEqual(CardArtSource.drawn.shortLabel, "CardWise representation")
+        XCTAssertEqual(CardArtSource.drawn.shortLabel, "CardAhead representation")
         XCTAssertEqual(CardArtSource.userPhoto("x.jpg").shortLabel, "Your card photo")
     }
 
@@ -375,7 +375,7 @@ final class CardArtLibraryTests: XCTestCase {
         let card = catalogCard()
         XCTAssertEqual(
             CardArtSource.drawn.accessibilityDescription(for: card),
-            "CardWise representation of Amex Gold"
+            "CardAhead representation of Amex Gold"
         )
         XCTAssertEqual(
             CardArtSource.userPhoto("x.jpg").accessibilityDescription(for: card),

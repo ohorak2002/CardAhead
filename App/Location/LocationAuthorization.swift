@@ -35,7 +35,7 @@ final class LocationAuthorization: NSObject, CLLocationManagerDelegate {
     /// a button that asked again would do nothing at all. Stored in
     /// `UserDefaults` because the app holds more than one of these.
     private(set) var hasAskedForAlways = UserDefaults.standard.bool(forKey: LocationAuthorization.askedForAlwaysKey)
-    private static let askedForAlwaysKey = "CardWise.location.askedForAlways"
+    private static let askedForAlwaysKey = "CardAhead.location.askedForAlways"
 
     /// Set while we are mid-escalation, so the When In Use answer can be
     /// followed straight away by the Always ask.

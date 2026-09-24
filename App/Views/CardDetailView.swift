@@ -145,7 +145,7 @@ struct CardDetailView: View {
                 if !quarter.isActivated { activated.fire() }
                 store.setActivated(!quarter.isActivated, cardID: card.id, quarter: quarter.quarter)
             }
-            .buttonStyle(.cardWiseSecondary)
+            .buttonStyle(.cardAheadSecondary)
             .disabled(quarter.isActivated)
         }
 
@@ -155,7 +155,7 @@ struct CardDetailView: View {
                 systemImage: "exclamationmark.triangle.fill"
             )
             .font(.caption)
-            .foregroundStyle(Color.cardWiseWarning)
+            .foregroundStyle(Color.cardAheadWarning)
         }
 
         if quarter.enteredByUser {
@@ -183,7 +183,7 @@ struct CardDetailView: View {
 
         adaptiveRow {
             Button("Add this quarter") { isEnteringQuarter = true }
-                .buttonStyle(.cardWiseSecondary)
+                .buttonStyle(.cardAheadSecondary)
             if let source = program.sourceURL, let url = URL(string: source) {
                 Link("Look it up", destination: url)
                     .frame(minHeight: Metric.minimumTarget)
@@ -333,7 +333,7 @@ struct CardDetailView: View {
                 } label: {
                     Label("Benefits", systemImage: "list.bullet")
                 }
-                .buttonStyle(CardWiseSecondaryButtonStyle())
+                .buttonStyle(CardAheadSecondaryButtonStyle())
                 .sheet(isPresented: $isReviewingBenefits) {
                     // The live card, not the copy this view was handed —
                     // reopening this after a save should show what was just
@@ -360,7 +360,7 @@ struct CardDetailView: View {
                         systemImage: card.isPinned ? "star.fill" : "star"
                     )
                 }
-                .buttonStyle(CardWiseSecondaryButtonStyle())
+                .buttonStyle(CardAheadSecondaryButtonStyle())
                 .alert("Prefer this card?", isPresented: $isShowingPreferExplainer) {
                     Button("Cancel", role: .cancel) {}
                     Button("Prefer This Card") {
@@ -383,7 +383,7 @@ struct CardDetailView: View {
                     .frame(minHeight: Metric.minimumTarget)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(Color.cardWiseError)
+            .foregroundStyle(Color.cardAheadError)
         }
     }
 
@@ -414,11 +414,11 @@ struct CardDetailView: View {
         VStack(alignment: .leading, spacing: 4) {
             if cap.usageIsCurrent(asOf: Date()) && cap.fractionUsed > 0 {
                 ProgressView(value: cap.fractionUsed)
-                    .tint(cap.isExhausted ? Color.cardWiseWarning : Color.cardWiseActionInk)
+                    .tint(cap.isExhausted ? Color.cardAheadWarning : Color.cardAheadActionInk)
             }
             Text(capText(cap))
                 .font(.caption2)
-                .foregroundStyle(cap.isExhausted ? Color.cardWiseWarning : Color.secondary)
+                .foregroundStyle(cap.isExhausted ? Color.cardAheadWarning : Color.secondary)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label) cap")

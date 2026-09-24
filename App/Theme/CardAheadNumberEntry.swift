@@ -4,7 +4,7 @@ import UIKit
 /// Typing a number into this app, and getting back out again.
 ///
 /// **The decimal pad has no return key.** Every amount, rate and fee in
-/// CardWise is `.keyboardType(.decimalPad)`, which iOS draws as ten digits, a
+/// CardAhead is `.keyboardType(.decimalPad)`, which iOS draws as ten digits, a
 /// separator and a backspace — and nothing else. On a screen where the field
 /// is the last thing above the fold, the keyboard covers whatever would have
 /// dismissed it and the only way out is a lucky tap on the page behind. That

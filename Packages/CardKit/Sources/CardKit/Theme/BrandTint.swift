@@ -91,7 +91,7 @@ public enum InterfaceStyle: String, Sendable, CaseIterable {
 ///
 /// **Two values rather than one is the whole point.** A hue picked to sit on
 /// white paper is rarely the hue that sits on near-black, and the app's own
-/// `CardWiseColor` already learned this — those are asset-catalog colour sets
+/// `CardAheadColor` already learned this — those are asset-catalog colour sets
 /// with both values in them. The benefit-shelf tints were the ones that never
 /// got the same treatment, and they are also the ones drawn as a 14% wash,
 /// which is the worst case: the background moves with the mode, so a single
@@ -186,7 +186,7 @@ public extension BenefitGroup {
     ///   app's own frame, borrowed as one shelf among ten. Lightening it for
     ///   dark mode produced a blue sitting ΔE 4.7 from Dining's, which is
     ///   close enough to be indistinguishable at icon size. It has its own
-    ///   hue now, and Navy goes back to meaning only "this is CardWise".
+    ///   hue now, and Navy goes back to meaning only "this is CardAhead".
     var tintPalette: BrandTint {
         switch self {
         case .dining:            return BrandTint(light: 0x1E56D6, dark: 0x4777E5)

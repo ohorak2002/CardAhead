@@ -20,7 +20,7 @@ struct RecommendationHero: View {
             VStack(alignment: .leading, spacing: Metric.tight) {
                 Label("Use this card", systemImage: "checkmark.circle.fill")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.cardWiseActionInk)
+                    .foregroundStyle(Color.cardAheadActionInk)
                 Text(card.displayName)
                     .font(.system(.title2, design: .rounded).weight(.bold))
                     .foregroundStyle(.primary)
@@ -45,7 +45,7 @@ struct RecommendationHero: View {
             if let rewardLine {
                 Text(rewardLine)
                     .font(.headline)
-                    .foregroundStyle(Color.cardWiseActionInk)
+                    .foregroundStyle(Color.cardAheadActionInk)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Text(reason)
@@ -54,10 +54,10 @@ struct RecommendationHero: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             Button("Open nearby map", action: onOpen)
-                .buttonStyle(.cardWiseSecondary)
+                .buttonStyle(.cardAheadSecondary)
         }
         .padding(Metric.regular)
-        .cardWisePanel()
+        .cardAheadPanel()
         // Content is a container, never a pretend button surrounding a button.
         .accessibilityElement(children: .contain)
     }

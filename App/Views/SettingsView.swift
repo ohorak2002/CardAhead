@@ -113,7 +113,7 @@ struct SettingsView: View {
                 Text("Location")
                 Spacer(minLength: 8)
                 Text(locationStateText)
-                    .foregroundStyle(auth.remindersCanWork ? Color.secondary : Color.cardWiseWarning)
+                    .foregroundStyle(auth.remindersCanWork ? Color.secondary : Color.cardAheadWarning)
             }
             if !auth.remindersCanWork {
                 Button("Open Settings") { auth.openSettings() }
@@ -122,7 +122,7 @@ struct SettingsView: View {
                 Text("Notifications")
                 Spacer(minLength: 8)
                 Text(notificationStateText)
-                    .foregroundStyle(reminders.isAuthorized ? Color.secondary : Color.cardWiseWarning)
+                    .foregroundStyle(reminders.isAuthorized ? Color.secondary : Color.cardAheadWarning)
             }
             if reminders.canStillAsk {
                 Button("Allow notifications") {
@@ -383,7 +383,7 @@ private struct CardArtworkExplainerView: View {
                         if let reason = asset.blockingReason() {
                             Text(reason)
                                 .font(.caption)
-                                .foregroundStyle(Color.cardWiseWarning)
+                                .foregroundStyle(Color.cardAheadWarning)
                         }
                         if let reference = asset.licence.reference {
                             Text(reference)

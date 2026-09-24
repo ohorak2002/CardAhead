@@ -298,7 +298,7 @@ struct WalletStackView: View {
                         Spacer(minLength: 0)
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Color.cardWiseActionInk)
+                            .foregroundStyle(Color.cardAheadActionInk)
                     }
                     .foregroundStyle(.primary)
                     .frame(minHeight: Metric.minimumTarget, alignment: .center)
@@ -345,7 +345,7 @@ struct WalletStackView: View {
         } label: {
             HStack(spacing: 11) {
                 Image(systemName: "location.slash")
-                    .foregroundStyle(Color.cardWiseWarning)
+                    .foregroundStyle(Color.cardAheadWarning)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Reminders are off")
                         .font(.subheadline.weight(.semibold))
@@ -359,7 +359,7 @@ struct WalletStackView: View {
                     .foregroundStyle(.secondary)
             }
             .padding(13)
-            .background(Color.cardWiseWarning.opacity(0.12), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .background(Color.cardAheadWarning.opacity(0.12), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
         }
         .buttonStyle(.plain)
         .padding(.bottom, 14)

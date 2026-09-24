@@ -433,7 +433,7 @@ public enum CardArtSource: Hashable, Sendable {
         case .userPhoto:
             return "Your own photo of this card."
         case .drawn:
-            return "Drawn by CardWise. Not the bank's artwork — we show that only where we have permission to."
+            return "Drawn by CardAhead. Not the bank's artwork — we show that only where we have permission to."
         }
     }
 
@@ -442,7 +442,7 @@ public enum CardArtSource: Hashable, Sendable {
         switch self {
         case .licensed: return "Official card artwork"
         case .userPhoto: return "Your card photo"
-        case .drawn: return "CardWise representation"
+        case .drawn: return "CardAhead representation"
         }
     }
 
@@ -469,7 +469,7 @@ public enum CardArtSource: Hashable, Sendable {
         switch self {
         case .licensed: return "\(card.displayName) card"
         case .userPhoto: return "Photo of your \(card.displayName) card"
-        case .drawn: return "CardWise representation of \(card.displayName)"
+        case .drawn: return "CardAhead representation of \(card.displayName)"
         }
     }
 }

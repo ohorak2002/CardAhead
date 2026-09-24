@@ -1,11 +1,11 @@
-# CardWise privacy policy
+# CardAhead privacy policy
 
 The policy is published at
-**https://ohorak2002.github.io/portfolio/cardwise/privacy/**, with the support
-page at https://ohorak2002.github.io/portfolio/cardwise/support/.
+**https://ohorak2002.github.io/portfolio/cardahead/privacy/**, with the support
+page at https://ohorak2002.github.io/portfolio/cardahead/support/.
 
 The source is in the portfolio repository (`ohorak2002/portfolio`), under
-`cardwise/privacy/index.html` and `cardwise/support/index.html`. That is the one
+`cardahead/privacy/index.html` and `cardahead/support/index.html`. That is the one
 copy; this file used to hold a draft and was replaced by this pointer so the two
 could not drift apart.
 

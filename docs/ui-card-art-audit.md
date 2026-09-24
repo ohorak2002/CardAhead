@@ -14,7 +14,7 @@ tests, and CI. This is a source audit on Windows, not a rendered UI review.
 | P1 | `RewardSummary.FlowRow` measures every child with `.unspecified`, then places an oversized child at that width. Long labels can escape the available width at large text sizes. | Constrain both measurement and placement to the row width; preserve multiline height. |
 | P2 | `CardFaceView` has fixed tiny typography, a chip at the bottom edge, full-face diagonal sheen, and a strong uniform shadow. The hero narrows the face to 210pt without adapting its type. | Draw a proportionally scaled, original face with vertically grouped identity, mid-left chip, restrained finish-specific texture, edge lighting, and the existing optional preferred name. Keep full semantic text outside the artwork at accessibility sizes. |
 | P2 | `RecommendationHero` marks a combined container as a button although only its child button has an action. `HeaderButton` is 36pt. Wallet undo truncates the removed name. | Keep the real map button separate, use at least 44pt targets, wrap undo text and use a solid semantic surface. |
-| P2 | `CardWiseSecondaryButtonStyle` uses fixed dark blue on dark panels; `CardDetailView` uses pale card-art accents for controls. Reduce Motion disables spring timing but not Wallet's drag scale/tilt. | Add a semantic action-ink color without altering brand gradients, separate art from controls, adapt detail rows at accessibility sizes, and remove custom drag transforms. |
+| P2 | `CardAheadSecondaryButtonStyle` uses fixed dark blue on dark panels; `CardDetailView` uses pale card-art accents for controls. Reduce Motion disables spring timing but not Wallet's drag scale/tilt. | Add a semantic action-ink color without altering brand gradients, separate art from controls, adapt detail rows at accessibility sizes, and remove custom drag transforms. |
 | P3 | `.github/workflows/ci.yml` already captures light/dark and largest text, but not reorder. README/CLAUDE retain historical claims about macOS tests; the actual test job is Linux only. | Extend existing screenshot coverage without adding a runner; report the actual workflow jobs. |
 
 ## Design direction
@@ -67,7 +67,7 @@ rights and the actual written grant before the empty registry changes.
 | Card artwork | Empty registry, no new image assets, shared material and loader | All ten palettes × four finishes, 210/260/full widths, long names, saved/unsaved/deleted photo; test-only licensed fixture with missing file and mismatched aspect ratio |
 | Accessibility | Semantic buttons, disclosure value, constrained flow layout, adaptive detail actions | Largest text, VoiceOver reading and activation order, Switch Control, 44pt targets, Increase Contrast, Reduce Motion, Reduce Transparency |
 | Privacy and persistence | No changes to photo processor, photo storage or card serialization | Photo choose/retake/remove, add/edit, remove/undo and cold launch |
-| CI screenshots | Existing workflow inspected; add reorder coverage | Inspect `CardWise-screenshots` files, including `huge-*`; job is allowed to fail and is not a visual assertion |
+| CI screenshots | Existing workflow inspected; add reorder coverage | Inspect `CardAhead-screenshots` files, including `huge-*`; job is allowed to fail and is not a visual assertion |
 
 ## Verification results
 
@@ -123,15 +123,15 @@ revision cannot validate these uncommitted files. Record the run's commit SHA.
    must pass the whole suite, including the six new art tests, existing licence,
    catalog/model, ranking and runner-up tests.
 2. **iOS app builds** (`app`): XcodeGen generation and `xcodebuild build -project
-   CardWise.xcodeproj -scheme CardWise -destination 'generic/platform=iOS
+   CardAhead.xcodeproj -scheme CardAhead -destination 'generic/platform=iOS
    Simulator' CODE_SIGNING_ALLOWED=NO` must succeed.
-3. **Screenshots** (`screenshots`): inspect `CardWise-screenshots`, especially
+3. **Screenshots** (`screenshots`): inspect `CardAhead-screenshots`, especially
    `1-home.png`, `3-wallet.png`, `13-carddetail.png`, `17-reorder.png`, their
    `dark-*.png` and `huge-*.png` equivalents, and the cardphoto/cardpreview/
    cardbenefits screens sharing the face renderer. This job is non-blocking;
    a green overall run is not evidence that its images exist or look correct.
 4. **Installable app for sideloading** (`ipa`): workflow dispatch must produce
-   `CardWise-unsigned-ipa` for the same SHA. Archive uses generic iOS with code
+   `CardAhead-unsigned-ipa` for the same SHA. Archive uses generic iOS with code
    signing disabled. Install via the existing iPhone runbook.
 
 ## Exact remaining real-iPhone checks
@@ -168,8 +168,8 @@ revision cannot validate these uncommitted files. Record the run's commit SHA.
 
 - `.github/workflows/ci.yml`
 - `App/Theme/CardArtwork.swift` (new)
-- `App/Theme/CardWiseControls.swift`
-- `App/Theme/CardWiseStyle.swift`
+- `App/Theme/CardAheadControls.swift`
+- `App/Theme/CardAheadStyle.swift`
 - `App/Views/CardDetailView.swift`
 - `App/Views/CardFaceView.swift`
 - `App/Views/CardThumbnail.swift`

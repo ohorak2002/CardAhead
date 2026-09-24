@@ -6,15 +6,15 @@ import CardKit
 /// A hairline, drawn from the palette rather than by `Divider`.
 ///
 /// **`Divider` is a hierarchical style and vanished on the map sheet** — the
-/// same way `.secondary` text did, and for the same reason. `cardWiseHairline`
+/// same way `.secondary` text did, and for the same reason. `cardAheadHairline`
 /// is an asset-catalog colour with a light and a dark value, which resolves to
-/// a real colour on any ground. See `CardWiseBottomSheet`'s note.
+/// a real colour on any ground. See `CardAheadBottomSheet`'s note.
 struct Hairline: View {
     var inset: CGFloat = 0
 
     var body: some View {
         Rectangle()
-            .fill(Color.cardWiseHairline)
+            .fill(Color.cardAheadHairline)
             .frame(height: 1)
             .padding(.leading, inset)
             .accessibilityHidden(true)
@@ -74,7 +74,7 @@ struct MerchantRow: View {
                     // purpose, so this reads first even though it is last.
                     Text(result.rewardLine ?? "No card of yours earns extra here")
                         .font(.caption.weight(result.rewardLine == nil ? .regular : .semibold))
-                        .foregroundStyle(result.rewardLine == nil ? Color.secondary : Color.cardWiseBlue)
+                        .foregroundStyle(result.rewardLine == nil ? Color.secondary : Color.cardAheadBlue)
                         .lineLimit(2)
                     if let recommendation = result.recommendation {
                         Text(recommendation.choiceExplanation)
@@ -111,7 +111,7 @@ struct MerchantRow: View {
 ///
 /// **Every colour here is an explicit `Color`.** `.secondary` is a
 /// hierarchical style, and this line is drawn on the map's sheet, where a
-/// hierarchical style rendered as nothing at all. See `CardWiseBottomSheet`.
+/// hierarchical style rendered as nothing at all. See `CardAheadBottomSheet`.
 struct PlaceFactsLine: View {
     let result: MapPlaceResult
     var showsOpenState = false
@@ -138,7 +138,7 @@ struct PlaceFactsLine: View {
                     // Explicit `Color` on both branches — `.secondary`
                     // resolves against `ShapeStyle` and would not unify.
                     // This repo has hit that twice.
-                    .foregroundStyle(isOpen ? Color.cardWiseSuccess : Color.secondary)
+                    .foregroundStyle(isOpen ? Color.cardAheadSuccess : Color.secondary)
                     .fontWeight(.medium)
             }
         }
@@ -267,7 +267,7 @@ struct MerchantPlaceCard: View {
 
     private var recommendation: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("CardWise recommendation")
+            Text("CardAhead recommendation")
                 .font(.caption2.weight(.semibold))
                 .textCase(.uppercase)
                 .kerning(0.6)
@@ -281,7 +281,7 @@ struct MerchantPlaceCard: View {
 
                 Text(best.reason)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.cardWiseBlue)
+                    .foregroundStyle(Color.cardAheadBlue)
                     .lineLimit(2)
             }
 
@@ -299,7 +299,7 @@ struct MerchantPlaceCard: View {
     /// anything special is a real answer, and the most common one.
     private var noRecommendation: some View {
         Text(result.place.spendingCategory == nil
-             ? "CardWise cannot tell what this place codes as, so it will not guess a card."
+             ? "CardAhead cannot tell what this place codes as, so it will not guess a card."
              : "No card in your wallet earns extra here. Any of them pays its usual rate.")
             .font(.footnote)
             .foregroundStyle(Color.secondary)
@@ -316,11 +316,11 @@ struct MerchantPlaceCard: View {
             } label: {
                 Label("Directions", systemImage: "arrow.triangle.turn.up.right.circle.fill")
             }
-            .buttonStyle(CardWiseSecondaryButtonStyle())
+            .buttonStyle(CardAheadSecondaryButtonStyle())
 
             if let onOpen {
                 Button("Details", action: onOpen)
-                    .buttonStyle(CardWiseSecondaryButtonStyle())
+                    .buttonStyle(CardAheadSecondaryButtonStyle())
             }
         }
         .padding(.top, Metric.regular)

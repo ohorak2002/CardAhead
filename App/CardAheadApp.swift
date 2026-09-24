@@ -2,7 +2,7 @@ import SwiftUI
 import CardKit
 
 @main
-struct CardWiseApp: App {
+struct CardAheadApp: App {
 
     @State private var store: WalletStore
     @State private var reminders: ReminderCenter
@@ -25,7 +25,7 @@ struct CardWiseApp: App {
     /// launch may never evaluate a single view.
     init() {
         // Before anything reads a file. Does nothing at all unless this is a
-        // debug build launched with `-CardWiseDemoSeed` — which is how CI
+        // debug build launched with `-CardAheadDemoSeed` — which is how CI
         // photographs screens that have something on them. See `DemoSeed`.
         DemoSeed.install()
         let seeded = DemoSeed.isActive

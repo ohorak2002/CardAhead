@@ -119,7 +119,7 @@ struct LocationPrimerView: View {
             point(
                 icon: "iphone",
                 title: "Your location is not stored or shared",
-                detail: "To find shops nearby, CardWise sends your position to Google Places. No name, account or card details go with it, and CardWise never uploads a history of where you have been."
+                detail: "To find shops nearby, CardAhead sends your position to Google Places. No name, account or card details go with it, and CardAhead never uploads a history of where you have been."
             )
             point(
                 icon: "battery.100",
@@ -205,7 +205,7 @@ struct LocationPrimerView: View {
             } label: {
                 Text(primaryTitle)
             }
-            .buttonStyle(.cardWisePrimary)
+            .buttonStyle(.cardAheadPrimary)
 
             if step != .done {
                 Button("Not now") { finish() }

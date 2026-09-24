@@ -124,7 +124,7 @@ final class BrandTintTests: XCTestCase {
     }
 
     /// Primary Navy is the header gradient — the app's own frame. A shelf
-    /// wearing it reads as "this is CardWise" rather than as a category, and
+    /// wearing it reads as "this is CardAhead" rather than as a category, and
     /// at 1.05:1 on a dark tile it did not read as anything at all.
     func testNoShelfWearsTheHeaderNavy() {
         for group in BenefitGroup.allCases {

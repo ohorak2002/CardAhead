@@ -43,7 +43,7 @@ struct MapSettingsView: View {
                         in: 0...Double(MapDistance.allCases.count - 1),
                         step: 1
                     )
-                    .tint(Color.cardWiseBlue)
+                    .tint(Color.cardAheadBlue)
                     HStack {
                         ForEach(MapDistance.allCases, id: \.self) { distance in
                             Text(distance.shortName)
@@ -74,7 +74,7 @@ struct MapSettingsView: View {
                                 .foregroundStyle(tint(for: category))
                         }
                     }
-                    .tint(Color.cardWiseBlue)
+                    .tint(Color.cardAheadBlue)
                 }
             } header: {
                 Text("Kinds of place").textCase(nil)
@@ -87,7 +87,7 @@ struct MapSettingsView: View {
                     Text("Location")
                     Spacer(minLength: Metric.tight)
                     Text(locationStateText)
-                        .foregroundStyle(auth.isBlocked ? Color.cardWiseWarning : Color.secondary)
+                        .foregroundStyle(auth.isBlocked ? Color.cardAheadWarning : Color.secondary)
                 }
                 if auth.isBlocked {
                     Button("Open Settings") { auth.openSettings() }
@@ -124,7 +124,7 @@ struct MapSettingsView: View {
     /// between them is the whole product.
     private var locationStateText: String {
         if auth.hasAlways { return "Always" }
-        if auth.status == .authorizedWhenInUse { return "While using CardWise" }
+        if auth.status == .authorizedWhenInUse { return "While using CardAhead" }
         if auth.isBlocked { return "Off" }
         return "Not asked yet"
     }

@@ -269,7 +269,7 @@ struct CardBenefitsView: View {
 
     /// Which of the three faces is on screen *right now*, counting a photo
     /// taken on this screen and not saved yet. Reading it off `card` alone
-    /// would caption a photograph of somebody's own card "Drawn by CardWise",
+    /// would caption a photograph of somebody's own card "Drawn by CardAhead",
     /// which is the exact thing this line exists to get right.
     private var artSource: CardArtSource {
         switch photoChange {
@@ -361,7 +361,7 @@ struct CardBenefitsView: View {
                 if let cap = benefit.cap, benefit.isActive || cap.isExhausted {
                     Text(capText(cap))
                         .font(.caption2)
-                        .foregroundStyle(cap.isExhausted ? Color.cardWiseWarning : Color.secondary)
+                        .foregroundStyle(cap.isExhausted ? Color.cardAheadWarning : Color.secondary)
                 }
             }
             Spacer(minLength: 0)
@@ -486,7 +486,7 @@ struct CardBenefitsView: View {
         return "\(money(cap.remainingDollars)) of \(money(cap.limitDollars)) \(cap.period.displayName) left"
     }
 
-    private func money(_ amount: Money) -> String { CardWiseFormat.money(amount) }
+    private func money(_ amount: Money) -> String { CardAheadFormat.money(amount) }
 
     private func trim(_ value: Double) -> String {
         value == value.rounded() ? String(Int(value)) : String(format: "%.1f", value)

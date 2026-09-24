@@ -116,7 +116,7 @@ struct OwnerDashboardView: View {
         catch { self.error = "Access denied or service unavailable. A verified owner account and server configuration are required." }
     }
     private func money(_ cents: Int?) -> String {
-        cents.map { CardWiseFormat.money(Decimal($0) / 100) } ?? "Unknown"
+        cents.map { CardAheadFormat.money(Decimal($0) / 100) } ?? "Unknown"
     }
     private func metric(_ title: String, _ cents: Int?) -> some View { LabeledContent(title, value: money(cents)) }
 }

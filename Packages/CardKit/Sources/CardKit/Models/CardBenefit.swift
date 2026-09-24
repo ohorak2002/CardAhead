@@ -256,7 +256,7 @@ extension CardBenefit {
             }
             isActive = quarter.isActivated
         case .unannounced:
-            detail = "CardWise has not verified this quarter's categories. Check your issuer."
+            detail = "CardAhead has not verified this quarter's categories. Check your issuer."
         case .none:
             detail = "Nothing extra on this card this quarter."
         }

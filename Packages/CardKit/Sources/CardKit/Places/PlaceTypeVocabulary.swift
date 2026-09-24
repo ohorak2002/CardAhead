@@ -4,7 +4,7 @@ import Foundation
 /// when they come back.
 ///
 /// **This exists because of a bug that reached a real phone and could not have
-/// been caught anywhere else.** CardWise's Map, opened in Athens, Georgia,
+/// been caught anywhere else.** CardAhead's Map, opened in Athens, Georgia,
 /// showed zero pins and the words
 /// "Could not look up nearby places. The place lookup was refused (400).
 /// Unsupported types: grocery_or_supermarket."

@@ -7,7 +7,7 @@ import CardKit
 ///
 /// The hardest thing about this screen is what it must *not* claim. A home
 /// screen with nothing true to say is under enormous pressure to invent
-/// something, and the version of CardWise that opens on "3 opportunities
+/// something, and the version of CardAhead that opens on "3 opportunities
 /// nearby" when it is watching nothing and knows nothing has told a small lie
 /// before the user has even scrolled. So every line here is derived from
 /// something real:
@@ -80,7 +80,7 @@ struct HomeView: View {
                         .layoutPriority(1)
                     Text("The right card. Right when you need it.")
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(Color.cardWiseLightBlue)
+                        .foregroundStyle(Color.cardAheadLightBlue)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                 }
@@ -136,7 +136,7 @@ struct HomeView: View {
 
     /// The one line that says whether the app is actually working.
     ///
-    /// Everything CardWise does happens while it is closed, so without this
+    /// Everything CardAhead does happens while it is closed, so without this
     /// there is no way to tell a quiet afternoon from a permission somebody
     /// declined three weeks ago.
     @ViewBuilder
@@ -144,14 +144,14 @@ struct HomeView: View {
         if !auth.remindersCanWork || !reminders.isAuthorized {
             HomeBanner(
                 symbolName: "bell.badge",
-                tint: .cardWiseWarning,
+                tint: .cardAheadWarning,
                 title: "Reminders are off",
                 detail: missingPermission
             ) { goTo(.more) }
         } else if monitor.monitoredCount > 0 {
             HomeBanner(
                 symbolName: "location.fill",
-                tint: .cardWiseBlue,
+                tint: .cardAheadBlue,
                 title: "Watching \(monitor.monitoredCount) places nearby",
                 detail: "You'll be told when one of your cards wins somewhere."
             ) { goTo(.more) }
@@ -167,7 +167,7 @@ struct HomeView: View {
 
     private var missingPermission: String {
         if !auth.hasAlways {
-            return "CardWise needs Always location to notice you have arrived."
+            return "CardAhead needs Always location to notice you have arrived."
         }
         if auth.isApproximate {
             return "Precise Location is off, so iOS cannot tell when you arrive."
@@ -184,7 +184,7 @@ struct HomeView: View {
                 Spacer()
                 Text("\(store.cards.count) \(store.cards.count == 1 ? "card" : "cards")")
                     .font(.caption)
-                    .foregroundStyle(Color.cardWiseLightBlue)
+                    .foregroundStyle(Color.cardAheadLightBlue)
             }
             .foregroundStyle(.white)
 
@@ -222,10 +222,10 @@ struct HomeView: View {
         VStack(spacing: Metric.regular) {
             Image(systemName: "creditcard.fill")
                 .font(.system(size: 42))
-                .foregroundStyle(Color.cardWiseActionInk)
+                .foregroundStyle(Color.cardAheadActionInk)
             Text("Add your first card")
                 .font(.title3.weight(.semibold))
-            Text("Tell CardWise which cards you carry, once. It works out the rest — and tells you which one to reach for when you get somewhere.")
+            Text("Tell CardAhead which cards you carry, once. It works out the rest — and tells you which one to reach for when you get somewhere.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -234,11 +234,11 @@ struct HomeView: View {
             } label: {
                 Text("Add a card")
             }
-            .buttonStyle(.cardWisePrimary)
+            .buttonStyle(.cardAheadPrimary)
             .padding(.top, Metric.tight)
         }
         .padding(Metric.roomy)
-        .cardWisePanel()
+        .cardAheadPanel()
         .padding(.horizontal, Metric.margin)
     }
 }
@@ -277,7 +277,7 @@ private struct HomeBanner: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(Metric.regular)
-            .cardWisePanel()
+            .cardAheadPanel()
         }
         .buttonStyle(.plain)
         .padding(.horizontal, Metric.margin)
@@ -301,7 +301,7 @@ private struct OpportunityRow: View {
         layout {
             CategoryIcon(
                 symbolName: opportunity.category?.symbolName ?? "gift.fill",
-                tint: opportunity.category?.tint ?? Color.cardWiseWarning,
+                tint: opportunity.category?.tint ?? Color.cardAheadWarning,
                 size: 42
             )
             VStack(alignment: .leading, spacing: 3) {
@@ -316,11 +316,11 @@ private struct OpportunityRow: View {
             }
             if !typeSize.isAccessibilitySize { Spacer(minLength: Metric.tight) }
             if let days = daysLeft {
-                TagPill(text: days, tint: .cardWiseWarning)
+                TagPill(text: days, tint: .cardAheadWarning)
             }
         }
         .padding(Metric.regular)
-        .cardWisePanel()
+        .cardAheadPanel()
         .accessibilityElement(children: .combine)
     }
 

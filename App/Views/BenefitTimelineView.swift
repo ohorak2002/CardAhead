@@ -18,8 +18,8 @@ struct BenefitTimelineView: View {
                             .foregroundStyle(Color.secondary)
                     }
                     if deadlines.isEmpty {
-                        CardWiseEmptyState(symbolName: "calendar.badge.checkmark", title: "No upcoming deadlines", message: wallet.cards.isEmpty ? "Add a card to see its recorded bonus deadlines here." : "There are no upcoming bonus deadlines recorded for your wallet. Credits with unknown reset dates are listed below.") {
-                            if wallet.cards.isEmpty { Button("Add a card") { isAddingCard = true }.buttonStyle(.cardWisePrimary) }
+                        CardAheadEmptyState(symbolName: "calendar.badge.checkmark", title: "No upcoming deadlines", message: wallet.cards.isEmpty ? "Add a card to see its recorded bonus deadlines here." : "There are no upcoming bonus deadlines recorded for your wallet. Credits with unknown reset dates are listed below.") {
+                            if wallet.cards.isEmpty { Button("Add a card") { isAddingCard = true }.buttonStyle(.cardAheadPrimary) }
                         }
                     } else {
                         ForEach(deadlines) { item in
@@ -58,7 +58,7 @@ struct BenefitTimelineView: View {
                         ForEach(credits) { benefit in
                             Text(benefit.title).font(.subheadline)
                         }
-                        Text("CardWise has no reset date or usage balance for these credits. Check your bank before making plans to use them.")
+                        Text("CardAhead has no reset date or usage balance for these credits. Check your bank before making plans to use them.")
                             .font(.caption).foregroundStyle(Color.secondary)
                         NavigationLink("View card benefits") {
                             CardBenefitsView(mode: .reviewing(card), presentation: .pushed)
@@ -97,7 +97,7 @@ struct DeadlineRow: View {
             VStack(alignment: .leading, spacing: Metric.tight) {
                 Text(item.urgency(asOf: now))
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(needsAttention ? Color.cardWiseWarning : InterfacePalette.blue)
+                    .foregroundStyle(needsAttention ? Color.cardAheadWarning : InterfacePalette.blue)
                 Text(item.title).font(.headline).foregroundStyle(Color.primary)
                 Text(cardName).font(.subheadline).foregroundStyle(Color.primary)
                 Text(item.detail).font(.caption).foregroundStyle(Color.secondary)
@@ -105,7 +105,7 @@ struct DeadlineRow: View {
                     .font(.caption).foregroundStyle(Color.secondary)
                 if item.needsActivation {
                     Label("Needs switching on", systemImage: "exclamationmark.circle")
-                        .font(.caption.weight(.medium)).foregroundStyle(Color.cardWiseWarning)
+                        .font(.caption.weight(.medium)).foregroundStyle(Color.cardAheadWarning)
                 }
             }
             .fixedSize(horizontal: false, vertical: true)

@@ -3,7 +3,7 @@ import Foundation
 /// Everything the app is allowed to believe about when to interrupt somebody.
 ///
 /// **One struct, and nothing outside it may hold an opinion.** Before this,
-/// "how chatty is CardWise" was answered in four places — a daily ceiling on
+/// "how chatty is CardAhead" was answered in four places — a daily ceiling on
 /// `ReminderThrottle`, a minimum edge on `RecommendationEngine`, a dwell on
 /// `ArrivalTracker`, and an implicit "always send it" in `RegionMonitor`.
 /// Tuning the product meant finding all four and hoping there was not a fifth.

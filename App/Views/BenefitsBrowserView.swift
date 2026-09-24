@@ -11,7 +11,7 @@ import CardKit
 ///
 /// Everything is derived by `WalletInsights` from the same `Card` the ranking
 /// engine reads. There is no second list, which is the whole reason this
-/// screen cannot drift out of step with what CardWise actually recommends.
+/// screen cannot drift out of step with what CardAhead actually recommends.
 struct BenefitsBrowserView: View {
 
     @Environment(WalletStore.self) private var store
@@ -134,7 +134,7 @@ struct BenefitsBrowserView: View {
                     HStack(spacing: Metric.snug) {
                         CategoryIcon(
                             symbolName: entry.benefit.group.symbolName,
-                            tint: Color.cardWiseWarning,
+                            tint: Color.cardAheadWarning,
                             size: 40
                         )
                         VStack(alignment: .leading, spacing: 2) {
@@ -147,11 +147,11 @@ struct BenefitsBrowserView: View {
                         }
                         Spacer(minLength: Metric.tight)
                         if let days = daysLeft(entry) {
-                            TagPill(text: days, tint: .cardWiseWarning)
+                            TagPill(text: days, tint: .cardAheadWarning)
                         }
                     }
                     .padding(Metric.regular)
-                    .cardWisePanel()
+                    .cardAheadPanel()
                     .accessibilityElement(children: .combine)
                 }
             }
@@ -263,7 +263,7 @@ private struct BenefitGroupTile: View {
                 // Colour is never the only signal — "Ends soon" and "Needs
                 // switching on" say so in words for anybody who cannot tell
                 // the amber from the grey.
-                .foregroundStyle(lead.needsAttention ? Color.cardWiseWarning : Color.secondary)
+                .foregroundStyle(lead.needsAttention ? Color.cardAheadWarning : Color.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 2)
         }
@@ -305,7 +305,7 @@ private struct BenefitGroupDetailView: View {
                         if !entry.benefit.isActive {
                             Text("not paying")
                                 .font(.caption2.weight(.semibold))
-                                .foregroundStyle(Color.cardWiseWarning)
+                                .foregroundStyle(Color.cardAheadWarning)
                         }
                     }
                     Text(entry.cardName)

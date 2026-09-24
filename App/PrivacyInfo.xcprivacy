@@ -6,8 +6,8 @@
 
   Keep in step with the code, with More > Privacy & legal
   (App/Views/PrivacyAndLegalView.swift) and with the live privacy policy at
-  https://ohorak2002.github.io/portfolio/cardwise/privacy/ (portfolio repo,
-  cardwise/privacy/index.html).
+  https://ohorak2002.github.io/portfolio/cardahead/privacy/ (portfolio repo,
+  cardahead/privacy/index.html).
 
   - UserDefaults (CA92.1): preferences read and written only by this app.
   - File timestamps (C617.1): PlacePhotoLoader reads the modification date of

@@ -1,6 +1,6 @@
 import Foundation
 
-/// The window in which CardWise says nothing.
+/// The window in which CardAhead says nothing.
 ///
 /// **A reminder is only ever useful at a till, and nobody is at a till at two
 /// in the morning.** A geofence can still fire then — a hotel at midnight, a

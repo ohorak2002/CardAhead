@@ -5,7 +5,7 @@ import CardKit
 /// The Map tab: what is around you, and which card wins at each of it.
 ///
 /// **Why this is a tab and not a sheet hanging off Home.** Everything else in
-/// CardWise answers "which card, here, now" — the reminder, the wallet, the
+/// CardAhead answers "which card, here, now" — the reminder, the wallet, the
 /// benefits shelf. This answers a question nobody could ask before: *where*,
 /// within a few miles, is a card in this wallet worth more than the one you
 /// would have reached for anyway. That is a browsing job with its own
@@ -86,7 +86,7 @@ struct NearbyMapView: View {
     /// the pin clustering, both of which used to be measured against a map
     /// that had a fixed height of its own.
     @State private var availableHeight: CGFloat = 700
-    @State private var detent: CardWiseSheetDetent = .half
+    @State private var detent: CardAheadSheetDetent = .half
 
     var body: some View {
         @Bindable var places = places
@@ -307,7 +307,7 @@ struct NearbyMapView: View {
 
             // Return still searches for *what* — a shop, a kind of place.
             // Picking a suggestion says *where*, and moves the map there.
-            CardWiseSearchField(
+            CardAheadSearchField(
                 placeholder: "Search an address, place or category",
                 text: $places.searchText,
                 onSubmit: {
@@ -332,7 +332,7 @@ struct NearbyMapView: View {
             HStack {
                 Text(addressProblem ?? summaryLine)
                     .font(.caption)
-                    .foregroundStyle(addressProblem == nil ? Color.secondary : Color.cardWiseWarning)
+                    .foregroundStyle(addressProblem == nil ? Color.secondary : Color.cardAheadWarning)
                 if places.activeQuery != nil { Button("Cancel search") { places.clearSearch() } }
             }.padding(.horizontal, Metric.margin)
             chips
@@ -373,26 +373,26 @@ struct NearbyMapView: View {
 
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Metric.tight) {
-                CardWiseChip(
+                CardAheadChip(
                     title: "All",
                     isOn: !places.isShowingWatchedOnly && places.filter.isShowingEverything,
-                    tint: .cardWiseBlue,
+                    tint: .cardAheadBlue,
                     ground: .tinted
                 ) {
                     places.showEverywhere()
                     places.filter.toggleAll()
                 }
                 // **Always shown, even when nothing is watched**, and that is
-                // the point rather than an oversight. "CardWise is not
+                // the point rather than an oversight. "CardAhead is not
                 // watching anything yet, and here is why" is precisely the
                 // answer somebody comes to this chip for when no reminder has
                 // arrived. Hiding the chip would hide the diagnosis along with
                 // the diagnostic.
-                CardWiseChip(
+                CardAheadChip(
                     title: places.watchedCount > 0 ? "Watching \(places.watchedCount)" : "Watching",
                     symbolName: "bell.fill",
                     isOn: places.isShowingWatchedOnly,
-                    tint: .cardWiseBlue,
+                    tint: .cardAheadBlue,
                     ground: .tinted
                 ) {
                     if places.isShowingWatchedOnly {
@@ -402,7 +402,7 @@ struct NearbyMapView: View {
                     }
                 }
                 ForEach(MapCategory.quickFilters, id: \.self) { category in
-                    CardWiseChip(
+                    CardAheadChip(
                         title: category.shortName,
                         isOn: !places.isShowingWatchedOnly
                             && !places.filter.isShowingEverything
@@ -474,7 +474,7 @@ struct NearbyMapView: View {
                             .padding(.horizontal, Metric.regular)
                             .padding(.vertical, 10)
                             .background(.regularMaterial, in: Capsule())
-                            .shadow(color: Color.cardWiseNavy.opacity(0.18), radius: 10, y: 3)
+                            .shadow(color: Color.cardAheadNavy.opacity(0.18), radius: 10, y: 3)
                     }
                     .buttonStyle(.plain)
                     .transition(.scale.combined(with: .opacity))
@@ -485,7 +485,7 @@ struct NearbyMapView: View {
             .padding(.horizontal, Metric.regular)
             .padding(.bottom, Metric.snug)
 
-            CardWiseBottomSheet(detent: $detent, availableHeight: availableHeight) {
+            CardAheadBottomSheet(detent: $detent, availableHeight: availableHeight) {
                 sheetContent
             }
         }
@@ -499,10 +499,10 @@ struct NearbyMapView: View {
         } label: {
             Image(systemName: "location.fill")
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color.cardWiseBlue)
+                .foregroundStyle(Color.cardAheadBlue)
                 .frame(width: 44, height: 44)
                 .background(.regularMaterial, in: Circle())
-                .shadow(color: Color.cardWiseNavy.opacity(0.18), radius: 10, y: 3)
+                .shadow(color: Color.cardAheadNavy.opacity(0.18), radius: 10, y: 3)
         }
         .accessibilityLabel("Back to my location")
     }
@@ -556,7 +556,7 @@ struct NearbyMapView: View {
                             .font(.caption2.weight(.semibold))
                     }
                     .font(.subheadline)
-                    .foregroundStyle(Color.cardWiseBlue)
+                    .foregroundStyle(Color.cardAheadBlue)
                 }
             }
             .padding(.horizontal, Metric.margin)
@@ -566,13 +566,13 @@ struct NearbyMapView: View {
                 if places.isLoading && places.results.isEmpty {
                     loadingRow
                 } else if let failure = places.failure {
-                    CardWiseEmptyState(
+                    CardAheadEmptyState(
                         symbolName: "exclamationmark.triangle",
                         title: "We couldn't load nearby places",
                         message: failure
                     ) {
                         Button("Try again") { places.refresh() }
-                            .buttonStyle(CardWiseSecondaryButtonStyle())
+                            .buttonStyle(CardAheadSecondaryButtonStyle())
                     }
                 } else if places.results.isEmpty {
                     emptyMessage
@@ -615,12 +615,12 @@ struct NearbyMapView: View {
             ForEach(0..<3, id: \.self) { index in
                 HStack(spacing: Metric.snug) {
                     RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
-                        .fill(Color.cardWiseHairline.opacity(0.6))
+                        .fill(Color.cardAheadHairline.opacity(0.6))
                         .frame(width: 68, height: 68)
                     VStack(alignment: .leading, spacing: 8) {
-                        Capsule().fill(Color.cardWiseHairline.opacity(0.6)).frame(width: 150, height: 12)
-                        Capsule().fill(Color.cardWiseHairline.opacity(0.45)).frame(width: 100, height: 10)
-                        Capsule().fill(Color.cardWiseHairline.opacity(0.45)).frame(width: 130, height: 10)
+                        Capsule().fill(Color.cardAheadHairline.opacity(0.6)).frame(width: 150, height: 12)
+                        Capsule().fill(Color.cardAheadHairline.opacity(0.45)).frame(width: 100, height: 10)
+                        Capsule().fill(Color.cardAheadHairline.opacity(0.45)).frame(width: 130, height: 10)
                     }
                     Spacer(minLength: 0)
                 }
@@ -645,30 +645,30 @@ struct NearbyMapView: View {
     @ViewBuilder
     private var emptyMessage: some View {
         if places.filter.isShowingNothing {
-            CardWiseEmptyState(symbolName: "line.3.horizontal.decrease.circle", title: "Select a category to see nearby places", message: "Choose All or one or more categories above.")
+            CardAheadEmptyState(symbolName: "line.3.horizontal.decrease.circle", title: "Select a category to see nearby places", message: "Choose All or one or more categories above.")
         } else if places.hasNoProvider {
-            CardWiseEmptyState(
+            CardAheadEmptyState(
                 symbolName: "mappin.slash",
                 title: "No place provider",
-                message: "This build of CardWise has nowhere to get shops from, so the map can only show where you are. Everything else in the app still works."
+                message: "This build of CardAhead has nowhere to get shops from, so the map can only show where you are. Everything else in the app still works."
             )
         } else if places.center == nil {
-            CardWiseEmptyState(
+            CardAheadEmptyState(
                 symbolName: "location.slash",
-                title: "CardWise cannot see where you are",
+                title: "CardAhead cannot see where you are",
                 message: "The map needs location access to know what is around you. You can turn it on under More › Settings."
             )
         } else if places.isShowingWatchedOnly {
-            CardWiseEmptyState(
+            CardAheadEmptyState(
                 symbolName: "bell.slash",
                 title: "Nothing being watched yet",
-                message: "CardWise watches up to twenty nearby shops where one of your cards pays more than usual. Add a card, or move around a little, and they will appear here."
+                message: "CardAhead watches up to twenty nearby shops where one of your cards pays more than usual. Add a card, or move around a little, and they will appear here."
             ) {
                 Button("Show everything nearby") { places.showEverywhere() }
-                    .buttonStyle(CardWiseSecondaryButtonStyle())
+                    .buttonStyle(CardAheadSecondaryButtonStyle())
             }
         } else {
-            CardWiseEmptyState(
+            CardAheadEmptyState(
                 symbolName: "mappin.and.ellipse",
                 title: "Nothing nearby",
                 message: "No places matched here. Try a wider distance, or a different category."
@@ -677,7 +677,7 @@ struct NearbyMapView: View {
                     places.showEverywhere()
                     places.filter.showEverything()
                 }
-                .buttonStyle(CardWiseSecondaryButtonStyle())
+                .buttonStyle(CardAheadSecondaryButtonStyle())
             }
         }
     }
@@ -820,7 +820,7 @@ extension MapCategory {
 ///
 /// Three things are readable without tapping anything: what kind of place it
 /// is (the colour and the symbol), whether a card in the wallet beats its
-/// everyday rate there (the thick white ring), and whether CardWise is already
+/// everyday rate there (the thick white ring), and whether CardAhead is already
 /// watching it for you (the small bell). A cluster shows a count instead of a
 /// symbol, in the colour of whatever it is mostly made of.
 private struct MapPin: View {
@@ -846,7 +846,7 @@ private struct MapPin: View {
                     Circle()
                         .strokeBorder(.white, lineWidth: group.hasOpportunity ? 3 : 1.5)
                 }
-                .shadow(color: Color.cardWiseNavy.opacity(0.28), radius: 4, y: 2)
+                .shadow(color: Color.cardAheadNavy.opacity(0.28), radius: 4, y: 2)
 
             if group.isCluster {
                 Text("\(group.count)")
@@ -899,8 +899,8 @@ struct WatchingMark: View {
     var body: some View {
         Image(systemName: "bell.fill")
             .font(.caption2)
-            .foregroundStyle(Color.cardWiseBlue)
-            .accessibilityLabel("CardWise is watching this place")
+            .foregroundStyle(Color.cardAheadBlue)
+            .accessibilityLabel("CardAhead is watching this place")
     }
 }
 

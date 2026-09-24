@@ -110,7 +110,7 @@ public enum SpendingCategory: String, Codable, CaseIterable, Sendable, Hashable 
     ///
     /// **A lock screen is a list of grey rectangles and the eye picks the
     /// coloured thing first.** The app icon is already there but it is the
-    /// same icon on every reminder, so it says "CardWise" and nothing about
+    /// same icon on every reminder, so it says "CardAhead" and nothing about
     /// *this* one. The emoji says what kind of place before a single word is
     /// read, which is the only job the first glance can do.
     ///

@@ -294,13 +294,13 @@ struct MoreView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "chart.line.uptrend.xyaxis")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.cardWiseBlue)
+                        .foregroundStyle(Color.cardAheadBlue)
                     Text("Your impact")
                         .font(.subheadline.weight(.semibold))
                 }
                 Text(impactHeadline)
                     .font(.system(.largeTitle, design: .rounded).weight(.bold))
-                    .foregroundStyle(Color.cardWiseBlue)
+                    .foregroundStyle(Color.cardAheadBlue)
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
@@ -344,7 +344,7 @@ struct MoreView: View {
     /// anybody is asked for when something goes wrong.
     private var appFooter: some View {
         VStack(spacing: 2) {
-            Text("CardWise")
+            Text("CardAhead")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(Color.primary)
             Text("Smart cards. Better decisions.")

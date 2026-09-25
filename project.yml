@@ -1,4 +1,4 @@
-name: CardWise
+name: CardAhead
 
 options:
   bundleIdPrefix: com.example
@@ -12,7 +12,7 @@ packages:
     path: Packages/CardKit
 
 targets:
-  CardWise:
+  CardAhead:
     type: application
     platform: iOS
     sources:
@@ -49,12 +49,12 @@ targets:
         # legal (an empty value hides the row). Hosted on the portfolio site;
         # the same two addresses go in App Store Connect. If they ever move,
         # leave the old pages redirecting, because shipped builds keep these.
-        PRIVACY_POLICY_URL: "https://ohorak2002.github.io/portfolio/cardwise/privacy/"
-        SUPPORT_URL: "https://ohorak2002.github.io/portfolio/cardwise/support/"
+        PRIVACY_POLICY_URL: "https://ohorak2002.github.io/portfolio/cardahead/privacy/"
+        SUPPORT_URL: "https://ohorak2002.github.io/portfolio/cardahead/support/"
     info:
       path: Supporting/Info.plist
       properties:
-        CFBundleDisplayName: CardWise
+        CFBundleDisplayName: CardAhead
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         GooglePlacesAPIKey: $(GOOGLE_PLACES_API_KEY)
@@ -73,11 +73,11 @@ targets:
         # prompt is the biggest drop-off in the funnel and a vague string loses it.
         NSLocationWhenInUseUsageDescription: >-
           Used to show shops near you on the map and tell which shop you are
-          in, so CardWise can name the card that earns the most there.
+          in, so CardAhead can name the card that earns the most there.
         NSLocationAlwaysAndWhenInUseUsageDescription: >-
           Used to notice when you arrive somewhere and remind you which card to
           pay with, before you take out your phone. Your position is sent to
-          Google Places only to find shops nearby; CardWise never uploads a
+          Google Places only to find shops nearby; CardAhead never uploads a
           history of where you have been.
         # Asked for only when somebody taps "Take a photo" on the card photo
         # screen — never at launch. The string says what the photo is *not*
@@ -86,33 +86,33 @@ targets:
         NSCameraUsageDescription: >-
           Used only to photograph your own card, so your wallet shows the card
           you actually carry. The photo stays on this iPhone and is never
-          uploaded. CardWise does not read your card number.
+          uploaded. CardAhead does not read your card number.
 
-  CardWiseUITests:
+  CardAheadUITests:
     type: bundle.ui-testing
     platform: iOS
     sources:
       - path: UITests
     dependencies:
-      - target: CardWise
+      - target: CardAhead
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ohorak.cardrewards.uitests
         SWIFT_VERSION: "5.9"
         GENERATE_INFOPLIST_FILE: YES
-        TEST_TARGET_NAME: CardWise
+        TEST_TARGET_NAME: CardAhead
         CODE_SIGNING_ALLOWED: NO
 
 schemes:
-  CardWise:
+  CardAhead:
     build:
       targets:
-        CardWise: all
+        CardAhead: all
     run:
       config: Debug
     test:
       config: Debug
       targets:
-        - CardWiseUITests
+        - CardAheadUITests
     archive:
       config: Release

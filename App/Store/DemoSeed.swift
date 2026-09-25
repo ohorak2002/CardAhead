@@ -7,7 +7,7 @@ import CardKit
 /// **Debug builds only, and only when explicitly asked for.** `isActive`
 /// compiles to a constant `false` outside `#if DEBUG`, so a release build can
 /// never seed anything whatever it is launched with; and a debug build still
-/// does nothing without `-CardWiseDemoSeed` on the command line, which is not
+/// does nothing without `-CardAheadDemoSeed` on the command line, which is not
 /// an argument anybody types by accident.
 ///
 /// This exists because of the one fact that shapes this repo: development
@@ -21,12 +21,12 @@ import CardKit
 /// seeded run cannot overwrite anybody's actual wallet.
 enum DemoSeed {
 
-    static let launchArgument = "-CardWiseDemoSeed"
+    static let launchArgument = "-CardAheadDemoSeed"
     /// Which tab to open on. CI photographs one screen per launch rather than
     /// tapping through, because `simctl` cannot tap and a scripted tap against
     /// a UI that is being redesigned is the least reliable part of any
     /// screenshot pipeline.
-    static let tabArgument = "-CardWiseDemoTab"
+    static let tabArgument = "-CardAheadDemoTab"
 
     /// The tab name CI asked for, when it asked for one.
     static var requestedTab: String? {

@@ -61,7 +61,7 @@ struct AddCardView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Metric.roomy) {
                     title
-                    CardWiseSearchField(
+                    CardAheadSearchField(
                         placeholder: "Search banks or cards",
                         text: $query,
                         ground: .tinted
@@ -241,7 +241,7 @@ struct AddCardView: View {
             } label: {
                 Label("My card is not on the list", systemImage: "square.and.pencil")
             }
-            .buttonStyle(CardWiseSecondaryButtonStyle())
+            .buttonStyle(CardAheadSecondaryButtonStyle())
 
             Text("You describe it, and it is ranked exactly the same way. Cards added by hand carry no source or date, because nobody checked them against the bank.")
                 .font(.caption)
@@ -310,7 +310,7 @@ struct CardProductRow: View {
                             .foregroundStyle(Color.secondary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.cardWiseHairline, in: Capsule())
+                            .background(Color.cardAheadHairline, in: Capsule())
                     }
                 }
                 Text(feeLine)
@@ -342,7 +342,7 @@ struct CardProductRow: View {
         return "\(network), \(money(entry.card.annualFeeDollars)) a year"
     }
 
-    private func money(_ amount: Money) -> String { CardWiseFormat.money(amount) }
+    private func money(_ amount: Money) -> String { CardAheadFormat.money(amount) }
 }
 
 #Preview {

@@ -1,4 +1,4 @@
-# CardWise
+# CardAhead
 
 An iOS app that tells you which credit card to pay with, before you reach for
 your phone.
@@ -146,7 +146,7 @@ The app itself needs Apple's frameworks:
 ```bash
 brew install xcodegen
 xcodegen generate
-open CardWise.xcodeproj
+open CardAhead.xcodeproj
 ```
 
 If you do not have a Mac, CI has one. Every push to `main` builds an unsigned
@@ -195,7 +195,7 @@ that image during provisioning, which is a business relationship rather than a
 download. `CardArtLibrary` is the registry of artwork we hold a licence for, it
 **ships empty on purpose**, and a test fails the build if that quietly changes.
 `CardArtSource.resolve(for:)` is the only way to pick a face — licensed asset,
-then your own photo, then a card CardWise draws itself at the real ISO/IEC 7810
+then your own photo, then a card CardAhead draws itself at the real ISO/IEC 7810
 proportion with a chip and a contactless mark and no logo. The app says in words
 which of the three you are looking at.
 
@@ -206,7 +206,7 @@ revoked), what it covers (**permission to draw a card inside the app is not
 permission to put it in an App Store screenshot**), and between which dates.
 Every way that can go wrong — pending, revoked, lapsed, not started, wrong use,
 a manifest missing a field, a manifest that will not parse, a deleted photo —
-ends at the same place: CardWise draws the card. There is a test for each.
+ends at the same place: CardAhead draws the card. There is a test for each.
 
 Photographing your own card is the exact-match route, and it stays on the
 phone: found, flattened and cropped on device, never uploaded, never logged.
@@ -237,7 +237,7 @@ bars are editable.
 **Money is `Decimal`, rates are `Double`.** Dollar amounts and caps must not
 drift; earn rates are ratios and never accumulate.
 
-**The brand's own colours never touch a card face.** CardWise has an identity
+**The brand's own colours never touch a card face.** CardAhead has an identity
 — an icon, an accent colour, a Warning Yellow and Success Green off its own
 palette — applied to buttons and status text throughout the app. `CardArt`,
 the colours a *user* picks so their own card is recognisable in the stack, is

@@ -8,13 +8,13 @@ in App Store Connect, Google Cloud, or on a real iPhone.
 ## Blockers — do these before submitting
 
 1. **Privacy policy: hosted, and linked in the app.** It lives at
-   https://ohorak2002.github.io/portfolio/cardwise/privacy/ and is linked
+   https://ohorak2002.github.io/portfolio/cardahead/privacy/ and is linked
    from More › Privacy & legal (**code**). Still to do: paste that address
    into App Store Connect › App Privacy (5.1.1(i)).
 2. **Support URL: hosted, and linked in the app.** It lives at
-   https://ohorak2002.github.io/portfolio/cardwise/support/. Still to do:
+   https://ohorak2002.github.io/portfolio/cardahead/support/. Still to do:
    paste it into App Store Connect. The contact on both pages is
-   CardWise.help@outlook.com; use the same address as the App Store
+   CardAhead.help@outlook.com; use the same address as the App Store
    Connect contact email.
 3. **Places key restricted and quota-capped.** In Google Cloud: API
    restriction = Places API (New) only; Application restriction = iOS apps,
@@ -49,7 +49,7 @@ in App Store Connect, Google Cloud, or on a real iPhone.
 | Everything else | No | — | — | — |
 
 Being conservative on location is deliberate: the coordinate goes to a third
-party whose retention CardWise does not control. Search text typed into the
+party whose retention CardAhead does not control. Search text typed into the
 map also goes to Google/Apple for the real-time lookup only; Apple's
 definition of "collect" excludes data used only to service a request in real
 time, but if in doubt, add "Search History — not linked — App Functionality".
@@ -74,13 +74,13 @@ card artwork (`CardArtLibrary` is empty by design) and uses issuer names only
 to identify cards.
 
 **Review notes (paste and adapt):**
-> CardWise needs no account. Add a card from More or the Wallet's + button
+> CardAhead needs no account. Add a card from More or the Wallet's + button
 > (e.g. search "Gold"). Location: the app asks for While Using, then Always,
 > because arrival reminders are delivered by iOS geofences while the app is
 > closed; the app works fully without location except for those reminders
 > and the map. Reminders fire a few minutes after arriving at a shop where one
 > of the user's cards earns a bonus, so they are hard to observe in review.
-> CardWise does not connect to banks and never reads card numbers.
+> CardAhead does not connect to banks and never reads card numbers.
 
 Optionally attach a short screen recording of a reminder arriving.
 

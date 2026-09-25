@@ -44,7 +44,7 @@ struct RegionEvent: Identifiable, Codable, Hashable, Sendable {
 ///   quietly. `RegionPlanner` owns picking the right twenty.
 /// - Region monitoring **relaunches a terminated app** to deliver an entry or
 ///   exit, so the manager and its delegate must exist by the time the app
-///   finishes launching — which is why this is built in `CardWiseApp.init`
+///   finishes launching — which is why this is built in `CardAheadApp.init`
 ///   and not lazily on the first screen that wants it.
 /// - Region events need **Always** authorization. With When In Use, iOS accepts
 ///   the registration but only reports while the app is in the foreground,

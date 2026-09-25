@@ -3,7 +3,7 @@ import XCTest
 
 /// The test for the bug that only a real phone could find.
 ///
-/// CardWise's Map came back from its first outing on a handset showing
+/// CardAhead's Map came back from its first outing on a handset showing
 /// "Could not look up nearby places. The place lookup was refused (400).
 /// Unsupported types: grocery_or_supermarket." and **zero** pins — not zero
 /// grocers, zero everything, because one unrecognised entry in `includedTypes`

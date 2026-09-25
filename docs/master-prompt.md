@@ -109,7 +109,7 @@ Handle these edge cases explicitly:
 >   real Amex front because Amex sends Apple that image during provisioning,
 >   which is a business relationship and not something a third-party app can
 >   copy. The app instead resolves a face three ways — a licensed asset where a
->   grant is recorded, the user's own photo of their card, or one CardWise draws
+>   grant is recorded, the user's own photo of their card, or one CardAhead draws
 >   at the real ISO/IEC 7810 proportion with a chip and a contactless mark and
 >   no logo. `CardArtLibrary` ships empty and a test keeps it that way. See
 >   `docs/card-art.md`.

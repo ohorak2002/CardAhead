@@ -18,7 +18,7 @@ Widgets, Watch, scanning, transaction import, and onboarding are outside this fi
 
 ## Plugin review receipt
 
-Applied SwiftUI Expert 5.0.0 (`skills/swiftui-expert-skill/SKILL.md`), Build iOS Apps 0.1.2 (`skills/swiftui-performance-audit/SKILL.md`), and App Design Research 0.1.5 (`skills/app-design-review/SKILL.md`) from the installed plugin cache. Inputs are the user's ChatGPT-generated design references, the prior CardWise UI, current SwiftUI source, and CI-generated images; no external app research or paid design service was used.
+Applied SwiftUI Expert 5.0.0 (`skills/swiftui-expert-skill/SKILL.md`), Build iOS Apps 0.1.2 (`skills/swiftui-performance-audit/SKILL.md`), and App Design Research 0.1.5 (`skills/app-design-review/SKILL.md`) from the installed plugin cache. Inputs are the user's ChatGPT-generated design references, the prior CardAhead UI, current SwiftUI source, and CI-generated images; no external app research or paid design service was used.
 
 The review focused on three findings:
 

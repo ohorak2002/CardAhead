@@ -7,7 +7,7 @@ final class EverydayFlowsTests: XCTestCase {
     @MainActor
     func testAllOffRemainsNoneThroughSearchAndCancel() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "mapfilters"]
+        app.launchArguments = ["-CardAheadDemoSeed", "-CardAheadDemoTab", "mapfilters"]
         app.launch()
         let all = app.buttons["All"].firstMatch
         XCTAssertTrue(all.waitForExistence(timeout: 15))
@@ -31,7 +31,7 @@ final class EverydayFlowsTests: XCTestCase {
     @MainActor
     func testOfferGuidanceCanBeCancelledWithoutSaving() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "benefits"]
+        app.launchArguments = ["-CardAheadDemoSeed", "-CardAheadDemoTab", "benefits"]
         app.launch()
         let add = app.buttons["Add a reward or offer"].firstMatch
         XCTAssertTrue(add.waitForExistence(timeout: 15))
@@ -49,7 +49,7 @@ final class EverydayFlowsTests: XCTestCase {
     @MainActor
     func testNicknamePreferenceSurvivesRelaunch() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "organize"]
+        app.launchArguments = ["-CardAheadDemoSeed", "-CardAheadDemoTab", "organize"]
         app.launch()
         let row = app.buttons["organization.card.11111111-1111-4111-8111-111111111111"]
         XCTAssertTrue(row.waitForExistence(timeout: 15))
@@ -80,7 +80,7 @@ final class EverydayFlowsTests: XCTestCase {
     @MainActor
     func testComparisonSelectionAndBack() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "more"]
+        app.launchArguments = ["-CardAheadDemoSeed", "-CardAheadDemoTab", "more"]
         app.launch()
         let compare = app.buttons["Compare cards"]
         XCTAssertTrue(compare.waitForExistence(timeout: 15))
@@ -99,7 +99,7 @@ final class EverydayFlowsTests: XCTestCase {
     @MainActor
     func testContextualExplanationOpensAndCloses() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "today"]
+        app.launchArguments = ["-CardAheadDemoSeed", "-CardAheadDemoTab", "today"]
         app.launch()
         let why = app.buttons["recommendation.why"].firstMatch
         XCTAssertTrue(why.waitForExistence(timeout: 15))
@@ -115,7 +115,7 @@ final class EverydayFlowsTests: XCTestCase {
     @MainActor
     func testAmountFieldOffersAWayOffTheKeyboard() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "today"]
+        app.launchArguments = ["-CardAheadDemoSeed", "-CardAheadDemoTab", "today"]
         app.launch()
         let goal = app.buttons["Edit goal"].firstMatch
         XCTAssertTrue(goal.waitForExistence(timeout: 15))
@@ -143,7 +143,7 @@ final class EverydayFlowsTests: XCTestCase {
     @MainActor
     func testAZeroAmountIsReplacedRatherThanTypedInto() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "benefits"]
+        app.launchArguments = ["-CardAheadDemoSeed", "-CardAheadDemoTab", "benefits"]
         app.launch()
         let add = app.buttons["Add a reward or offer"].firstMatch
         XCTAssertTrue(add.waitForExistence(timeout: 15))
@@ -169,7 +169,7 @@ final class EverydayFlowsTests: XCTestCase {
     @MainActor
     func testPrivacyAndLegalIsReachableFromMore() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "more"]
+        app.launchArguments = ["-CardAheadDemoSeed", "-CardAheadDemoTab", "more"]
         app.launch()
         let row = app.buttons["Privacy & legal"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 15))
@@ -192,7 +192,7 @@ final class EverydayFlowsTests: XCTestCase {
     @MainActor
     func testImpactSharingIsHiddenWithoutAService() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-CardWiseDemoSeed", "-CardWiseDemoTab", "impact"]
+        app.launchArguments = ["-CardAheadDemoSeed", "-CardAheadDemoTab", "impact"]
         app.launch()
         XCTAssertTrue(app.switches["Keep track of this"].firstMatch.waitForExistence(timeout: 15))
         XCTAssertFalse(app.buttons["Impact sharing & account"].exists)

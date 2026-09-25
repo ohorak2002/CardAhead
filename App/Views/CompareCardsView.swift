@@ -21,8 +21,8 @@ struct CompareCardsView: View {
                 Text("Compare what your cards earn today, alongside their fees and credits.")
                     .font(.subheadline).foregroundStyle(Color.secondary)
                 if wallet.cards.count < 2 {
-                    CardWiseEmptyState(symbolName: "rectangle.on.rectangle", title: "Two cards, one clear comparison", message: "Add another card to compare the cards you actually carry.") {
-                        Button("Add a card") { isAdding = true }.buttonStyle(.cardWisePrimary)
+                    CardAheadEmptyState(symbolName: "rectangle.on.rectangle", title: "Two cards, one clear comparison", message: "Add another card to compare the cards you actually carry.") {
+                        Button("Add a card") { isAdding = true }.buttonStyle(.cardAheadPrimary)
                     }
                 } else {
                     selectors
@@ -37,7 +37,7 @@ struct CompareCardsView: View {
                             earningRow(category, first, second)
                         }
                         comparisonRow("Annual fee", first: first, second: second) { card in
-                            Text(CardWiseFormat.money(card.annualFeeDollars) + " / year")
+                            Text(CardAheadFormat.money(card.annualFeeDollars) + " / year")
                                 .font(.headline).monospacedDigit()
                         }
                         comparisonRow("Foreign transaction fee", first: first, second: second) { card in
@@ -131,8 +131,8 @@ struct CompareCardsView: View {
                     if better { Label("Higher value", systemImage: "checkmark.circle.fill").font(.caption2).foregroundStyle(InterfacePalette.blue) }
                     Text(String(format: "%.2f¢ per $1", score.effectiveCentsPerDollar))
                         .font(.caption).monospacedDigit().foregroundStyle(Color.secondary)
-                    if score.needsActivation { Text("Quarterly bonus not switched on").font(.caption2).foregroundStyle(Color.cardWiseWarning) }
-                    if score.isCapExhausted { Text("Bonus cap used up").font(.caption2).foregroundStyle(Color.cardWiseWarning) }
+                    if score.needsActivation { Text("Quarterly bonus not switched on").font(.caption2).foregroundStyle(Color.cardAheadWarning) }
+                    if score.isCapExhausted { Text("Bonus cap used up").font(.caption2).foregroundStyle(Color.cardAheadWarning) }
                 }
             }
         }

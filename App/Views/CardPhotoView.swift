@@ -120,7 +120,7 @@ struct CardPhotoView: View {
         } header: {
             Text("Photograph the front").textCase(nil)
         } footer: {
-            Text("Lay the card flat, fill the frame, and CardWise will straighten it and crop it to card shape. Photograph the front — the back is the side with the security code on it, and nothing here needs it.")
+            Text("Lay the card flat, fill the frame, and CardAhead will straighten it and crop it to card shape. Photograph the front — the back is the side with the security code on it, and nothing here needs it.")
         }
     }
 
@@ -131,14 +131,14 @@ struct CardPhotoView: View {
                 dismiss()
             }
         } footer: {
-            Text("Deletes the photo from this iPhone and goes back to the card CardWise draws.")
+            Text("Deletes the photo from this iPhone and goes back to the card CardAhead draws.")
         }
     }
 
     private var privacySection: some View {
         Section {
             Label("Stays on this iPhone. Never uploaded, never sent anywhere.", systemImage: "iphone")
-            Label("CardWise does not read your card. No number, no security code, no expiry date — the app has never needed them.", systemImage: "eye.slash")
+            Label("CardAhead does not read your card. No number, no security code, no expiry date — the app has never needed them.", systemImage: "eye.slash")
         } footer: {
             Text("Erasing everything in Settings deletes your card photos with the rest.")
         }

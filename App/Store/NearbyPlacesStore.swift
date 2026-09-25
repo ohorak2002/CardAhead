@@ -94,7 +94,7 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
 
     /// The shops that already have a geofence, read the same way.
     ///
-    /// Wired in `CardWiseApp` to `RegionMonitor.plan?.watchedPlaces`. Reading
+    /// Wired in `CardAheadApp` to `RegionMonitor.plan?.watchedPlaces`. Reading
     /// it rather than holding it keeps the two objects uncoupled — and
     /// because the read happens inside `results`, which is evaluated while a
     /// view body is running, `@Observable` still tracks the monitor's plan
@@ -374,9 +374,9 @@ final class NearbyPlacesStore: NSObject, CLLocationManagerDelegate {
         }
         switch places {
         case .missingAPIKey:
-            return "CardWise was built without a place provider, so it has nowhere to get shops from."
+            return "CardAhead was built without a place provider, so it has nowhere to get shops from."
         case .malformedResponse:
-            return "The place lookup answered with something CardWise could not read."
+            return "The place lookup answered with something CardAhead could not read."
         case .server(let status, let message):
             return "The place lookup was refused (\(status)). \(message)"
         }

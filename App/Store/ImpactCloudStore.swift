@@ -76,7 +76,7 @@ final class ImpactCloudStore {
         guard signedIn else { return }
         do {
             try await refreshSessionIfNeeded()
-            let data = try await rpc("cardwise_is_owner", body: [:])
+            let data = try await rpc("cardahead_is_owner", body: [:])
             isOwner = (try? JSONDecoder().decode(Bool.self, from: data)) == true
         } catch { isOwner = false }
     }
@@ -93,20 +93,20 @@ final class ImpactCloudStore {
                 while self.state.enabled || self.state.needsRevocation || self.state.needsDeletion {
                     let epoch = self.state.epoch
                     if self.state.needsDeletion {
-                        _ = try await self.rpc("cardwise_delete_shared", body: [:])
+                        _ = try await self.rpc("cardahead_delete_shared", body: [:])
                         if self.state.epoch == epoch { self.state.acknowledgePrivacyChange() }
                         self.status = "Previously shared records deleted. Sharing is off."
                     } else if self.state.needsRevocation {
-                        _ = try await self.rpc("cardwise_set_sharing", body: ["enabled": false, "epoch": epoch.uuidString])
+                        _ = try await self.rpc("cardahead_set_sharing", body: ["enabled": false, "epoch": epoch.uuidString])
                         if self.state.epoch == epoch { self.state.acknowledgePrivacyChange() }
                         self.status = "Sharing is off. Previously shared records remain until you delete them."
                     } else {
-                        _ = try await self.rpc("cardwise_set_sharing", body: ["enabled": true, "epoch": epoch.uuidString])
+                        _ = try await self.rpc("cardahead_set_sharing", body: ["enabled": true, "epoch": epoch.uuidString])
                         guard self.state.enabled, self.state.epoch == epoch else { continue }
                         let batch = Array(self.state.pending.prefix(100))
                         if batch.isEmpty { self.status = "Sharing is on. No pending uploads."; break }
                         let records = try JSONSerialization.jsonObject(with: JSONEncoder().encode(batch))
-                        _ = try await self.rpc("cardwise_upload", body: ["epoch": epoch.uuidString, "records": records])
+                        _ = try await self.rpc("cardahead_upload", body: ["epoch": epoch.uuidString, "records": records])
                         self.state.acknowledge(Set(batch.map(\.id)), epoch: epoch)
                         self.status = "Shared \(batch.count) reports. Estimates and user reports are not verified outcomes."
                     }
@@ -114,7 +114,7 @@ final class ImpactCloudStore {
                 }
             } catch {
                 self.state.failed(); self.save()
-                self.status = self.state.needsDeletion ? "Deletion pending. Reconnect and stay signed in to finish." : "Delivery pending. CardWise will retry with the same record IDs when connected."
+                self.status = self.state.needsDeletion ? "Deletion pending. Reconnect and stay signed in to finish." : "Delivery pending. CardAhead will retry with the same record IDs when connected."
                 self.scheduleRetry()
             }
         }
@@ -130,7 +130,7 @@ final class ImpactCloudStore {
     func dashboard(from: Date, to: Date) async throws -> OwnerDashboard {
         try await refreshSessionIfNeeded()
         // Authorization happens on the server every time, regardless of cached UI state.
-        let data = try await rpc("cardwise_dashboard", body: ["from_day": SharedImpactRecord.day(from), "to_day": SharedImpactRecord.day(to)])
+        let data = try await rpc("cardahead_dashboard", body: ["from_day": SharedImpactRecord.day(from), "to_day": SharedImpactRecord.day(to)])
         return try JSONDecoder().decode(OwnerDashboard.self, from: data)
     }
     private func refreshSessionIfNeeded() async throws {
@@ -173,7 +173,7 @@ struct CloudSession: Codable {
     var user: User
 }
 private enum CloudSessionKeychain {
-    private static var query: [String: Any] { [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "CardWise.Impact", kSecAttrAccount as String: "session"] }
+    private static var query: [String: Any] { [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "CardAhead.Impact", kSecAttrAccount as String: "session"] }
     static func read() -> CloudSession? {
         var q = query; q[kSecReturnData as String] = true; q[kSecMatchLimit as String] = kSecMatchLimitOne
         var item: CFTypeRef?

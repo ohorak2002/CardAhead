@@ -11,7 +11,7 @@ owner access denied. Wallets, photos and local Impact remain usable without it.
    Enable email/password authentication and **Confirm email**; configure SMTP,
    the confirmation destination/site URL, rate limits and abuse protection.
 2. Run `backend/migrations/001_impact.sql` once in the project's trusted SQL
-   editor, as database owner. Do not expose `cardwise_private` in Data API schemas.
+   editor, as database owner. Do not expose `cardahead_private` in Data API schemas.
    Never run `backend/tests/bootstrap.sql` against Supabase; it is CI-only.
 3. Set these GitHub Actions **repository variables** for the IPA job:
    `IMPACT_SERVICE_URL=https://YOUR_PROJECT.supabase.co` and
@@ -27,7 +27,7 @@ owner access denied. Wallets, photos and local Impact remain usable without it.
    needs to be committed to this repository.
 
    ```sql
-   insert into cardwise_private.owner_config(singleton, user_id)
+   insert into cardahead_private.owner_config(singleton, user_id)
    select true, id from auth.users
    where id = 'YOUR-VERIFIED-AUTH-USER-UUID'::uuid
      and email_confirmed_at is not null
@@ -37,7 +37,7 @@ owner access denied. Wallets, photos and local Impact remain usable without it.
    Confirm exactly one row was inserted/updated. No matching verified account
    means no access. There is never a first-user administrator.
 6. Reopen Impact sharing. Only a successful server owner check reveals
-   **Owner dashboard**. It loads aggregates from `cardwise_dashboard`; invoking
+   **Owner dashboard**. It loads aggregates from `cardahead_dashboard`; invoking
    that endpoint directly still requires the configured, verified owner.
 7. Before production, run the staging checks below, review project security
    advisors, restrict operator access, configure database backup retention, and

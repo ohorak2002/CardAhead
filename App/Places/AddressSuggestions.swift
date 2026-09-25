@@ -111,7 +111,7 @@ struct AddressSuggestionList: View {
                     HStack(spacing: Metric.snug) {
                         Image(systemName: "mappin.circle.fill")
                             .font(.title3)
-                            .foregroundStyle(Color.cardWiseBlue)
+                            .foregroundStyle(Color.cardAheadBlue)
                             .frame(width: 24)
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 2) {
@@ -140,6 +140,6 @@ struct AddressSuggestionList: View {
             Color(.secondarySystemGroupedBackground),
             in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
         )
-        .shadow(color: Color.cardWiseNavy.opacity(0.12), radius: 12, y: 4)
+        .shadow(color: Color.cardAheadNavy.opacity(0.12), radius: 12, y: 4)
     }
 }

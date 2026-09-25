@@ -39,7 +39,7 @@ never written to disk by the app.
 On a Mac, after `xcodegen generate`:
 
 ```bash
-xcodebuild build -project CardWise.xcodeproj -scheme CardWise -destination 'generic/platform=iOS Simulator' GOOGLE_PLACES_API_KEY=your-key-here
+xcodebuild build -project CardAhead.xcodeproj -scheme CardAhead -destination 'generic/platform=iOS Simulator' GOOGLE_PLACES_API_KEY=your-key-here
 ```
 
 To avoid passing it every time, put it in a local xcconfig that git ignores, or

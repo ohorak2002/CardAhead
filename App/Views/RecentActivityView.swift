@@ -75,8 +75,8 @@ struct ActivityEventRow: View {
 
     private var tint: Color {
         switch event.kind {
-        case .confirmed: return .cardWiseSuccess
-        case .failed: return .cardWiseWarning
+        case .confirmed: return .cardAheadSuccess
+        case .failed: return .cardAheadWarning
         case .cancelled, .skipped: return .secondary
         default: return .accentColor
         }

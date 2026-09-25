@@ -87,7 +87,7 @@ struct PlaceDetailView: View {
                         Button(recordedUse ? "Recorded in Your impact" : "I used this card") {
                             impact.recordUsedRecommendation(RecommendationSnapshot(recommendation, context: context), purchase: context.purchaseDollars)
                             recordedUse = true
-                        }.buttonStyle(.cardWisePrimary).disabled(recordedUse)
+                        }.buttonStyle(.cardAheadPrimary).disabled(recordedUse)
                         Text("Saves your report and these reward assumptions. The amount is optional; received rewards can be entered separately.")
                             .font(.caption).foregroundStyle(.secondary)
                     }.padding(.horizontal, Metric.margin)
@@ -154,7 +154,7 @@ struct PlaceDetailView: View {
                     .font(.footnote.weight(.semibold))
                     // Explicit `Color` on both branches — see the ternary
                     // trap in CLAUDE.md.
-                    .foregroundStyle(open ? Color.cardWiseSuccess : Color.secondary)
+                    .foregroundStyle(open ? Color.cardAheadSuccess : Color.secondary)
             }
             if let hours = place.hoursToday {
                 Text(hours)
@@ -265,7 +265,7 @@ struct PlaceDetailView: View {
                         .padding(.horizontal, Metric.tight)
                         .padding(.vertical, 3)
                         .background(
-                            open ? Color.cardWiseSuccess.opacity(0.35) : Color.white.opacity(0.18),
+                            open ? Color.cardAheadSuccess.opacity(0.35) : Color.white.opacity(0.18),
                             in: Capsule()
                         )
                 }
@@ -287,7 +287,7 @@ struct PlaceDetailView: View {
                 bottomTrailingRadius: 28,
                 style: .continuous
             )
-            .fill(.cardWiseHeader)
+            .fill(.cardAheadHeader)
             .ignoresSafeArea(edges: .top)
         }
     }
@@ -343,7 +343,7 @@ struct PlaceDetailView: View {
                             .font(.subheadline.weight(.medium))
                     }
                     .padding(Metric.regular)
-                    .cardWisePanel()
+                    .cardAheadPanel()
                 } else {
                     Menu {
                         ForEach(NotificationPolicy.MuteDuration.allCases, id: \.self) { duration in
@@ -360,7 +360,7 @@ struct PlaceDetailView: View {
                         }
                         .font(.subheadline)
                         .padding(Metric.regular)
-                        .cardWisePanel()
+                        .cardAheadPanel()
                     }
                 }
                 Text(muteFooter)
@@ -382,7 +382,7 @@ struct PlaceDetailView: View {
     /// changes is that nothing is said.
     private var muteFooter: String {
         isMuted
-            ? "CardWise still notices when you are here. It just says nothing."
+            ? "CardAhead still notices when you are here. It just says nothing."
             : "Stops reminders about this place. It keeps watching, and keeps counting."
     }
 
@@ -440,7 +440,7 @@ struct PlaceDetailView: View {
                                 .font(.subheadline.weight(.semibold))
                             Text(recommendation.best.reason)
                                 .font(.caption)
-                                .foregroundStyle(Color.cardWiseBlue)
+                                .foregroundStyle(Color.cardAheadBlue)
                         }
                         Spacer(minLength: 0)
                     }
@@ -462,7 +462,7 @@ struct PlaceDetailView: View {
                     if let nudge = recommendation.activationNudge {
                         Label(nudge.sentence, systemImage: "exclamationmark.circle.fill")
                             .font(.footnote)
-                            .foregroundStyle(Color.cardWiseWarning)
+                            .foregroundStyle(Color.cardAheadWarning)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     ForEach(recommendation.caveats, id: \.self) { caveat in
@@ -478,11 +478,11 @@ struct PlaceDetailView: View {
                         // a reminder arriving out of nowhere is the part of
                         // this app that feels like magic.
                         Label(
-                            "CardWise is watching this place, so you will be reminded when you arrive without opening the app.",
+                            "CardAhead is watching this place, so you will be reminded when you arrive without opening the app.",
                             systemImage: "bell.fill"
                         )
                         .font(.caption)
-                        .foregroundStyle(Color.cardWiseBlue)
+                        .foregroundStyle(Color.cardAheadBlue)
                         .fixedSize(horizontal: false, vertical: true)
                     }
                     if place.confidence == .categoryOnly {
@@ -496,7 +496,7 @@ struct PlaceDetailView: View {
                     }
                 }
                 .padding(Metric.regular)
-                .cardWisePanel()
+                .cardAheadPanel()
                 .padding(.horizontal, Metric.margin)
             } else {
                 Text(noRecommendationReason)
@@ -505,7 +505,7 @@ struct PlaceDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(Metric.regular)
-                    .cardWisePanel()
+                    .cardAheadPanel()
                     .padding(.horizontal, Metric.margin)
             }
         }
@@ -516,7 +516,7 @@ struct PlaceDetailView: View {
         if wallet.cards.isEmpty {
             return "There are no cards in your wallet yet, so there is nothing to rank. Add one and this fills in."
         }
-        return "CardWise cannot tell what this sort of place codes as, so it will not guess a category. Whichever card you would normally use is as good an answer as it has."
+        return "CardAhead cannot tell what this sort of place codes as, so it will not guess a category. Whichever card you would normally use is as good an answer as it has."
     }
 
     // MARK: - What the provider said
@@ -540,7 +540,7 @@ struct PlaceDetailView: View {
                     }
                 }
                 .padding(Metric.regular)
-                .cardWisePanel()
+                .cardAheadPanel()
                 .padding(.horizontal, Metric.margin)
             }
         }
@@ -576,7 +576,7 @@ struct PlaceDetailView: View {
                             }
                             .frame(width: 140, alignment: .leading)
                             .padding(Metric.snug)
-                            .cardWisePanel(radius: Metric.tileRadius)
+                            .cardAheadPanel(radius: Metric.tileRadius)
                         }
                     }
                     .padding(.horizontal, Metric.margin)
@@ -597,7 +597,7 @@ private struct Fact: View {
         HStack(alignment: .top, spacing: Metric.snug) {
             Image(systemName: symbolName)
                 .font(.subheadline)
-                .foregroundStyle(Color.cardWiseBlue)
+                .foregroundStyle(Color.cardAheadBlue)
                 .frame(width: 22)
             Text(text)
                 .font(.footnote)
@@ -616,10 +616,10 @@ private struct ActionLabel: View {
         VStack(spacing: 6) {
             Image(systemName: symbolName)
                 .font(.headline)
-                .foregroundStyle(Color.cardWiseBlue)
+                .foregroundStyle(Color.cardAheadBlue)
                 .frame(width: 46, height: 46)
                 .background(.background, in: Circle())
-                .shadow(color: Color.cardWiseNavy.opacity(0.08), radius: 6, y: 2)
+                .shadow(color: Color.cardAheadNavy.opacity(0.08), radius: 6, y: 2)
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)

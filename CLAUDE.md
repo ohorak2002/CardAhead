@@ -90,12 +90,12 @@ App/
   Places/PlacesProvider.swift            URLSession, and the API key or not.
                          Vends two sources off one key: makeSource() for
                          geofences, makePlaceSearchSource() for the map
-  Theme/CardWiseColor.swift              the brand palette, chrome only —
+  Theme/CardAheadColor.swift             the brand palette, chrome only —
                          never a card face; see CardArt below
-  Theme/CardWiseStyle.swift              the design system: Metric (8pt grid),
+  Theme/CardAheadStyle.swift             the design system: Metric (8pt grid),
                          the two gradients, per-category tint and symbol, and
                          the shared pieces (CategoryIcon, StatTile, TagPill,
-                         SectionHeader, .cardWisePanel())
+                         SectionHeader, .cardAheadPanel())
   Store/DemoSeed.swift                   debug-only seeded wallet, so CI can
                          photograph screens with something on them
   Theme/CardArt.swift                    the colours a *user* picks for a
@@ -106,7 +106,7 @@ App/
   CardPhoto/CameraPicker.swift           UIImagePickerController, presented on
                          a tap and nowhere near launch
   Assets.xcassets/                       AppIcon (single 1024px), AccentColor,
-                         CardWiseSuccess/Warning/Error color sets
+                         CardAheadSuccess/Warning/Error color sets
   Views/                         see below. AddCardView + CardBenefitsView
                          are the add flow; CardEditorView is the way out
 project.yml             XcodeGen spec. The .xcodeproj is generated, not
@@ -308,11 +308,11 @@ not go back there.
 - **Two benefits refuse to be removed.** The base rate is what every other rule
   falls back to, and the rotating programme belongs to the issuer — hiding it
   would only hide it from the person it is being kept honest for.
-- **The CardWise brand palette lives in `App/Theme/CardWiseColor.swift` and
+- **The CardAhead brand palette lives in `App/Theme/CardAheadColor.swift` and
   `App/Assets.xcassets`, and is deliberately separate from `CardArt`.**
   `CardArt` is the colours a user picks so their own card is recognisable —
-  wide open on purpose, never brand colour. `CardWiseColor` is the app's own
-  identity (`.cardWiseSuccess`/`.cardWiseWarning`/`.cardWiseError`, plus the
+  wide open on purpose, never brand colour. `CardAheadColor` is the app's own
+  identity (`.cardAheadSuccess`/`.cardAheadWarning`/`.cardAheadError`, plus the
   `AccentColor` asset), applied only to chrome. The palette's neutrals
   (Charcoal, Slate Gray, Light Gray, Off White) are **not** wired in anywhere
   — `.primary`/`.secondary`/system backgrounds already mean those roles and
@@ -499,9 +499,9 @@ not go back there.
   when raising `.recommendationIgnored`, because somebody who said yes and
   never got round to a number has not ignored anything.
 
-- **The design system is `App/Theme/CardWiseStyle.swift`, and nothing should
+- **The design system is `App/Theme/CardAheadStyle.swift`, and nothing should
   hardcode a spacing or a radius.** `Metric` is an 8-point grid, `Metric.margin`
-  is the one screen margin, and `.cardWisePanel()` is the surface everything
+  is the one screen margin, and `.cardAheadPanel()` is the surface everything
   sits on — with a *navy-tinted* shadow, because a grey shadow on a coloured
   ground is the single most common tell of an interface nobody looked at
   twice. `BenefitGroup.tint`/`.symbolName` make a category recognisable before
@@ -549,7 +549,7 @@ not go back there.
   for.
 - **CI photographs the app; that is the only way anybody sees it.** The
   `screenshots` job boots a simulator, installs a debug build, and relaunches
-  it once per tab with `-CardWiseDemoSeed -CardWiseDemoTab <tab>`, light and
+  it once per tab with `-CardAheadDemoSeed -CardAheadDemoTab <tab>`, light and
   dark, uploading PNGs as an artifact. Two of the names are not tabs:
   `impact` lands on More and pushes the impact screen, and `watching` lands on
   Map with the Watching chip already on — both because `simctl` cannot tap,
@@ -730,7 +730,7 @@ not go back there.
   Turning it on also clears the category filter, so "watching" always means
   all of them rather than a set narrowed by a chip set ten minutes ago.
 - **The Watching chip is shown even when nothing is watched, on purpose.**
-  "CardWise is not watching anything yet, and here is what is missing" is
+  "CardAhead is not watching anything yet, and here is what is missing" is
   precisely what somebody taps it for. Hiding the chip would hide the
   diagnosis along with the diagnostic.
 - **Haptics: `.selection` on selecting a pin, `.impact(.light)` on opening a
@@ -749,7 +749,7 @@ not go back there.
   running the real planner over its own places, so it can only ever contain
   states the app can really reach.
 - **Haptics fire on a `Pulse`, and only at commit points.** `Pulse` (in
-  `CardWiseStyle.swift`) is a counter, because `sensoryFeedback(_:trigger:)`
+  `CardAheadStyle.swift`) is a counter, because `sensoryFeedback(_:trigger:)`
   watches a value for a *change* — triggering on the card that was removed
   means removing the same card twice fires once, and triggering on
   `cards.count` means an add and an undo feel identical. The full set, and why
@@ -784,7 +784,7 @@ not go back there.
   the same.
 - **Typed numbers go through `NumberField`, and every screen with a field on
   it gets `.keyboardDoneButton()`.** Both come from
-  `App/Theme/CardWiseNumberEntry.swift`, and both fix something found on a
+  `App/Theme/CardAheadNumberEntry.swift`, and both fix something found on a
   real phone rather than in a screenshot. **The decimal pad has no return
   key** — `.keyboardType(.decimalPad)` draws ten digits, a separator and a
   backspace, so on a screen where the field is the last thing above the fold
@@ -800,8 +800,8 @@ not go back there.
   clearing it on a stray tap loses it.
 - **Three places describe what leaves the phone, and they change together.**
   More › Privacy & legal (`PrivacyAndLegalView`), `App/PrivacyInfo.xcprivacy`
-  and the live policy page (the portfolio repo's `cardwise/privacy/index.html`,
-  served at ohorak2002.github.io/portfolio/cardwise/privacy/). A new network
+  and the live policy page (the portfolio repo's `cardahead/privacy/index.html`,
+  served at ohorak2002.github.io/portfolio/cardahead/privacy/). A new network
   call, SDK or stored field means
   editing all three in the same commit, plus the App Privacy answers in
   `docs/app-store-submission.md`. Copy anywhere in the app must not say
@@ -867,7 +867,7 @@ keeping:
   platform the app ships on, so the formatting itself is not a bug; a test
   that cares which CI job ran it is.
 - **`.background` is pure black in dark mode, and so is the page under it.**
-  `.cardWisePanel()` filled with `.background` (= `systemBackground`) while
+  `.cardAheadPanel()` filled with `.background` (= `systemBackground`) while
   every screen sits on `systemGroupedBackground`. In light mode that is white
   on grey and looks right; at night both are `#000` and every panel in the app
   was black on black, separated only by a navy shadow that is itself invisible
@@ -881,7 +881,7 @@ keeping:
 - **A hierarchical style on a material paints nothing.** The map's bottom
   sheet was `.background(.regularMaterial)`, and every `.foregroundStyle(
   .secondary)` inside it — the facts line under each place name, the
-  "CardWise recommendation" label, the runner-up sentence — plus every
+  "CardAhead recommendation" label, the runner-up sentence — plus every
   `Divider()` rendered as **completely blank**. Not faint: measured at exactly
   the background's own luminance across all 77 points where they should have
   been, in light *and* dark. A material applies vibrancy to hierarchical
@@ -900,9 +900,9 @@ keeping:
 - **`Color` and `HierarchicalShapeStyle` don't unify in a ternary** passed to
   `.foregroundStyle(...)` — write `condition ? Color.x : Color.y` explicitly.
   **This one was hit a second time, by Claude, in the same file, after this
-  exact warning was already written down.** `cap.isExhausted ? .cardWiseWarning
+  exact warning was already written down.** `cap.isExhausted ? .cardAheadWarning
   : .secondary` failed to build because `.secondary` resolved against
-  `ShapeStyle` and `cardWiseWarning` is only declared on `Color`. CI caught it;
+  `ShapeStyle` and `cardAheadWarning` is only declared on `Color`. CI caught it;
   it would not have been caught by reading the diff. Read this bullet before
   writing a color ternary in a SwiftUI modifier, not after CI fails on it.
 

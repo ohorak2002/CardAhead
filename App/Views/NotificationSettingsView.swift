@@ -1,7 +1,7 @@
 import SwiftUI
 import CardKit
 
-/// How much CardWise is allowed to say, and about what.
+/// How much CardAhead is allowed to say, and about what.
 ///
 /// **The whole screen is refinement, not setup.** Every control here already
 /// has an answer that works — Balanced, quiet from ten to eight, every
@@ -52,7 +52,7 @@ struct NotificationSettingsView: View {
                         if notifications.policy.intensity == intensity {
                             Image(systemName: "checkmark")
                                 .font(.body.weight(.semibold))
-                                .foregroundStyle(Color.cardWiseBlue)
+                                .foregroundStyle(Color.cardAheadBlue)
                         }
                     }
                 }
@@ -63,7 +63,7 @@ struct NotificationSettingsView: View {
         } header: {
             Text("How often").textCase(nil)
         } footer: {
-            Text("These change how good an opportunity has to be, and how many you hear about in a day. They do not change what CardWise watches for.")
+            Text("These change how good an opportunity has to be, and how many you hear about in a day. They do not change what CardAhead watches for.")
         }
     }
 
@@ -161,7 +161,7 @@ struct NotificationSettingsView: View {
         } header: {
             Text("Kinds of place").textCase(nil)
         } footer: {
-            Text("Switched off, CardWise keeps watching and keeps counting — it just says nothing when you arrive.")
+            Text("Switched off, CardAhead keeps watching and keeps counting — it just says nothing when you arrive.")
         }
     }
 

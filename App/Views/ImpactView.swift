@@ -43,7 +43,7 @@ struct ImpactView: View {
                     NavigationLink("Impact sharing & account") { ImpactSharingView() }
                 }
                 if !impact.receivedRewards.isEmpty {
-                    Text("Reported received: " + CardWiseFormat.money(impact.receivedRewards.reduce(Decimal.zero) { $0 + $1.receivedDollars }))
+                    Text("Reported received: " + CardAheadFormat.money(impact.receivedRewards.reduce(Decimal.zero) { $0 + $1.receivedDollars }))
                     Text("User-reported rewards and credits; not independently verified.").font(.caption)
                 }
                 recordingControls
@@ -55,7 +55,7 @@ struct ImpactView: View {
             .padding(.bottom, 90)
         }
         .background(InterfacePalette.page)
-        .navigationTitle("CardWise impact")
+        .navigationTitle("CardAhead impact")
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -84,12 +84,12 @@ struct ImpactView: View {
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Metric.roomy)
-        .background(.cardWiseAccentGradient, in: RoundedRectangle(cornerRadius: Metric.cardRadius, style: .continuous))
+        .background(.cardAheadAccentGradient, in: RoundedRectangle(cornerRadius: Metric.cardRadius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Metric.cardRadius)
                 .strokeBorder(.white.opacity(0.22), lineWidth: 1)
         }
-        .shadow(color: Color.cardWiseBlue.opacity(0.16), radius: 14, x: 0, y: 6)
+        .shadow(color: Color.cardAheadBlue.opacity(0.16), radius: 14, x: 0, y: 6)
         .accessibilityElement(children: .combine)
     }
 
@@ -184,7 +184,7 @@ struct ImpactView: View {
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Metric.regular)
-            .cardWisePanel()
+            .cardAheadPanel()
     }
 
     /// Whether this build can share at all. See the link in `body`.
@@ -215,7 +215,7 @@ struct ImpactView: View {
             }
         }
         .padding(Metric.regular)
-        .cardWisePanel()
+        .cardAheadPanel()
     }
 
     // MARK: - Numbers as words

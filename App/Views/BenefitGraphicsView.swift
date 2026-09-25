@@ -13,15 +13,15 @@ struct BenefitGraphicsView: View {
             // added is the occasional one, so it wears the quieter style — the
             // same blue family, a pale tinted bubble instead of a filled one.
             VStack(spacing: Metric.tight) {
-                Button("Add a reward or offer", systemImage: "plus") { adding = true }.buttonStyle(.cardWisePrimary)
+                Button("Add a reward or offer", systemImage: "plus") { adding = true }.buttonStyle(.cardAheadPrimary)
                 NavigationLink { PersonalOffersView() } label: {
                     Label("Manage personal offers", systemImage: "tag")
                 }
-                .buttonStyle(.cardWiseSecondary)
+                .buttonStyle(.cardAheadSecondary)
             }
             Text("Standard benefits & your adjustments")
                 .font(.system(.title2, design: .rounded).weight(.bold))
-                .foregroundStyle(Color.cardWiseActionInk)
+                .foregroundStyle(Color.cardAheadActionInk)
             Text("Rates describe eligible purchases. Map categories do not establish issuer eligibility.").font(.footnote).foregroundStyle(.secondary)
             ForEach(currencies, id: \.self) { currency in
                 VStack(alignment: .leading, spacing: 16) {
@@ -30,16 +30,16 @@ struct BenefitGraphicsView: View {
                     // card and rate titles beneath it.
                     Text(currency)
                         .font(.system(.title3, design: .rounded).weight(.bold))
-                        .foregroundStyle(Color.cardWiseActionInk)
+                        .foregroundStyle(Color.cardAheadActionInk)
                     ForEach(wallet.cards.filter { $0.currency.name == currency }) { card in
                         VStack(alignment: .leading, spacing: 12) {
                             // Card names are the title of each benefit panel.
                             // The larger light-blue treatment establishes that
                             // hierarchy without introducing a colour outside
-                            // CardWise's existing navy-and-blue palette.
+                            // CardAhead's existing navy-and-blue palette.
                             Text(card.displayName)
                                 .font(.system(.title2, design: .rounded).weight(.bold))
-                                .foregroundStyle(Color.cardWiseLightBlue)
+                                .foregroundStyle(Color.cardAheadLightBlue)
                             ForEach(card.benefits().filter { $0.kind == .rewardRate }) { benefit in
                                 NavigationLink { BenefitTermsView(cardID: card.id, origin: benefit.origin) } label: {
                                     VStack(alignment: .leading, spacing: 5) {

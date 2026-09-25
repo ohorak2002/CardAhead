@@ -63,19 +63,19 @@ enum Metric {
 extension Color {
     /// Primary Navy. The top of the brand gradient and nothing else — a navy
     /// this dark used as a fill swallows whatever sits on it.
-    static let cardWiseNavy = Color(red: 0.043, green: 0.122, blue: 0.267)
+    static let cardAheadNavy = Color(red: 0.043, green: 0.122, blue: 0.267)
     /// Secondary Blue, which is also the `AccentColor` asset. Declared here as
     /// a literal too, because a gradient needs a colour rather than a
     /// semantic tint that a parent view might have overridden.
-    static let cardWiseBlue = Color(red: 0.118, green: 0.337, blue: 0.839)
+    static let cardAheadBlue = Color(red: 0.118, green: 0.337, blue: 0.839)
     /// Text and controls on semantic surfaces; fixed brand blue stays in fills.
-    static let cardWiseActionInk = Color(uiColor: UIColor { traits in
+    static let cardAheadActionInk = Color(uiColor: UIColor { traits in
         traits.userInterfaceStyle == .dark
             ? UIColor(red: 0.56, green: 0.73, blue: 1.0, alpha: 1)
             : UIColor(red: 0.08, green: 0.27, blue: 0.70, alpha: 1)
     })
     /// Accent Blue. The bottom of the lighter gradient.
-    static let cardWiseAccent = Color(red: 0.231, green: 0.510, blue: 0.965)
+    static let cardAheadAccent = Color(red: 0.231, green: 0.510, blue: 0.965)
     /// Light Blue. The only palette colour that can tint text **on** the
     /// header gradient.
     ///
@@ -84,7 +84,7 @@ extension Color {
     /// **1.70:1**, worse than the invisible Card perks icon that `BrandTint`
     /// exists because of. Light Blue is 5.51:1 at the same spot and reads as
     /// the same idea — a name picked out from the words around it.
-    static let cardWiseLightBlue = Color(red: 0.902, green: 0.949, blue: 1.0)
+    static let cardAheadLightBlue = Color(red: 0.902, green: 0.949, blue: 1.0)
 
     // MARK: - The neutrals, at last, and only where the system has no opinion
     //
@@ -106,21 +106,21 @@ extension Color {
     /// Light Gray by day, a lifted charcoal by night. Hairlines, dividers
     /// inside a panel, and the border on an unselected control — the places
     /// `.separator` is too faint because the surface is already white.
-    static let cardWiseHairline = Color("CardWiseHairline", bundle: .main)
+    static let cardAheadHairline = Color("CardAheadHairline", bundle: .main)
 
     /// Off White by day, true charcoal by night. The ground a card face sits
     /// on when it needs to be distinguishable from the page *and* from a
     /// panel — the card preview on Add Card, mainly.
-    static let cardWiseCanvas = Color("CardWiseCanvas", bundle: .main)
+    static let cardAheadCanvas = Color("CardAheadCanvas", bundle: .main)
 }
 
 extension ShapeStyle where Self == LinearGradient {
     /// Navy to Secondary Blue. The header on Home and the hero on Impact, and
     /// deliberately nowhere else — a gradient that turns up on every surface
     /// stops meaning anything.
-    static var cardWiseHeader: LinearGradient {
+    static var cardAheadHeader: LinearGradient {
         LinearGradient(
-            colors: [.cardWiseNavy, .cardWiseBlue],
+            colors: [.cardAheadNavy, .cardAheadBlue],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
@@ -128,9 +128,9 @@ extension ShapeStyle where Self == LinearGradient {
 
     /// Secondary Blue to Accent Blue. Lighter, for a card sitting *on* a
     /// normal background rather than being the background.
-    static var cardWiseAccentGradient: LinearGradient {
+    static var cardAheadAccentGradient: LinearGradient {
         LinearGradient(
-            colors: [.cardWiseBlue, .cardWiseAccent],
+            colors: [.cardAheadBlue, .cardAheadAccent],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
@@ -380,12 +380,12 @@ struct PanelBackground: ViewModifier {
                 Color(.secondarySystemGroupedBackground),
                 in: RoundedRectangle(cornerRadius: radius, style: .continuous)
             )
-            .shadow(color: Color.cardWiseNavy.opacity(0.07), radius: 12, x: 0, y: 4)
+            .shadow(color: Color.cardAheadNavy.opacity(0.07), radius: 12, x: 0, y: 4)
     }
 }
 
 extension View {
-    func cardWisePanel(radius: CGFloat = Metric.cardRadius) -> some View {
+    func cardAheadPanel(radius: CGFloat = Metric.cardRadius) -> some View {
         modifier(PanelBackground(radius: radius))
     }
 }
@@ -395,7 +395,7 @@ extension View {
 /// mockup uses exactly one per row for a reason.
 struct TagPill: View {
     let text: String
-    var tint: Color = .cardWiseBlue
+    var tint: Color = .cardAheadBlue
 
     var body: some View {
         Text(text)
@@ -436,7 +436,7 @@ extension SectionHeader where Trailing == EmptyView {
 /// colours.** An issuer's mark and its trade dress are its own; a blue square
 /// reading "AE" next to the words "American Express" is the app's styling of a
 /// name it is entitled to say, which is a different thing from a reproduction
-/// of a brand. The colour comes off CardWise's own palette, picked
+/// of a brand. The colour comes off CardAhead's own palette, picked
 /// deterministically from the name so a bank looks the same on every launch
 /// and in every list — recognisable at a glance, which is the whole job — and
 /// never matches what the issuer actually uses.
@@ -458,9 +458,9 @@ struct IssuerMonogram: View {
     /// would give the same bank a different colour every time the app opened.
     private var tint: Color {
         let palette: [Color] = [
-            .cardWiseNavy,
-            .cardWiseBlue,
-            .cardWiseAccent,
+            .cardAheadNavy,
+            .cardAheadBlue,
+            .cardAheadAccent,
             Color(red: 0.063, green: 0.725, blue: 0.506),
             Color(red: 0.545, green: 0.361, blue: 0.965),
             Color(red: 0.078, green: 0.722, blue: 0.651),

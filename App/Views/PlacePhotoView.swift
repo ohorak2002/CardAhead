@@ -17,7 +17,7 @@ import CardKit
 ///   its colour. The same colour as its pin, which is the recognition job the
 ///   picture was doing, done the only other way available.
 /// - **No photographs at all**, because this build has no key: identical to
-///   the above, and deliberately so. "CardWise cannot show you pictures" is
+///   the above, and deliberately so. "CardAhead cannot show you pictures" is
 ///   not information anybody can act on.
 ///
 /// The fallback is not an apology. It is what CI photographs — the screenshot

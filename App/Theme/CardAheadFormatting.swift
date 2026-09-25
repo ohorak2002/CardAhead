@@ -16,7 +16,7 @@ import CardKit
 /// honours `maximumFractionDigits` on Darwin and ignores it on Linux, and
 /// CardKit's suite runs on both — a test that pins "$375" passes on the macOS
 /// job and fails on the Linux one. Assert the digits, not the formatting.
-enum CardWiseFormat {
+enum CardAheadFormat {
 
     static func money(_ amount: Money) -> String {
         let formatter = NumberFormatter()

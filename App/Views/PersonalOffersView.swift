@@ -237,7 +237,7 @@ struct OfferEditorView: View {
             if let date = prepared.expiresOn { Text("Expires \(date, style: .date)") }
             Text(prepared.stacking == .unknown ? "Conditional until stacking is confirmed" : prepared.stacking == .addsToStandard ? "Adds to standard rewards" : "Replaces standard rewards")
             Text(prepared.enrollmentRequired ? (prepared.enrolled ? "You report enrollment with the issuer" : "Enrollment still required") : "You report no enrollment requirement")
-            Text("User-provided. CardWise does not enroll you with the bank. Periods use calendar dates in UTC; enter separate offers for unusual issuer periods.").font(.caption)
+            Text("User-provided. CardAhead does not enroll you with the bank. Periods use calendar dates in UTC; enter separate offers for unusual issuer periods.").font(.caption)
             if let error { Text(error).foregroundStyle(.red) }
         }
     }

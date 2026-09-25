@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The controls CardWise draws itself, because the system's own are the
+/// The controls CardAhead draws itself, because the system's own are the
 /// loudest thing announcing that nobody designed this.
 ///
 /// **`.borderedProminent` was in eight places.** It is a perfectly good button
@@ -22,7 +22,7 @@ import SwiftUI
 ///
 /// Full width by default: a primary action at the bottom of a screen is a
 /// destination, not a word in a sentence.
-struct CardWisePrimaryButtonStyle: ButtonStyle {
+struct CardAheadPrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -35,7 +35,7 @@ struct CardWisePrimaryButtonStyle: ButtonStyle {
             .padding(.horizontal, Metric.roomy)
             .background {
                 RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
-                    .fill(.cardWiseHeader)
+                    .fill(.cardAheadHeader)
                     // Dimmed rather than greyed. A disabled button that turns
                     // grey looks broken; one that recedes looks unavailable.
                     .opacity(isEnabled ? 1 : 0.4)
@@ -56,20 +56,20 @@ struct CardWisePrimaryButtonStyle: ButtonStyle {
 /// The other thing you might do. Reads as a button without competing with the
 /// primary one — a tinted ground rather than a filled one, and the brand blue
 /// for the text instead of white.
-struct CardWiseSecondaryButtonStyle: ButtonStyle {
+struct CardAheadSecondaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
-            .foregroundStyle(isEnabled ? Color.cardWiseActionInk : Color.secondary)
+            .foregroundStyle(isEnabled ? Color.cardAheadActionInk : Color.secondary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, Metric.regular)
             .padding(.horizontal, Metric.roomy)
             .background {
                 RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
-                    .fill(Color.cardWiseBlue.opacity(isEnabled ? 0.10 : 0.05))
+                    .fill(Color.cardAheadBlue.opacity(isEnabled ? 0.10 : 0.05))
             }
             .scaleEffect(pressScale(configuration.isPressed))
             .animation(.snappy(duration: 0.18), value: configuration.isPressed)
@@ -82,13 +82,13 @@ struct CardWiseSecondaryButtonStyle: ButtonStyle {
     }
 }
 
-extension ButtonStyle where Self == CardWisePrimaryButtonStyle {
-    /// `Button("Add to Wallet") { }.buttonStyle(.cardWisePrimary)`
-    static var cardWisePrimary: CardWisePrimaryButtonStyle { CardWisePrimaryButtonStyle() }
+extension ButtonStyle where Self == CardAheadPrimaryButtonStyle {
+    /// `Button("Add to Wallet") { }.buttonStyle(.cardAheadPrimary)`
+    static var cardAheadPrimary: CardAheadPrimaryButtonStyle { CardAheadPrimaryButtonStyle() }
 }
 
-extension ButtonStyle where Self == CardWiseSecondaryButtonStyle {
-    static var cardWiseSecondary: CardWiseSecondaryButtonStyle { CardWiseSecondaryButtonStyle() }
+extension ButtonStyle where Self == CardAheadSecondaryButtonStyle {
+    static var cardAheadSecondary: CardAheadSecondaryButtonStyle { CardAheadSecondaryButtonStyle() }
 }
 
 // MARK: - Search
@@ -104,7 +104,7 @@ extension ButtonStyle where Self == CardWiseSecondaryButtonStyle {
 /// page's own grey in daylight, which is how the map's field came to be
 /// invisible in light mode. The grouped-secondary role is the one that means
 /// "a control sitting on a grouped page".
-struct CardWiseSearchField: View {
+struct CardAheadSearchField: View {
     let placeholder: String
     @Binding var text: String
     /// Called on the keyboard's Search key. Screens that filter as you type
@@ -151,7 +151,7 @@ struct CardWiseSearchField: View {
             ground.fill,
             in: RoundedRectangle(cornerRadius: Metric.tileRadius, style: .continuous)
         )
-        .shadow(color: Color.cardWiseNavy.opacity(ground.shadowOpacity), radius: 14, y: 5)
+        .shadow(color: Color.cardAheadNavy.opacity(ground.shadowOpacity), radius: 14, y: 5)
         .animation(.snappy(duration: 0.2), value: text.isEmpty)
     }
 }
@@ -202,7 +202,7 @@ enum ControlGround {
 /// **On is a solid fill with white on it; off is a panel with primary text.**
 /// Not an outline — an outlined "on" state and a filled "off" state read the
 /// same from a foot away, and this row is scanned rather than read.
-struct CardWiseChip: View {
+struct CardAheadChip: View {
     let title: String
     /// Only some chips carry one. A row where every chip has a symbol reads as
     /// a toolbar; one symbol among plain chips reads as the odd one out, which
@@ -211,7 +211,7 @@ struct CardWiseChip: View {
     let isOn: Bool
     /// The colour of the *on* state. Defaults to the brand blue; a category
     /// chip passes its own so the filter and the pin agree.
-    var tint: Color = .cardWiseBlue
+    var tint: Color = .cardAheadBlue
     /// What the *off* state sits on. Over the map this has to be translucent
     /// or the chip row becomes a solid white band across the top of it.
     var ground: ControlGround = .page
@@ -234,7 +234,7 @@ struct CardWiseChip: View {
             .padding(.horizontal, Metric.snug)
             .padding(.vertical, 7)
             .background(isOn ? AnyShapeStyle(tint) : ground.fill, in: Capsule())
-            .shadow(color: Color.cardWiseNavy.opacity(ground.shadowOpacity), radius: 8, y: 3)
+            .shadow(color: Color.cardAheadNavy.opacity(ground.shadowOpacity), radius: 8, y: 3)
             .frame(minHeight: Metric.minimumTarget)
             .contentShape(Rectangle())
         }
@@ -248,15 +248,15 @@ struct CardWiseChip: View {
 /// A small status word. Three tones, and the tone is never the only signal —
 /// each carries its own wording, so somebody who cannot tell the green from
 /// the amber still reads "Active" and "Ends soon".
-struct CardWiseBadge: View {
+struct CardAheadBadge: View {
     enum Tone {
         case neutral, positive, attention
 
         var tint: Color {
             switch self {
-            case .neutral: return .cardWiseBlue
-            case .positive: return .cardWiseSuccess
-            case .attention: return .cardWiseWarning
+            case .neutral: return .cardAheadBlue
+            case .positive: return .cardAheadSuccess
+            case .attention: return .cardAheadWarning
             }
         }
     }
@@ -285,7 +285,7 @@ struct CardWiseBadge: View {
 /// Every empty state in this app names the thing that is missing, says what
 /// will happen once it is not, and — where there is one — carries the way out
 /// as a button rather than telling somebody to go and find it.
-struct CardWiseEmptyState<Action: View>: View {
+struct CardAheadEmptyState<Action: View>: View {
     let symbolName: String
     let title: String
     let message: String
@@ -295,7 +295,7 @@ struct CardWiseEmptyState<Action: View>: View {
         VStack(spacing: Metric.regular) {
             Image(systemName: symbolName)
                 .font(.system(size: 34, weight: .light))
-                .foregroundStyle(Color.cardWiseBlue)
+                .foregroundStyle(Color.cardAheadBlue)
                 .accessibilityHidden(true)
 
             VStack(spacing: Metric.tight) {
@@ -318,7 +318,7 @@ struct CardWiseEmptyState<Action: View>: View {
     }
 }
 
-extension CardWiseEmptyState where Action == EmptyView {
+extension CardAheadEmptyState where Action == EmptyView {
     init(symbolName: String, title: String, message: String) {
         self.init(symbolName: symbolName, title: title, message: message) { EmptyView() }
     }

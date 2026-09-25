@@ -1,6 +1,6 @@
 import Foundation
 
-/// How much the user wants to hear from CardWise.
+/// How much the user wants to hear from CardAhead.
 ///
 /// **Four settings, and every one of them is the same architecture.** The
 /// temptation with a "notification frequency" control is to give each level
@@ -39,7 +39,7 @@ public enum NotificationIntensity: String, Codable, CaseIterable, Sendable, Hash
         case .minimal:
             return "Only when a card is worth a lot more than the rest. About one a day at most."
         case .balanced:
-            return "When CardWise can genuinely help you choose. Up to three a day."
+            return "When CardAhead can genuinely help you choose. Up to three a day."
         case .helpful:
             return "Smaller wins too, and sooner after the last one. Up to five a day."
         case .frequent:

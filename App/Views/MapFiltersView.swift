@@ -25,7 +25,7 @@ struct MapFiltersView: View {
                 Section {
                     Row(
                         symbolName: "square.grid.2x2.fill",
-                        tint: .cardWiseBlue,
+                        tint: .cardAheadBlue,
                         title: "All",
                         isOn: draft.isShowingEverything
                     ) {
@@ -57,7 +57,7 @@ struct MapFiltersView: View {
                                 if draft.distance == distance {
                                     Image(systemName: "checkmark")
                                         .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(Color.cardWiseBlue)
+                                        .foregroundStyle(Color.cardAheadBlue)
                                 }
                             }
                         }
@@ -94,7 +94,7 @@ struct MapFiltersView: View {
                 } label: {
                     Text("Apply filters")
                 }
-                .buttonStyle(.cardWisePrimary)
+                .buttonStyle(.cardAheadPrimary)
                 .padding(.horizontal, Metric.margin)
                 .padding(.vertical, Metric.snug)
                 .background(.bar)
@@ -126,7 +126,7 @@ struct MapFiltersView: View {
                     if isOn {
                         Image(systemName: "checkmark")
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Color.cardWiseBlue)
+                            .foregroundStyle(Color.cardAheadBlue)
                     }
                 }
                 .frame(minHeight: Metric.minimumTarget)

@@ -256,13 +256,13 @@ authentic, exact or genuine.
 |---|---|---|
 | `.licensed` | "Official card artwork" | the grant's attribution line |
 | `.userPhoto` | "Your card photo" | "Your own photo of this card." |
-| `.drawn` | "CardWise representation" | "Drawn by CardWise. Not the bank's artwork — we show that only where we have permission to." |
+| `.drawn` | "CardAhead representation" | "Drawn by CardAhead. Not the bank's artwork — we show that only where we have permission to." |
 
 Do not label artwork official, authentic or exact unless that is true and
 documented. And do not use "partner" language anywhere: there are no issuer
 partnerships.
 
-VoiceOver gets the same distinction — "CardWise representation of Amex Gold"
+VoiceOver gets the same distinction — "CardAhead representation of Amex Gold"
 rather than "Amex Gold card" — because it is otherwise invisible to a screen
 reader.
 

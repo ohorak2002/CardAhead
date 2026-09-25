@@ -1,4 +1,4 @@
-# CardWise audit delivery
+# CardAhead audit delivery
 
 ## Changes delivered
 
@@ -18,9 +18,9 @@ The Places API key is independent of Impact credentials. No privileged backend k
 
 ## Verification and IPA
 
-- [CI build 119](https://github.com/ohorak2002/CardWise/actions/runs/35547710333), app source commit `bf91903`: **506 CardKit tests passed**, iOS simulator build passed, real-device archive/unsigned IPA passed.
-- [Backend authorization CI](https://github.com/ohorak2002/CardWise/actions/runs/35547753843), commit `83b1a90`: PostgreSQL tests passed, including anonymous/ordinary/forged-owner denial, verified owner access, consent, null epoch rejection, duplicate prevention and deletion isolation.
-- Downloaded `artifacts/build-119/CardWise-unsigned.ipa`. Inspected the packaged Info.plist and confirmed the configured Google Places key is present without printing it. The adjacent verification JSON records build, size and SHA-256.
+- [CI build 119](https://github.com/ohorak2002/CardAhead/actions/runs/35547710333), app source commit `bf91903`: **506 CardKit tests passed**, iOS simulator build passed, real-device archive/unsigned IPA passed.
+- [Backend authorization CI](https://github.com/ohorak2002/CardAhead/actions/runs/35547753843), commit `83b1a90`: PostgreSQL tests passed, including anonymous/ordinary/forged-owner denial, verified owner access, consent, null epoch rejection, duplicate prevention and deletion isolation.
+- Downloaded `artifacts/build-119/CardAhead-unsigned.ipa`. Inspected the packaged Info.plist and confirmed the configured Google Places key is present without printing it. The adjacent verification JSON records build, size and SHA-256.
 - Earlier simulator screenshots were reviewed for normal, Dark Mode and largest text Home/Benefits. Latest expanded screenshots and five UI flow tests are still running at handoff; their results are not claimed as passed. Small-device and final visual review remain pending.
 
 ## Remaining limitations

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The CardWise brand palette — chosen alongside the app icon, given as a
+/// The CardAhead brand palette — chosen alongside the app icon, given as a
 /// swatch sheet with named hex values, and wired in here rather than
 /// scattered as `.orange` and `.green` through a dozen views.
 ///
@@ -30,7 +30,7 @@ extension Color {
     /// Success Green. A geofence confirmed, a rotating quarter switched on,
     /// a cap with room left. Replaces the system `.green` these states used
     /// before this palette existed.
-    static let cardWiseSuccess = Color("CardWiseSuccess", bundle: .main)
+    static let cardAheadSuccess = Color("CardAheadSuccess", bundle: .main)
 
     /// Warning Yellow. Reminders off, location blocked, a cap used up, a
     /// quarter not yet activated — anything that wants a glance before it
@@ -38,7 +38,7 @@ extension Color {
     /// before this palette existed; every one of those call sites is now this
     /// colour, so "needs attention" reads the same shade everywhere in the
     /// app rather than whatever iOS calls orange this year.
-    static let cardWiseWarning = Color("CardWiseWarning", bundle: .main)
+    static let cardAheadWarning = Color("CardAheadWarning", bundle: .main)
 
     /// Error Red. Reserved, not yet load-bearing: SwiftUI's own
     /// `role: .destructive` already renders "Remove" and "Clear this list" in
@@ -46,5 +46,5 @@ extension Color {
     /// reds drifting apart. Named here so the day a non-button error surface
     /// exists — a failed save, a corrupted wallet file — it reaches for this
     /// colour instead of a fresh, unrelated `.red`.
-    static let cardWiseError = Color("CardWiseError", bundle: .main)
+    static let cardAheadError = Color("CardAheadError", bundle: .main)
 }

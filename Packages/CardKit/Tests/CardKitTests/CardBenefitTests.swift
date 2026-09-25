@@ -114,7 +114,7 @@ final class CardBenefitTests: XCTestCase {
         let rotating = try XCTUnwrap(
             CardBenefit.benefits(for: CardCatalog.chaseFreedomFlex, asOf: inQ4).first { $0.id == "rotating" }
         )
-        XCTAssertEqual(rotating.detail, "CardWise has not verified this quarter's categories. Check your issuer.")
+        XCTAssertEqual(rotating.detail, "CardAhead has not verified this quarter's categories. Check your issuer.")
         XCTAssertFalse(rotating.isActive)
     }
 

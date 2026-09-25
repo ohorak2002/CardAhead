@@ -126,7 +126,7 @@ private struct DecisionRow: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: Metric.snug) {
                 Image(systemName: record.wasSent ? "bell.badge.fill" : "bell.slash")
-                    .foregroundStyle(record.wasSent ? Color.cardWiseSuccess : Color.secondary)
+                    .foregroundStyle(record.wasSent ? Color.cardAheadSuccess : Color.secondary)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(record.merchantName ?? record.category.placePhrase)
                         .font(.subheadline.weight(.medium))
@@ -144,7 +144,7 @@ private struct DecisionRow: View {
             if let feedback = record.feedback {
                 Label(feedback.displayName, systemImage: "hand.tap")
                     .font(.caption)
-                    .foregroundStyle(Color.cardWiseBlue)
+                    .foregroundStyle(Color.cardAheadBlue)
             }
 
             Text(record.date.formatted(date: .omitted, time: .shortened))

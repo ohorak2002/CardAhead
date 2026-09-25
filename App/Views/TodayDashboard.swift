@@ -122,7 +122,7 @@ private struct TodayRecommendation: View {
         let card = recommendation.best.card
         let face = CardFaceView(card: card, isRecommended: true, photo: wallet.photo(for: card), use: .appDisplay)
             .frame(width: faceWidth, height: faceWidth / 1.586)
-            .shadow(color: Color.cardWiseNavy.opacity(0.22), radius: 8, y: 4)
+            .shadow(color: Color.cardAheadNavy.opacity(0.22), radius: 8, y: 4)
 
         if typeSize.isAccessibilitySize {
             VStack(alignment: .leading, spacing: Metric.snug) {
@@ -207,7 +207,7 @@ struct MonthlyRewardsPanel: View {
                     .tint(InterfacePalette.blue)
                     .accessibilityLabel("Monthly rewards goal")
                     .accessibilityValue("\(Int(min(1, max(0, dollars / goal.doubleValue)) * 100)) percent")
-                Text("Your goal: \(CardWiseFormat.money(goal)) in estimated extra rewards")
+                Text("Your goal: \(CardAheadFormat.money(goal)) in estimated extra rewards")
                     .font(.caption).foregroundStyle(Color.secondary)
             }
             ViewThatFits(in: .horizontal) {
@@ -247,7 +247,7 @@ struct MonthlyGoalView: View {
                     Text("Choose a personal target for rewards above your next best card. This is not a spending target or a promise of earnings.")
                         .font(.caption).foregroundStyle(Color.secondary)
                 }
-                if let failure = organization.failure { Text(failure).foregroundStyle(Color.cardWiseError) }
+                if let failure = organization.failure { Text(failure).foregroundStyle(Color.cardAheadError) }
                 if organization.preferences.monthlyGoalDollars != nil {
                     Button("Remove goal") {
                         if organization.update({ $0.monthlyGoalDollars = nil }) { dismiss() }
